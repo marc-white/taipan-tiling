@@ -16,7 +16,9 @@ This is the initial version of the tiling code for the TAIPAN galaxy survey, to 
 ### Importing
 
 The code can be imported simply into Python by placing the taipan folder in your current working directory or on your Python path, and calling:
+
 `import taipan`
+
 In the test scripts, `taipan.core` is imported as `tp`, and `taipan.tiling` is imported as `tl`.
 
 ### Running the test scripts
