@@ -1964,7 +1964,7 @@ class TaipanTile(object):
 				if isinstance(t, TaipanTarget) 
 				and not t.guide and not t.standard]
 			candidate_targets_return = list(set(
-				candidate_targets_return)+set(removed_candidates))
+				candidate_targets_return) | set(removed_candidates))
 		# Re-blank the removed_targets list
 		removed_targets = []
 
