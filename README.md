@@ -3,6 +3,10 @@
 Original by Marc White
 Copyright 2015, TAIPAN Survey Team (http://www.taipan-survey.org)
 
+## Disclaimer
+
+This code is **BETA**. Use it at your own risk. Please notify (or fork and commit!) if you locate any bugs. Any use of this code must acknowledge the TAIPAN Survey Team.
+
 ## Introduction
 
 This is the initial version of the tiling code for the TAIPAN galaxy survey, to start in 2016. The aim of this code is to investigate the ideal tiling (that is, creation of tiles and assignment of targets to tiles) for a large, multi-fibre spectroscopic survey.
