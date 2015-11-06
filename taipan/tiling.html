@@ -1,0 +1,177 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module tiling</title>
+<meta charset="utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>tiling</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/Users/marc/Documents/taipan/tiling-code/taipan/tiling.py">/Users/marc/Documents/taipan/tiling-code/taipan/tiling.py</a></font></td></tr></table>
+    <p><tt>#&nbsp;Module&nbsp;for&nbsp;creating&nbsp;blank&nbsp;TaipanTiles&nbsp;on&nbsp;a&nbsp;survey</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="math.html">math</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top><a href="random.html">random</a><br>
+</td><td width="25%" valign=top><a href="core.html">core</a><br>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-compute_bounds"><strong>compute_bounds</strong></a>(ra_min, ra_max, dec_min, dec_max)</dt><dd><tt>Compute&nbsp;the&nbsp;bounds&nbsp;for&nbsp;tile&nbsp;generation&nbsp;from&nbsp;user&nbsp;inputs.<br>
+&nbsp;<br>
+This&nbsp;function&nbsp;is&nbsp;a&nbsp;helper&nbsp;for&nbsp;other&nbsp;functions&nbsp;in&nbsp;this&nbsp;module,&nbsp;to&nbsp;allow<br>
+for&nbsp;ranges&nbsp;which&nbsp;span&nbsp;0&nbsp;RA&nbsp;and/or&nbsp;0&nbsp;Dec.&nbsp;It&nbsp;returns&nbsp;the&nbsp;min&nbsp;and&nbsp;max&nbsp;values,<br>
+but&nbsp;modified&nbsp;so&nbsp;they&nbsp;can&nbsp;be&nbsp;directly&nbsp;be&nbsp;used&nbsp;as&nbsp;ranges.&nbsp;This&nbsp;means&nbsp;that<br>
+some&nbsp;values&nbsp;will&nbsp;become&nbsp;negative,&nbsp;so&nbsp;will&nbsp;need&nbsp;to&nbsp;be&nbsp;modified&nbsp;by&nbsp;(x&nbsp;%&nbsp;360.)<br>
+before&nbsp;they&nbsp;can&nbsp;be&nbsp;directly&nbsp;used.<br>
+&nbsp;<br>
+Inputs:<br>
+ra_min,&nbsp;ra_max&nbsp;--&nbsp;Min&nbsp;and&nbsp;max&nbsp;RA&nbsp;values&nbsp;of&nbsp;the&nbsp;region&nbsp;to&nbsp;tile,&nbsp;in&nbsp;decimal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;degrees.&nbsp;To&nbsp;have&nbsp;a&nbsp;range&nbsp;that&nbsp;includes&nbsp;0&nbsp;degrees&nbsp;RA,&nbsp;either&nbsp;specify<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;negative&nbsp;ra_min,&nbsp;or&nbsp;have&nbsp;ra_min&nbsp;&gt;&nbsp;ra_max.&nbsp;Defaults&nbsp;to&nbsp;None.<br>
+dec_min,&nbsp;dec_max&nbsp;--&nbsp;Min&nbsp;and&nbsp;max&nbsp;for&nbsp;declination,&nbsp;in&nbsp;decimal&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;degrees.&nbsp;Because&nbsp;of&nbsp;the&nbsp;way&nbsp;declination&nbsp;works,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dec_min&nbsp;&lt;&nbsp;dec_max&nbsp;by&nbsp;necessity.&nbsp;If&nbsp;this&nbsp;condition&nbsp;is&nbsp;not<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;satisfied,&nbsp;dec_min&nbsp;and&nbsp;dec_max&nbsp;will&nbsp;be&nbsp;flipped&nbsp;to&nbsp;make&nbsp;it&nbsp;so.<br>
+&nbsp;<br>
+Returns:<br>
+ra_min,&nbsp;ra_max,&nbsp;dec_min,&nbsp;dec_max&nbsp;--&nbsp;The&nbsp;limits&nbsp;modified&nbsp;so&nbsp;they&nbsp;can&nbsp;be&nbsp;used<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;standard&nbsp;ranges.</tt></dd></dl>
+ <dl><dt><a name="-generate_SH_tiling"><strong>generate_SH_tiling</strong></a>(tiling_file, randomise_seed<font color="#909090">=True</font>, randomise_pa<font color="#909090">=False</font>)</dt><dd><tt>Generate&nbsp;a&nbsp;list&nbsp;of&nbsp;tiles&nbsp;from&nbsp;a&nbsp;Sloane-Harding&nbsp;tiling&nbsp;list.<br>
+&nbsp;<br>
+Inputs:<br>
+tiling_file&nbsp;--&nbsp;The&nbsp;text&nbsp;file&nbsp;holding&nbsp;the&nbsp;Sloane-Harding&nbsp;tiling.&nbsp;These<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;should&nbsp;be&nbsp;downloaded&nbsp;from&nbsp;<a href="http://neilsloane.com/icosahedral.codes/">http://neilsloane.com/icosahedral.codes/</a>.<br>
+randomise_seed&nbsp;--&nbsp;Boolean&nbsp;value&nbsp;denoting&nbsp;whether&nbsp;to&nbsp;randomise&nbsp;the&nbsp;location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;the&nbsp;'seed'&nbsp;tile,&nbsp;i.e.&nbsp;the&nbsp;tile&nbsp;that&nbsp;would&nbsp;sit&nbsp;at&nbsp;0&nbsp;RA,&nbsp;0&nbsp;Dec&nbsp;in&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;list&nbsp;of&nbsp;Sloane-Harding&nbsp;tiles.&nbsp;Randomises&nbsp;in&nbsp;RA&nbsp;coordinate&nbsp;only.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Defaults&nbsp;to&nbsp;True<br>
+randomise_pa&nbsp;--&nbsp;Boolean&nbsp;value&nbsp;denoting&nbsp;whether&nbsp;to&nbsp;randomise&nbsp;the&nbsp;position<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;angle&nbsp;of&nbsp;the&nbsp;generated&nbsp;tiles.&nbsp;Defaults&nbsp;to&nbsp;False.<br>
+&nbsp;<br>
+&nbsp;<br>
+Returns:<br>
+tile_list&nbsp;--&nbsp;A&nbsp;list&nbsp;of&nbsp;TaipanTiles&nbsp;that&nbsp;have&nbsp;been&nbsp;generated&nbsp;from&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sloane-Harding&nbsp;tiling.</tt></dd></dl>
+ <dl><dt><a name="-generate_random_tile"><strong>generate_random_tile</strong></a>(ra_min<font color="#909090">=0.0</font>, ra_max<font color="#909090">=360.0</font>, dec_min<font color="#909090">=-90.0</font>, dec_max<font color="#909090">=90.0</font>, randomise_pa<font color="#909090">=False</font>)</dt><dd><tt>Generate&nbsp;a&nbsp;randomly-placed&nbsp;TaipanTile&nbsp;within&nbsp;the&nbsp;constraints&nbsp;provided.<br>
+&nbsp;<br>
+Inputs:<br>
+ra_min,&nbsp;ra_max&nbsp;--&nbsp;Min&nbsp;and&nbsp;max&nbsp;RA&nbsp;values&nbsp;of&nbsp;the&nbsp;region&nbsp;to&nbsp;tile,&nbsp;in&nbsp;decimal&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;degrees.&nbsp;To&nbsp;have&nbsp;a&nbsp;range&nbsp;that&nbsp;includes&nbsp;0&nbsp;degrees&nbsp;RA,&nbsp;either&nbsp;specify&nbsp;a&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;negative&nbsp;ra_min,&nbsp;or&nbsp;have&nbsp;ra_min&nbsp;&gt;&nbsp;ra_max.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Defaults&nbsp;to&nbsp;0.0&nbsp;deg&nbsp;and&nbsp;180.0&nbsp;deg,&nbsp;respectively.<br>
+dec_min,&nbsp;dec_max&nbsp;--&nbsp;Min&nbsp;and&nbsp;max&nbsp;for&nbsp;declination,&nbsp;in&nbsp;decimal&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;degrees.&nbsp;Because&nbsp;of&nbsp;the&nbsp;way&nbsp;declination&nbsp;works,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dec_min&nbsp;&lt;&nbsp;dec_max&nbsp;by&nbsp;necessity.&nbsp;If&nbsp;this&nbsp;condition&nbsp;is&nbsp;not<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;satisfied,&nbsp;dec_min&nbsp;and&nbsp;dec_max&nbsp;will&nbsp;be&nbsp;flipped&nbsp;to&nbsp;make&nbsp;it&nbsp;so.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Defaults&nbsp;to&nbsp;-90.&nbsp;and&nbsp;+&nbsp;90.,&nbsp;respectively.<br>
+randomise_pa&nbsp;--&nbsp;Boolean&nbsp;value&nbsp;denoting&nbsp;whether&nbsp;to&nbsp;randomise&nbsp;the&nbsp;position<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;angle&nbsp;of&nbsp;the&nbsp;generated&nbsp;tiles,&nbsp;or&nbsp;use&nbsp;the&nbsp;default&nbsp;PA&nbsp;of&nbsp;0&nbsp;degrees.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Defaults&nbsp;to&nbsp;False.<br>
+&nbsp;<br>
+Returns:<br>
+tile&nbsp;--&nbsp;The&nbsp;generated&nbsp;TaipanTile&nbsp;object.</tt></dd></dl>
+ <dl><dt><a name="-generate_tiling_greedy"><strong>generate_tiling_greedy</strong></a>(candidate_targets, standard_targets, guide_targets, completeness_target<font color="#909090">=1.0</font>, tiling_method<font color="#909090">='SH'</font>, randomise_pa<font color="#909090">=True</font>, tiling_order<font color="#909090">='random'</font>, randomise_SH<font color="#909090">=True</font>, tiling_file<font color="#909090">='ipack.3.8192.txt'</font>, ra_min<font color="#909090">=0.0</font>, ra_max<font color="#909090">=360.0</font>, dec_min<font color="#909090">=-90.0</font>, dec_max<font color="#909090">=90.0</font>, tiling_set_size<font color="#909090">=1000</font>, tile_unpick_method<font color="#909090">='sequential'</font>, combined_weight<font color="#909090">=1.0</font>, sequential_ordering<font color="#909090">=(1, 2)</font>, rank_supplements<font color="#909090">=False</font>, repick_after_complete<font color="#909090">=True</font>)</dt><dd><tt>Generate&nbsp;a&nbsp;complete&nbsp;tiling&nbsp;based&nbsp;on&nbsp;a&nbsp;'greedy'&nbsp;algorithm.<br>
+&nbsp;<br>
+Greedy&nbsp;algorithms&nbsp;are&nbsp;those&nbsp;which&nbsp;completely&nbsp;fill&nbsp;one&nbsp;tile&nbsp;before&nbsp;moving<br>
+on&nbsp;to&nbsp;the&nbsp;next&nbsp;tile&nbsp;in&nbsp;the&nbsp;sequence.&nbsp;This&nbsp;function&nbsp;will&nbsp;create&nbsp;tiles,<br>
+attempt&nbsp;to&nbsp;completely&nbsp;populate&nbsp;them,&nbsp;and&nbsp;repeat&nbsp;until&nbsp;the&nbsp;requested<br>
+completeness_target&nbsp;has&nbsp;been&nbsp;reached.<br>
+&nbsp;<br>
+There&nbsp;are&nbsp;several&nbsp;options&nbsp;available&nbsp;for&nbsp;the&nbsp;generation&nbsp;of&nbsp;tiles:<br>
+'SH'&nbsp;--&nbsp;Sloane-Harding&nbsp;tiling&nbsp;centres.&nbsp;In&nbsp;this&nbsp;method,&nbsp;a&nbsp;full&nbsp;grid&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SH&nbsp;tiles&nbsp;are&nbsp;generated,&nbsp;picked&nbsp;in&nbsp;a&nbsp;greedy&nbsp;fashion,&nbsp;and&nbsp;then<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consolidated.&nbsp;This&nbsp;procedure&nbsp;is&nbsp;repeated&nbsp;until&nbsp;the&nbsp;completeness_target<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;reached.<br>
+'random'&nbsp;--&nbsp;A&nbsp;tile&nbsp;is&nbsp;randomly&nbsp;generated&nbsp;within&nbsp;the&nbsp;specified&nbsp;RA&nbsp;and&nbsp;Dec<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;limits,&nbsp;and&nbsp;then&nbsp;picked.&nbsp;The&nbsp;process&nbsp;is&nbsp;repeated&nbsp;until&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;completeness_target&nbsp;is&nbsp;reached.<br>
+'random-set'&nbsp;--&nbsp;As&nbsp;for&nbsp;'random',&nbsp;but&nbsp;tiling_set_size&nbsp;tiles&nbsp;are&nbsp;generated<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;at&nbsp;once.<br>
+'random-target'&nbsp;--&nbsp;A&nbsp;tile&nbsp;is&nbsp;centred&nbsp;on&nbsp;a&nbsp;randomly-selected&nbsp;remaining<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;science&nbsp;target&nbsp;and&nbsp;is&nbsp;unpicked.&nbsp;Process&nbsp;is&nbsp;repeated&nbsp;until&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;completeness_target&nbsp;is&nbsp;reached.<br>
+'random-target-set'&nbsp;--&nbsp;As&nbsp;for&nbsp;'random-target',&nbsp;but&nbsp;tiling_set_size&nbsp;tiles<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;are&nbsp;generated&nbsp;at&nbsp;once.<br>
+'average'&nbsp;--&nbsp;A&nbsp;tile&nbsp;is&nbsp;generated&nbsp;at&nbsp;the&nbsp;average&nbsp;RA,&nbsp;Dec&nbsp;of&nbsp;the&nbsp;remaining<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;science&nbsp;targets&nbsp;(this&nbsp;is&nbsp;a&nbsp;computationally&nbsp;cheap&nbsp;way&nbsp;of&nbsp;finding&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;location&nbsp;of&nbsp;highest&nbsp;remaining&nbsp;target&nbsp;density).&nbsp;The&nbsp;tile&nbsp;is&nbsp;then<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unpicked.&nbsp;The&nbsp;process&nbsp;repeats&nbsp;until&nbsp;completeness_target&nbsp;is&nbsp;reached,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or&nbsp;until&nbsp;a&nbsp;tile&nbsp;cannot&nbsp;have&nbsp;science&nbsp;targets&nbsp;assigned&nbsp;to&nbsp;it&nbsp;(i.e.&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;average&nbsp;position&nbsp;contains&nbsp;no&nbsp;targets),&nbsp;and&nbsp;which&nbsp;point&nbsp;the&nbsp;tiling_method<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;switched&nbsp;to&nbsp;random_target.<br>
+&nbsp;<br>
+Inputs:<br>
+candidate_targets&nbsp;--&nbsp;The&nbsp;list&nbsp;of&nbsp;TaipanTargets&nbsp;(science)&nbsp;to&nbsp;tile.&nbsp;Each<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target&nbsp;in&nbsp;the&nbsp;list&nbsp;will&nbsp;appear&nbsp;once&nbsp;somewhere&nbsp;in&nbsp;the&nbsp;tiling,&nbsp;unless&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;completeness_target&nbsp;is&nbsp;reached&nbsp;first.<br>
+guide_targets,&nbsp;standard_targets&nbsp;--&nbsp;Guide&nbsp;and&nbsp;standard&nbsp;TaipanTargets&nbsp;to<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assign&nbsp;to&nbsp;the&nbsp;tilings.&nbsp;These&nbsp;may&nbsp;be&nbsp;repeated&nbsp;across&nbsp;tiles.<br>
+completeness_target&nbsp;--&nbsp;A&nbsp;float&nbsp;in&nbsp;the&nbsp;range&nbsp;(0,&nbsp;1]&nbsp;denoting&nbsp;what&nbsp;level&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;completeness&nbsp;is&nbsp;required&nbsp;to&nbsp;be&nbsp;achieved&nbsp;before&nbsp;the&nbsp;tiling&nbsp;can&nbsp;be&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;considered&nbsp;complete.&nbsp;Defaults&nbsp;to&nbsp;1.0&nbsp;(that&nbsp;is,&nbsp;all&nbsp;science&nbsp;targets&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;must&nbsp;be&nbsp;assigned).<br>
+tiling_method&nbsp;--&nbsp;String&nbsp;denoting&nbsp;which&nbsp;tiling&nbsp;method&nbsp;to&nbsp;use&nbsp;(see&nbsp;above).&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Defaults&nbsp;to&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'SH'&nbsp;(Sloane-Harding&nbsp;tile&nbsp;distribution.)<br>
+randomise_pa&nbsp;--&nbsp;Boolean&nbsp;value,&nbsp;denoting&nbsp;whether&nbsp;to&nbsp;randomise&nbsp;the&nbsp;PA&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;generated&nbsp;tiles.&nbsp;Defaults&nbsp;to&nbsp;True.<br>
+tiling_order&nbsp;--&nbsp;String&nbsp;denoting&nbsp;the&nbsp;order&nbsp;in&nbsp;which&nbsp;to&nbsp;attempt&nbsp;to&nbsp;unpick<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tiles.&nbsp;Only&nbsp;has&nbsp;an&nbsp;effect&nbsp;if&nbsp;tiling_method&nbsp;=&nbsp;'SH',&nbsp;'random-set'&nbsp;or<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'random-target-set'.&nbsp;May&nbsp;have&nbsp;one&nbsp;of&nbsp;the&nbsp;following&nbsp;values:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;random&nbsp;-&nbsp;Randomised&nbsp;order<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;density&nbsp;-&nbsp;Tiles&nbsp;with&nbsp;the&nbsp;highest&nbsp;number&nbsp;of&nbsp;candidates&nbsp;will&nbsp;be&nbsp;tiled&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;first.&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;priority&nbsp;-&nbsp;Tiles&nbsp;with&nbsp;the&nbsp;highest&nbsp;cumulative&nbsp;target&nbsp;priority&nbsp;will&nbsp;be<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tiled&nbsp;first.<br>
+randomise_SH&nbsp;--&nbsp;Boolean&nbsp;value&nbsp;denoting&nbsp;whether&nbsp;to&nbsp;randomise&nbsp;the&nbsp;RA&nbsp;position<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;the&nbsp;'seed'&nbsp;tile&nbsp;in&nbsp;the&nbsp;Sloane-Harding&nbsp;tiling.&nbsp;Only&nbsp;has&nbsp;an&nbsp;effect&nbsp;if<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tiling_method='SH'.&nbsp;Defaults&nbsp;to&nbsp;True.<br>
+tiling_file&nbsp;--&nbsp;String&nbsp;containing&nbsp;the&nbsp;filepath&nbsp;to&nbsp;the&nbsp;Sloane-Harding&nbsp;tiling<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to&nbsp;use&nbsp;if&nbsp;tiling_method&nbsp;=&nbsp;'SH'.&nbsp;Defaults&nbsp;to&nbsp;'ipack.3.8192.txt',<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;which&nbsp;is&nbsp;the&nbsp;best-coverage&nbsp;tiling&nbsp;for&nbsp;Taipan-sized&nbsp;tiles.<br>
+ra_min,&nbsp;ra_max,&nbsp;dec_min,&nbsp;dec_max&nbsp;--&nbsp;The&nbsp;min/max&nbsp;values&nbsp;for&nbsp;tile&nbsp;centre&nbsp;RA<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;Dec.&nbsp;Defaults&nbsp;to&nbsp;0.,&nbsp;360.,&nbsp;-90.&nbsp;and&nbsp;90.,&nbsp;respectively.<br>
+tiling_set_size&nbsp;--&nbsp;The&nbsp;number&nbsp;of&nbsp;tiles&nbsp;to&nbsp;generate&nbsp;at&nbsp;a&nbsp;time&nbsp;for&nbsp;the&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;random-set&nbsp;and&nbsp;random-target-set&nbsp;tiling&nbsp;methods.&nbsp;Defaults&nbsp;to&nbsp;1000.<br>
+tile_unpick_method,&nbsp;combined_weight,&nbsp;sequential_ordering,&nbsp;rank_supplements,<br>
+repick_after_complete&nbsp;--&nbsp;Values&nbsp;to&nbsp;pass&nbsp;to&nbsp;the&nbsp;tile's&nbsp;unpick_tile&nbsp;method&nbsp;for<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target&nbsp;assignment.&nbsp;See&nbsp;the&nbsp;documentation&nbsp;for&nbsp;taipan.core&nbsp;for&nbsp;the&nbsp;meaning<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;limits&nbsp;of&nbsp;these&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.<br>
+&nbsp;<br>
+Returns:<br>
+tile_list&nbsp;--&nbsp;The&nbsp;list&nbsp;of&nbsp;TaipanTiles&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;tiling&nbsp;generated.<br>
+completeness&nbsp;--&nbsp;A&nbsp;float&nbsp;in&nbsp;the&nbsp;range&nbsp;[0,&nbsp;1]&nbsp;describing&nbsp;the&nbsp;level&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;completeness&nbsp;achieved,&nbsp;that&nbsp;is,&nbsp;the&nbsp;percentage&nbsp;of&nbsp;targets&nbsp;successfully<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assigned.<br>
+remaining_targets&nbsp;--&nbsp;The&nbsp;list&nbsp;of&nbsp;science&nbsp;TaipanTargets&nbsp;that&nbsp;were&nbsp;not<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assigned&nbsp;during&nbsp;this&nbsp;tiling.</tt></dd></dl>
+ <dl><dt><a name="-tiling_consolidate"><strong>tiling_consolidate</strong></a>(tile_list)</dt><dd><tt>Attempt&nbsp;to&nbsp;consolidate&nbsp;a&nbsp;tiling&nbsp;into&nbsp;as&nbsp;few&nbsp;tiles&nbsp;as&nbsp;possible.<br>
+&nbsp;<br>
+It&nbsp;is&nbsp;conceivable&nbsp;that&nbsp;some&nbsp;tiling&nbsp;algorithms&nbsp;will&nbsp;produce&nbsp;results&nbsp;which<br>
+are&nbsp;sub-optimal&nbsp;in&nbsp;terms&nbsp;of&nbsp;individual&nbsp;tile&nbsp;completeness.&nbsp;This&nbsp;may&nbsp;result<br>
+in&nbsp;a&nbsp;number&nbsp;of&nbsp;tiles&nbsp;with&nbsp;very&nbsp;few&nbsp;science&nbsp;targets&nbsp;which&nbsp;could,&nbsp;in&nbsp;fact,<br>
+be&nbsp;included&nbsp;on&nbsp;other,&nbsp;more&nbsp;populated&nbsp;tiles.&nbsp;This&nbsp;function&nbsp;attempts&nbsp;to&nbsp;<br>
+'consolidate'&nbsp;a&nbsp;tiling&nbsp;by&nbsp;shifting&nbsp;targets&nbsp;off&nbsp;poorly-complete&nbsp;tiles&nbsp;and<br>
+on&nbsp;to&nbsp;more&nbsp;complete&nbsp;ones.<br>
+&nbsp;<br>
+Inputs:<br>
+tile_list&nbsp;--&nbsp;The&nbsp;list&nbsp;of&nbsp;TaipanTile&nbsp;objects&nbsp;that&nbsp;constitute&nbsp;the&nbsp;tiling.<br>
+&nbsp;<br>
+Returns:<br>
+consolidated_list&nbsp;--&nbsp;The&nbsp;list&nbsp;of&nbsp;TaipanTile&nbsp;objects&nbsp;representing&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consolidation&nbsp;of&nbsp;tile_list.&nbsp;consolidated_list&nbsp;will&nbsp;NOT&nbsp;preserve&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ordering&nbsp;in&nbsp;tile_list.</tt></dd></dl>
+</td></tr></table>
+</body></html>
