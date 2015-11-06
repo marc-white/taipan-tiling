@@ -1,6 +1,7 @@
 # TAIPAN tiling code
 
 Original by Marc White
+
 Copyright 2015, TAIPAN Survey Team (http://www.taipan-survey.org)
 
 ## Disclaimer
