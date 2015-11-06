@@ -678,28 +678,9 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
 		# print assigned_targets
 		before_targets_len = len(candidate_targets)
-		# assigned_types = [t.guide or t.standard for t in assigned_targets]
-		# print assigned_types
-		# candidate_targets = [t for t in candidate_targets 
-		# 	if t not in assigned_targets]
-		# candidate_targets = [t for t in candidate_targets
-		# 	if not np.any(t == np.asarray(assigned_targets))]
-		# candidate_targets = list(set(candidate_targets)
-			# - set(assigned_targets))
 		for t in assigned_targets:
 			candidate_targets.pop(candidate_targets.index(t))
-		# targets_overlap = [t for t in candidate_targets if t in assigned_targets]
-		# print len(targets_overlap)
-		# candidate_targets = [t for t in candidate_targets
-		# 	if not t in best_tile._fibres.values()]
-		# for t in assigned_targets:
-		# 	try:
-		# 		candidate_targets.pop(candidate_targets.index(t))
-		# 	except:
-		# 		pass
-		# print 'd : %d (- %d)' % (len(candidate_targets),
-		# 	len(tile_list[-1].get_assigned_targets_science()))
-		# print '(set length: %d)' % len(set(tile_list[-1].get_assigned_targets_science()))
+
 		if len(set(assigned_targets)) != len(assigned_targets):
 			print '### WARNING: target duplication detected'
 		if len(candidate_targets) != before_targets_len - len(assigned_targets):
@@ -711,10 +692,6 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 				len(targets_not_in_cands))
 		if recompute_difficulty:
 			print 'Re-computing target difficulties...'
-			# for at in [t for t in candidate_targets if t.dist_point(
-			# 	(best_ra, best_dec)) < (tp.TILE_RADIUS) + (
-			# 	tp.FIBRE_EXCLUSION_RADIUS)]:
-			# 	at.compute_difficulty(candidate_targets)
 			tp.compute_target_difficulties(tp.targets_in_range(
 				best_ra, best_dec, candidate_targets,
 				tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_RADIUS))
@@ -727,9 +704,6 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 		j = 0
 		print 'Re-picking affected tiles...'
 		# print 'f : %d' % len(candidate_targets)
-		# affected_tiles = [t for t in candidate_tiles 
-		# 	if tp.dist_points(t.ra, t.dec, 
-		# 		best_ra, best_dec) <= 2.0 * tp.TILE_RADIUS]
 		affected_tiles = [t for t in candidate_tiles
 			if np.any(map(lambda x: x in t.get_assigned_targets_science(),
 				assigned_targets))]

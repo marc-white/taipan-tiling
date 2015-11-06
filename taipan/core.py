@@ -3,11 +3,9 @@
 # Global definitions for TAIPAN tiling code
 
 # Created: Marc White, 2015-09-14
-# Last modified: Marc White, 2015-09-14
+# Last modified: Marc White, 2015-11-06
 
-# from astropy.coordinates import SkyCoord1
 import numpy as np
-# import astropy.units as u
 import math
 import operator
 from matplotlib.cbook import flatten
@@ -395,14 +393,7 @@ def generate_ranking_list(candidate_targets,
 		ranking_list = [combined_weight*t.priority 
 			+ float(t.difficulty)/max_excluded_tgts 
 			for t in candidate_targets]
-	# elif method == 'sequential':
-	# 	func_difficult = lambda x: -1 * x.difficulty
-	# 	func_priority = lambda x: -1 * x.priority
-	# 	func_list = [None, func_difficult, func_priority]
-	# 	def func_ordering(x):
-	# 		return tuple([func_list[i](x) for i in sequential_ordering])
-	# 	candidates_this_tile.sort(key=func_ordering)
-	# 	ranking_list = [0 for t in candidates_this_tile]
+
 	return ranking_list
 
 def grab_target_difficulty(target, target_list):
@@ -418,7 +409,7 @@ def grab_target_difficulty(target, target_list):
 	target -- The original target with an updated difficulty.
 	"""
 	target.compute_difficulty(target_list)
-	# return target
+	return target
 
 
 def compute_target_difficulties(target_list, verbose=False,
@@ -438,19 +429,6 @@ def compute_target_difficulties(target_list, verbose=False,
 	"""
 	if len(target_list) == 0:
 		return
-
-	# if len(target_list) > BREAKEVEN_KDTREE:
-	# 	cart_targets = [polar2cart((t.ra, t.dec)) for t in target_list]
-	# 	tree = KDTree(np.asarray(cart_targets))
-	# 	difficulties = tree.query_ball_point(cart_targets,
-	# 		dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
-	# 	difficulties = [len(d) for d in difficulties]
-	# 	for i in range(len(difficulties)):
-	# 		target_list[i].difficulty = difficulties[i]
-	# else:
-	# 	for t in target_list:
-	# 		t.difficultly = len([c for c in target_list
-	# 			if t.dist_point((c.ra, c.dec)) < FIBRE_EXCLUSION_RADIUS])
 
 	if verbose:
 		print 'Generating KDTree with leafsize %d' % leafsize
@@ -494,13 +472,6 @@ def targets_in_range(ra, dec, target_list, dist):
 
 	if len(target_list) == 0:
 		return []
-	
-	# cart_targets = [polar2cart((t.ra, t.dec)) for t in target_list]
-	# tree = KDTree(np.asarray(cart_targets))
-	# targets_i = tree.query_ball_point(polar2cart((ra, dec)),
-	# 	dist_euclidean(dist/3600.))
-	# targets_in_range = [target_list[i] for i in targets_i]
-	# return targets_in_range
 
 	# Turns out this is always faster if just brute-forced
 	targets_in_range = [t for t in target_list
@@ -548,6 +519,8 @@ class TaipanTarget(object):
 	def __str__(self):
 		return self._idn
 
+	# Uncomment to have target equality decided on ID
+	# WARNING - make sure your IDs are unique!
 	# def __eq__(self, other):
 	# 	if isinstance(other, self.__class__):
 	# 		return (self.idn == other.idn) and (self.standard 
@@ -651,13 +624,6 @@ class TaipanTarget(object):
 		dist -- The angular distance between the two points in arcsec.
 		"""
 
-		# SkyCoord implementation - slow
-		# p = SkyCoord(ra, dec, unit=u.deg, frame='icrs')
-		# c = SkyCoord('%f %f' % (self.ra, self.dec, ), unit=u.deg,
-		# 	frame='icrs')
-		# dist = c.separation(p)
-		# return dist.arcsec
-
 		# Arithmetic implementation - fast
 		# Convert all to radians
 		ra = math.radians(ra)
@@ -670,7 +636,6 @@ class TaipanTarget(object):
 
 
 	def dist_point_approx(self, (ra, dec)):
-		# return dist_points_approx(self.ra, ra, self.dec, dec)
 		decfac = np.cos(dec * np.pi / 180.)
 		dra = ra - self.ra
 		if np.abs(dra) > 180.:
@@ -681,7 +646,6 @@ class TaipanTarget(object):
 
 
 	def dist_point_mixed(self, (ra, dec), dec_cut=30.):
-		# return dist_points_mixed(self.ra, ra, self.dec, dec, dec_cut=dec_cut)
 		dec_cut = abs(dec_cut)
 		if abs(dec) <= dec_cut and abs(self.dec) <= dec_cut:
 			dist = self.dist_point_approx((ra, dec))
@@ -753,8 +717,6 @@ class TaipanTarget(object):
 		excluded_tgts -- The subset of tgts that cannot be on the same
 		               tiling as the calling target.
 		"""
-		# excluded_tgts = [t for t in tgts 
-		# 	if self.dist_target(t) < FIBRE_EXCLUSION_RADIUS]
 		excluded_tgts = targets_in_range(self.ra, self.dec, tgts,
 			FIBRE_EXCLUSION_RADIUS)
 		return excluded_tgts
@@ -865,11 +827,6 @@ class TaipanTarget(object):
 			FIBRE_EXCLUSION_RADIUS)) > 0:
 			return True
 		return False
-
-		# min_sep = min([self.dist_target(t) for t in tgts])
-		# if min_sep <= FIBRE_EXCLUSION_RADIUS:
-		# 	return True
-		# return False
 
 
 
@@ -1445,14 +1402,10 @@ class TaipanTile(object):
 		if check_patrol_radius:
 			candidates_this_fibre = [t for t in candidates_this_fibre 
 				if t.dist_point(fibre_posn) < PATROL_RADIUS]
-			# candidates_this_fibre = targets_in_range(self.ra, self.dec,
-			# 	candidates_this_fibre, PATROL_RADIUS)
 		if check_tile_radius:
 			candidates_this_fibre = [t for t in candidates_this_fibre
 				if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
-			# candidates_this_fibre = targets_in_range(self.ra, self.dec,
-			# 	candidates_this_fibre, TILE_RADIUS)
-		# print 'Checking for excluded targets...'
+
 		# Remove targets that are too close to already assigned targets
 		candidates_this_fibre = [t for t in candidates_this_fibre
 			if not t.is_target_forbidden(existing_targets)] 
@@ -1516,22 +1469,6 @@ class TaipanTile(object):
 			tgt = candidates_this_fibre[i]
 			self._fibres[fibre] = candidate_targets_return.pop(
 				candidate_targets_return.index(tgt))
-		# elif method == 'sequential':
-		# 	func_closest = lambda x: x.dist_point(fibre_posn)
-		# 	func_difficult = lambda x: -1. * x.difficulty
-		# 	func_priority = lambda x: -1 * x.priority
-		# 	func_list = [func_closest, func_difficult, func_priority]
-		# 	def func_ordering(x):
-		# 		return tuple([func_list[i](x) for i in sequential_ordering])
-		# 	candidates_this_fibre.sort(key=func_ordering)
-		# 	tgt = candidates_this_fibre[0]
-		# 	self._fibres[fibre] = candidate_targets.pop(
-		# 		candidate_targets.index(tgt))
-
-		# Return the reduced candidate_targets list
-		# print len(candidate_targets)
-
-		# candidate_targets_return = [t for t in candidate_targets if t != tgt]
 
 		# Do checking of the returns list
 		# This should be removed in production
@@ -1542,9 +1479,6 @@ class TaipanTile(object):
 		# Only targets within FIBRE_EXCLUSION_RADIUS of the newly-assigned
 		# target need be computed
 		if recompute_difficulty:
-			# compute_target_difficulties([t for t in candidate_targets_return
-			# 	if t.dist_point((self._fibres[fibre].ra, 
-			# 		self._fibres[fibre].dec)) < FIBRE_EXCLUSION_RADIUS])
 			compute_target_difficulties(targets_in_range(tgt.ra, tgt.dec,
 				candidate_targets_return, FIBRE_EXCLUSION_RADIUS))
 
@@ -1659,34 +1593,6 @@ class TaipanTile(object):
 		# Compute the ranking list for the selection procedure
 		# If the ranking method is sequential, compute the equivalent
 		# combined_weight and change the method to combined_weighted
-		# if method == 'sequential':
-		# 	difficulty_list = [t.difficulty for t in candidates_this_tile]
-		# 	priority_list = [t.priority for t in candidates_this_tile]
-		# 	lists = [None, difficulty_list, priority_list]
-		# 	maxes = [None, max(difficulty_list), max(priority_list)]
-		# 	ranking_list = [maxes[sequential_ordering[1]] * lists[
-		# 		sequential_ordering[0]][i] + lists[
-		# 		sequential_ordering[1]][i] 
-		# 		for i in range(len(difficulty_list))]
-		# elif method == 'most_difficult':
-		# 	ranking_list = [t.difficulty for t in candidates_this_tile]
-		# elif method == 'priority':
-		# 	ranking_list = [t.priority for t in candidates_this_tile]
-		# elif method == 'combined_weighted':
-		# 	max_excluded_tgts = float(max(
-		# 		[t.difficulty for t 
-		# 			in candidates_this_tile])) / float(TARGET_PRIORITY_MAX)
-		# 	ranking_list = [combined_weight*t.priority 
-		# 		+ float(t.difficulty)/max_excluded_tgts 
-		# 		for t in candidates_this_tile]
-		# elif method == 'sequential':
-		# 	func_difficult = lambda x: -1 * x.difficulty
-		# 	func_priority = lambda x: -1 * x.priority
-		# 	func_list = [None, func_difficult, func_priority]
-		# 	def func_ordering(x):
-		# 		return tuple([func_list[i](x) for i in sequential_ordering])
-		# 	candidates_this_tile.sort(key=func_ordering)
-		# 	ranking_list = [0 for t in candidates_this_tile]
 		ranking_list = generate_ranking_list(candidates_this_tile,
 			method=method, combined_weight=combined_weight,
 			sequential_ordering=sequential_ordering)
@@ -1696,12 +1602,8 @@ class TaipanTile(object):
 		while not(candidate_found) and len(candidates_this_tile) > 0:
 			# print 'Identifying best target...'
 			# Search for the best target according to the criterion
-			# if method != 'sequential':
 			i = np.argmax(ranking_list)
 			tgt = candidates_this_tile[i]
-			# elif method == 'sequential':
-			# 	i = 0
-			# 	tgt = candidates_this_tile[0]
 			# Check if this target is forbidden - if so, restart the loop
 			# This is more efficient that computing all forbidden targets
 			# a priori
@@ -1730,18 +1632,11 @@ class TaipanTile(object):
 					fibre_former_tgt = self._fibres[permitted_fibres[0]]
 					self._fibres[permitted_fibres[0]] = candidate_targets_return.pop(
 						candidate_targets_return.index(tgt))
-					# candidate_targets_return = [t for t in candidate_targets
-					# 	if t != tgt]
 					candidate_found = True
 					# print 'Done!'
 					# Update target difficulties if required
 					if recompute_difficulty:
 						fibre = permitted_fibres[0]
-						# compute_target_difficulties([t for 
-						# 	t in candidate_targets_return
-						# 	if t.dist_point((self._fibres[fibre].ra, 
-						# 	self._fibres[fibre].dec)) 
-						# 	< FIBRE_EXCLUSION_RADIUS])
 						compute_target_difficulties(targets_in_range(
 							self._fibres[fibre].ra, self._fibres[fibre].dec,
 							candidate_targets_return, FIBRE_EXCLUSION_RADIUS))
@@ -1753,14 +1648,8 @@ class TaipanTile(object):
 				# If this point has been reached, the best target cannot be
 				# assigned to this tile, so remove it from the
 				# candidates_this_tile list
-				# print 'Candidate not possible!'
 				ranking_list.pop(i)
 				candidates_this_tile.pop(i)
-
-		# if not candidate_found:
-			# If this point has been reached, none of the candidate targets can
-			# be assigned, so return the full candidate_targets list
-			# candidate_targets_return = candidate_targets
 
 		# Do checking of the returns list
 		# This should be removed in production
@@ -1822,8 +1711,6 @@ class TaipanTile(object):
 		if check_tile_radius:
 			guides_this_tile = [g for g in guides_this_tile
 				if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
-			# guides_this_tile = targets_in_range(self.ra, self.dec,
-			# 	guides_this_tile, TILE_RADIUS)
 		if rank_guides:
 			guides_this_tile.sort(key=lambda x: -1 * x.priority)
 
@@ -1876,8 +1763,6 @@ class TaipanTile(object):
 			if check_tile_radius:
 				guides_this_tile = [g for g in guides_this_tile
 					if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
-				# guides_this_tile = targets_in_range(self.ra, self.dec,
-				# 	guides_this_tile, TILE_RADIUS)
 			
 			# For the available guides, calculate the total weight of the
 			# targets which may be blocking the assignment of that guide by ways
@@ -2075,20 +1960,11 @@ class TaipanTile(object):
 
 		# Return the removed targets to the master candidates lists
 		if consider_removed_targets:
-			# candidates_this_tile += [t for t in removed_targets
-			# 	if isinstance(t, TaipanTarget) and not t.guide and not t.standard
-			# 	and not t in candidates_this_tile]
 			removed_candidates = [t for t in removed_targets
 				if isinstance(t, TaipanTarget) 
 				and not t.guide and not t.standard]
 			candidate_targets_return = list(set(
 				candidate_targets_return)+set(removed_candidates))
-			# standard_targets += [t for t in removed_targets
-			# 	if isinstance(t, TaipanTarget) 
-			# 	and t.standard and not t in standard_targets]
-			# guide_targets += [t for t in removed_targets
-			# 	if isinstance(t, TaipanTarget) 
-			# 	and t.guide and not t in guide_targets]
 		# Re-blank the removed_targets list
 		removed_targets = []
 
@@ -2099,12 +1975,6 @@ class TaipanTile(object):
 		standards_this_tile = standard_targets[:]
 		guides_this_tile = guide_targets[:]
 		if check_tile_radius:
-			# candidates_this_tile = [t for t in candidates_this_tile
-			# 	if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
-			# standards_this_tile = [t for t in standards_this_tile
-			# 	if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
-			# guides_this_tile = [t for t in guides_this_tile
-			# 	if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
 			candidates_this_tile = targets_in_range(self.ra, self.dec,
 				candidates_this_tile, TILE_RADIUS)
 			standards_this_tile = targets_in_range(self.ra, self.dec,
@@ -2165,13 +2035,6 @@ class TaipanTile(object):
 					# Assign the target and 'pop' it from the input list
 					# Target comes from either the input list, or from the
 					# removed targets list we generated earlier
-					# try:
-					# 	self._fibres[
-					# 	permitted_fibres[0]] = candidate_targets.pop(
-					# 		candidate_targets.index(tgt))
-					# except:
-					# 	self._fibres[permitted_fibres[0]] = removed_targets.pop(
-					# 		removed_targets.index(tgt))
 					tgt = candidates_this_tile.pop(i)
 					burn = ranking_list.pop(i)
 					self._fibres[permitted_fibres[0]] = candidate_targets_return.pop(
@@ -2205,45 +2068,6 @@ class TaipanTile(object):
 		standards_this_tile += [t for t in removed_for_guides 
 			if isinstance(t, TaipanTarget) and t.standard
 			and not t in standards_this_tile]
-
-		# # Attempt to assign guide stars to this tile
-		# assigned_guides = len([t for t in self._fibres 
-		# 	if isinstance(t, TaipanTarget)
-		# 	and t.guide])
-		# while assigned_guides < GUIDES_PER_TILE and len(guides_this_tile) > 0:
-
-		# 	guide = guides_this_tile[0]
-		# 	if guide.is_target_forbidden(self.get_assigned_targets()):
-		# 		guides_this_tile.pop(0)
-		# 		continue
-
-		# 	# Identify the closest fibre to this target
-		# 	# print 'Finding available fibres...'
-		# 	fibre_dists = {fibre: guide.dist_point(fibre_posns[fibre])
-		# 		for fibre in fibre_posns}
-		# 	permitted_fibres = sorted([fibre for fibre in fibre_dists
-		# 		if fibre_dists[fibre] < PATROL_RADIUS],
-		# 		key=lambda x: fibre_dists[x])
-
-		# 	# Attempt to make assignment
-		# 	candidate_found = False
-		# 	while not(candidate_found) and len(permitted_fibres) > 0:
-		# 		# print 'Looking to add to fiber...'
-		# 		if self._fibres[permitted_fibres[0]] is None:
-		# 			# Assign the target and 'pop' it from the input list
-		# 			self._fibres[permitted_fibres[0]] = guides_this_tile.pop(0)
-		# 			candidate_found = True
-		# 			assigned_guides += 1
-		# 			# print 'Done!'
-		# 		else:
-		# 			permitted_fibres.pop(0)
-
-		# 	if not(candidate_found):
-		# 		# If this point has been reached, the best target cannot be
-		# 		# assigned to this tile, so remove it from the
-		# 		# candidates_this_tile list
-		# 		# print 'Candidate not possible!'
-		# 		guides_this_tile.pop(0)
 
 		# Attempt to assign standards to this tile
 		# print 'Assigning standards...'
@@ -2295,33 +2119,6 @@ class TaipanTile(object):
 		# to this plate
 		assigned_objs = self.get_assigned_targets()
 
-		# if assigned_guides < GUIDES_PER_TILE_MIN:
-		# 	# print 'Having to strip targets for guides...'
-		# 	guides_this_tile = [t for t in guide_targets 
-		# 		if t not in assigned_objs]
-		# 	if check_tile_radius:
-		# 		guides_this_tile = [t for t in guides_this_tile
-		# 			if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
-		# 	if rank_supplements:
-		# 		guides_this_tile.sort(key=lambda x: -1 * x.priority)
-		# 	failure_detected = False
-		# 	while (assigned_guides < GUIDES_PER_TILE_MIN) and (not 
-		# 			failure_detected):
-		# 		guides_avail = len(guides_this_tile)
-		# 		guides_this_tile, removed = self.assign_tile(
-		# 			guides_this_tile,
-		# 			check_tile_radius=check_tile_radius,
-		# 			method='priority',
-		# 			overwrite_existing=True)
-		# 		if len(guides_this_tile) != guides_avail:
-		# 			assigned_guides += 1
-		# 		else:
-		# 			failure_detected = True
-		# 			# print 'Failure detected!'
-		# 		if removed is not None:
-		# 			removed_targets.append(removed)
-		# 		# print removed_targets
-
 		if assigned_standards < STANDARDS_PER_TILE_MIN:
 			# print 'Having to strip targets for standards...'
 			standards_this_tile = [t for t in standard_targets
@@ -2367,18 +2164,9 @@ class TaipanTile(object):
 			# print 'Looking to assign targets to remaining empty fibres...'
 			# Reconstruct the targets_this_tile list
 			candidates_this_tile = candidate_targets_return[:]
-			# candidates_this_tile = [t for t in candidates_this_tile
-			# 	if not t in self.get_assigned_targets()]
 			if check_tile_radius:
 				candidates_this_tile = [t for t in candidates_this_tile
 					if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
-				# candidates_this_tile = targets_in_range(self.ra, self.dec,
-				# 	candidates_this_tile, TILE_RADIUS)
-			# print removed_targets
-			# candidates_this_tile = list(set(candidates_this_tile + 
-			# 	[t for t in removed_targets
-			# 	if isinstance(t, TaipanTarget)
-			# 	and not t.guide and not t.standard]))
 
 			failure_detected = False
 			while len([f for f in self._fibres 
@@ -2391,8 +2179,6 @@ class TaipanTile(object):
 					method=method, combined_weight=combined_weight,
 					sequential_ordering=sequential_ordering)
 				# Overwrite is False, so removed_target will always be None
-				# if removed_target is not None:
-				# 	removed_targets.append(removed_target)
 				if len(candidates_this_tile) == len(candidates_before):
 					failure_detected = True
 					# print 'Failure detected!'
@@ -2408,29 +2194,6 @@ class TaipanTile(object):
 			# print 'Repicking...'
 			self.repick_tile()
 
-		# if len(self.get_assigned_targets()) != len(
-		# 	set(self.get_assigned_targets())):
-		# 	raise RuntimeError('Target duplication detected in unpick_tile!')
-
-		# Compute the remaining candidate_targets
-		# print 'Computing remaining candidates...'
-		# candidate_targets_return = [t for t in candidate_targets
-		# 	if not t in self.get_assigned_targets()]
-		# if consider_removed_targets:
-		# 	candidate_targets_return += [t for t in candidates_this_tile 
-		# 		if not t in self.get_assigned_targets()
-		# 		and not t in candidate_targets_return]
-		# # print 'Computing removed_targets...'
-		# removed_targets = [t for t in removed_targets
-		# 	if not t in candidate_targets_return]
-		# if len(candidate_targets) - len(
-		# 	candidate_targets_return) != len(
-		# 	self.get_assigned_targets_science()):
-		# 	print '### WARNING - unpick_tile has mangled the target list'
-		# if len(removed_targets) > 0:
-		# 	print '### UNPICK WARNING: removed_targets not empty'
-		# print 'Done!'
-
 		# Update difficulties if requested
 		if recompute_difficulty:
 			# print 'Recomputing difficulty...'
@@ -2438,18 +2201,9 @@ class TaipanTile(object):
 			# exclusion radius
 			# May calculate if change not strictly required, but no mucking
 			# around working out which targets need an update
-			# compute_target_difficulties([t for t in candidate_targets
-			# 	if t.dist_point((self.ra, self.dec)) < (TILE_RADIUS + 
-			# 		FIBRE_EXCLUSION_RADIUS)])
-			# Won't calculate difficulty if not totally necessary, but there's
-			# an overhead associated with computing which targets need an update
-			# assigned_targets_sci = [t for t 
-			# 	in self.get_assigned_targets_science()]
 			compute_target_difficulties([t for t in candidate_targets_return
 				if np.any(np.asarray([t.dist_point((at.ra, at.dec)) 
 					for at in assigned_targets_sci]) < FIBRE_EXCLUSION_RADIUS)])
-			# compute_target_difficulties(targets_in_range(self.ra, self.dec,
-			# 	candidate_targets_return, FIBRE_EXCLUSION_RADIUS+TILE_RADIUS))
 
 		return candidate_targets_return, removed_targets
 
