@@ -25,14 +25,14 @@ except NameError:
 	print 'Generating targets...'
 	all_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
 		priority=random.randint(1,8)) for r in tabdata #]
-		if r[1] > 40 and r[1] < 50 and r[2] > -34 and r[2] < -26]
+		if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
 	guide_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
 		priority=random.randint(1,8), guide=True) for r in guidedata #]
-		if r[1] > 40 and r[1] < 50 and r[2] > -34 and r[2] < -26]
+		if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
 	standard_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
 		priority=random.randint(1,8), standard=True) for r in
 	standdata #]
-		if r[1] > 40 and r[1] < 50 and r[2] > -34 and r[2] < -26]
+		if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
 	print 'Computing target difficulties...'
 	no_targets = len(all_targets)
 	tp.compute_target_difficulties(all_targets)
@@ -58,7 +58,7 @@ random.shuffle(candidate_targets)
 tiling_method = 'SH'
 tiling_set_size = 100
 alloc_method = 'most_difficult'
-ranking_method = 'completeness'
+ranking_method = 'priority-sum'
 combined_weight = 3.0
 sequential_ordering = (1,2)
 completeness_target = 0.975
@@ -71,7 +71,7 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_greedy(
 	ranking_method=ranking_method,
 	tiling_method=tiling_method, randomise_pa=True, 
 	tiling_set_size=tiling_set_size,
-	ra_min=40., ra_max=53., dec_min=-36., dec_max=-26.,
+	ra_min=30., ra_max=53., dec_min=-36., dec_max=-26.,
 	randomise_SH=True, tiling_file='ipack.3.8192.txt',
 	tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
 	combined_weight=combined_weight,

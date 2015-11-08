@@ -1472,8 +1472,8 @@ class TaipanTile(object):
 
         # Do checking of the returns list
         # This should be removed in production
-        if len(candidate_targets) - len(candidate_targets_return) != 1:
-            print '### WARNING - assign_fibre has mangled the target list'
+        # if len(candidate_targets) - len(candidate_targets_return) != 1:
+        #     print '### WARNING - assign_fibre has mangled the target list'
 
         # Recompute target difficulties if requested
         # Only targets within FIBRE_EXCLUSION_RADIUS of the newly-assigned
