@@ -31,17 +31,23 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
     some values will become negative, so will need to be modified by (x % 360.)
     before they can be directly used.
 
-    Inputs:
-    ra_min, ra_max -- Min and max RA values of the region to tile, in decimal
+    Parameters
+    ----------
+    ra_min, ra_max : 
+        Min and max RA values of the region to tile, in decimal
         degrees. To have a range that includes 0 degrees RA, either specify
         a negative ra_min, or have ra_min > ra_max. Defaults to None.
-    dec_min, dec_max -- Min and max for declination, in decimal 
+        
+    dec_min, dec_max : 
+        Min and max for declination, in decimal 
         degrees. Because of the way declination works,
         dec_min < dec_max by necessity. If this condition is not
         satisfied, dec_min and dec_max will be flipped to make it so.
 
-    Returns:
-    ra_min, ra_max, dec_min, dec_max -- The limits modified so they can be used
+    Returns
+    -------
+    ra_min, ra_max, dec_min, dec_max : 
+        The limits modified so they can be used
         as standard ranges.
     """
 
@@ -70,14 +76,22 @@ def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max,
     """
     Check if the tile is within the specified bounds.
 
-    Inputs:
-    tile -- The TaipanTile instance to check.
-    ra_min, ra_max, dec_min, dec_max -- The bounds to check.
-    compute_bounds -- Boolean value, denoting whether to use the convert_bounds
+    Parameters
+    ----------
+    tile : 
+        The TaipanTile instance to check.
+        
+    ra_min, ra_max, dec_min, dec_max : 
+        The bounds to check.
+        
+    compute_bounds : 
+        Boolean value, denoting whether to use the convert_bounds
         function to ensure the bounds are in standard format. Defaults to True.
 
-    Returns:
-    within_bounds -- Boolean value denoting whether the tile centre is within
+    Returns
+    -------
+    within_bounds : 
+        Boolean value denoting whether the tile centre is within
         the bounds (True) or not (False).
     """
     if compute_bounds_forcoords:
@@ -105,22 +119,30 @@ def generate_random_tile(ra_min=0.0, ra_max=360.0,
     """
     Generate a randomly-placed TaipanTile within the constraints provided.
 
-    Inputs:
-    ra_min, ra_max -- Min and max RA values of the region to tile, in decimal 
+    Parameters
+    ----------
+    ra_min, ra_max : 
+        Min and max RA values of the region to tile, in decimal 
         degrees. To have a range that includes 0 degrees RA, either specify a 
         negative ra_min, or have ra_min > ra_max.
         Defaults to 0.0 deg and 180.0 deg, respectively.
-    dec_min, dec_max -- Min and max for declination, in decimal 
+        
+    dec_min, dec_max : 
+        Min and max for declination, in decimal 
         degrees. Because of the way declination works,
         dec_min < dec_max by necessity. If this condition is not
         satisfied, dec_min and dec_max will be flipped to make it so.
         Defaults to -90. and + 90., respectively.
-    randomise_pa -- Boolean value denoting whether to randomise the position
+        
+    randomise_pa : 
+        Boolean value denoting whether to randomise the position
         angle of the generated tiles, or use the default PA of 0 degrees.
         Defaults to False.
 
-    Returns:
-    tile -- The generated TaipanTile object.
+    Returns
+    -------
+    tile : 
+        The generated TaipanTile object.
     """
 
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max, 
@@ -141,19 +163,27 @@ def generate_SH_tiling(tiling_file, randomise_seed=True, randomise_pa=False):
     """
     Generate a list of tiles from a Sloane-Harding tiling list.
 
-    Inputs:
-    tiling_file -- The text file holding the Sloane-Harding tiling. These
+    Parameters
+    ----------
+    tiling_file : 
+        The text file holding the Sloane-Harding tiling. These
         should be downloaded from http://neilsloane.com/icosahedral.codes/.
-    randomise_seed -- Boolean value denoting whether to randomise the location
+        
+    randomise_seed : 
+        Boolean value denoting whether to randomise the location
         of the 'seed' tile, i.e. the tile that would sit at 0 RA, 0 Dec in the
         list of Sloane-Harding tiles. Randomises in RA coordinate only.
         Defaults to True
-    randomise_pa -- Boolean value denoting whether to randomise the position
+        
+    randomise_pa : 
+        Boolean value denoting whether to randomise the position
         angle of the generated tiles. Defaults to False.
 
 
-    Returns:
-    tile_list -- A list of TaipanTiles that have been generated from the
+    Returns
+    -------
+    tile_list : 
+        A list of TaipanTiles that have been generated from the
         Sloane-Harding tiling.
     """
 
@@ -204,11 +234,15 @@ def tiling_consolidate(tile_list):
     'consolidate' a tiling by shifting targets off poorly-complete tiles and
     on to more complete ones.
 
-    Inputs:
-    tile_list -- The list of TaipanTile objects that constitute the tiling.
+    Parameters
+    ----------
+    tile_list : 
+        The list of TaipanTile objects that constitute the tiling.
 
-    Returns:
-    consolidated_list -- The list of TaipanTile objects representing the
+    Returns
+    -------
+    consolidated_list : 
+        The list of TaipanTile objects representing the
         consolidation of tile_list. consolidated_list will NOT preserve the
         ordering in tile_list.
     """
@@ -293,71 +327,107 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
     completeness_target has been reached.
 
     There are several options available for the generation of tiles:
+    
     'SH' -- Sloane-Harding tiling centres. In this method, a full grid of
-        SH tiles are generated, picked in a greedy fashion, and then
-        consolidated. This procedure is repeated until the completeness_target
-        is reached.
+    SH tiles are generated, picked in a greedy fashion, and then
+    consolidated. This procedure is repeated until the completeness_target
+    is reached.
+        
     'random' -- A tile is randomly generated within the specified RA and Dec
-        limits, and then picked. The process is repeated until the
-        completeness_target is reached.
+    limits, and then picked. The process is repeated until the
+    completeness_target is reached.
+        
     'random-set' -- As for 'random', but tiling_set_size tiles are generated
-        at once.
+    at once.
+        
     'random-target' -- A tile is centred on a randomly-selected remaining
-        science target and is unpicked. Process is repeated until the
-        completeness_target is reached.
+    science target and is unpicked. Process is repeated until the
+    completeness_target is reached.
+        
     'random-target-set' -- As for 'random-target', but tiling_set_size tiles
-        are generated at once.
+    are generated at once.
+        
     'average' -- A tile is generated at the average RA, Dec of the remaining
-        science targets (this is a computationally cheap way of finding the
-        location of highest remaining target density). The tile is then
-        unpicked. The process repeats until completeness_target is reached,
-        or until a tile cannot have science targets assigned to it (i.e. the
-        average position contains no targets), and which point the tiling_method
-        is switched to random_target.
+    science targets (this is a computationally cheap way of finding the
+    location of highest remaining target density). The tile is then
+    unpicked. The process repeats until completeness_target is reached,
+    or until a tile cannot have science targets assigned to it (i.e. the
+    average position contains no targets), and which point the tiling_method
+    is switched to random_target.
 
-    Inputs:
-    candidate_targets -- The list of TaipanTargets (science) to tile. Each
+    Parameters
+    ----------
+    candidate_targets : 
+        The list of TaipanTargets (science) to tile. Each
         target in the list will appear once somewhere in the tiling, unless the
         completeness_target is reached first.
-    guide_targets, standard_targets -- Guide and standard TaipanTargets to
+        
+    guide_targets, standard_targets : 
+        Guide and standard TaipanTargets to
         assign to the tilings. These may be repeated across tiles.
-    completeness_target -- A float in the range (0, 1] denoting what level of
+        
+    completeness_target : 
+        A float in the range (0, 1] denoting what level of
         completeness is required to be achieved before the tiling can be 
         considered complete. Defaults to 1.0 (that is, all science targets 
         must be assigned).
-    tiling_method -- String denoting which tiling method to use (see above). 
+        
+    tiling_method : 
+        String denoting which tiling method to use (see above). 
         Defaults to 'SH' (Sloane-Harding tile distribution.)
-    randomise_pa -- Boolean value, denoting whether to randomise the PA of the
+        
+    randomise_pa : 
+        Boolean value, denoting whether to randomise the PA of the
         generated tiles. Defaults to True.
-    tiling_order -- String denoting the order in which to attempt to unpick
+        
+    tiling_order : 
+        String denoting the order in which to attempt to unpick
         tiles. Only has an effect if tiling_method = 'SH', 'random-set' or
         'random-target-set'. May have one of the following values:
+        
         random - Randomised order
         density - Tiles with the highest number of candidates will be tiled 
-            first. 
+        first. 
+        
         priority - Tiles with the highest cumulative target priority will be
-            tiled first.
-    randomise_SH -- Boolean value denoting whether to randomise the RA position
+        tiled first.
+            
+    randomise_SH : 
+        Boolean value denoting whether to randomise the RA position
         of the 'seed' tile in the Sloane-Harding tiling. Only has an effect if
         tiling_method='SH'. Defaults to True.
-    tiling_file -- String containing the filepath to the Sloane-Harding tiling
+        
+    tiling_file : 
+        String containing the filepath to the Sloane-Harding tiling
         to use if tiling_method = 'SH'. Defaults to 'ipack.3.8192.txt',
         which is the best-coverage tiling for Taipan-sized tiles.
-    ra_min, ra_max, dec_min, dec_max -- The min/max values for tile centre RA
+        
+    ra_min, ra_max, dec_min, dec_max : 
+        The min/max values for tile centre RA
         and Dec. Defaults to 0., 360., -90. and 90., respectively.
-    tiling_set_size -- The number of tiles to generate at a time for the 
+        
+    tiling_set_size : 
+        The number of tiles to generate at a time for the 
         random-set and random-target-set tiling methods. Defaults to 1000.
+        
     tile_unpick_method, combined_weight, sequential_ordering, rank_supplements,
-    repick_after_complete -- Values to pass to the tile's unpick_tile method for
+    repick_after_complete : 
+        Values to pass to the tile's unpick_tile method for
         target assignment. See the documentation for taipan.core for the meaning
         and limits of these values.
 
-    Returns:
-    tile_list -- The list of TaipanTiles corresponding to the tiling generated.
-    completeness -- A float in the range [0, 1] describing the level of
+    Returns
+    -------
+    tile_list : 
+        The list of TaipanTiles corresponding to the tiling generated.
+        
+    completeness : 
+        A float in the range [0, 1] describing the level of
         completeness achieved, that is, the percentage of targets successfully
         assigned.
-    remaining_targets -- The list of science TaipanTargets that were not
+        
+    remaining_targets : 
+        The list of science TaipanTargets that were not
         assigned during this tiling.
     """
 
@@ -520,54 +590,90 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     Generate a tiling based on the greedy algorithm.
 
     The greedy algorithm works as follows:
+    
     - Generate a set of tiles covering the area of interest.
     - Unpick each tile, allowing for target duplication between tiles.
     - Select the 'best' tile from this set, and add it to the resultant
-        tiling.
+      tiling.
     - Replace the removed tile, then re-unpick the tiles in the set which are
-        affected by the removal of the tile;
+      affected by the removal of the tile;
     - Repeat until no useful tiles remain, or the completeness target is
-        reached.
+      reached.
 
-    Inputs:
-    candidate_targets, standard_targets, guide_targets -- The lists of science,
+
+    Parameters
+    ----------
+    candidate_targets, standard_targets, guide_targets : 
+        The lists of science,
         standard and guide targets to consider, respectively. Should be lists
         of TaipanTarget objects.
-    completeness_target -- A float in the range (0, 1] denoting the science
+        
+    completeness_target : 
+        A float in the range (0, 1] denoting the science
         target completeness to stop at. Defaults to 1.0 (full completeness).
-    ranking_method -- The scheme to use for ranking the tiles. See the
+        
+    ranking_method : 
+        The scheme to use for ranking the tiles. See the
         documentation for TaipanTile.calculate_tile_score for details.
-    tiling_method -- The method by which to generate a tiling set. Currently,
+        
+    tiling_method : 
+        The method by which to generate a tiling set. Currently,
         only 'SH' (Sloane-Harding tiling centres) are available.
-    randomise_pa -- Optional Boolean, denoting whether to randomise the pa of
+        
+    randomise_pa : 
+        Optional Boolean, denoting whether to randomise the pa of
         seed tiles or not. Defaults to True.
-    randomise_SH -- Optional Boolean, denoting whether or not to randomise the
+        
+    randomise_SH : 
+        Optional Boolean, denoting whether or not to randomise the
         RA of the 'seed' of the SH tiling. Defaults to True.
-    tiling_file -- The SH tiling file to use for generating tiling centres.
+        
+    tiling_file : 
+        The SH tiling file to use for generating tiling centres.
         Defaults to 'ipack.3.8192.txt'.
-    ra_min, ra_max, dec_min, dec_max -- The RA and Dec bounds of the region to
+        
+    ra_min, ra_max, dec_min, dec_max : 
+        The RA and Dec bounds of the region to
         be considered, in decimal degrees. To have an RA range spanning across 
         0 deg RA, either use a negative value for ra_min, or give an ra_min >
         ra_max.
-    tiling_set_size -- Not relevant at the current time.
-    tile_unpick_method -- The scheme to be used for unpicking tiles. Defaults to
+        
+    tiling_set_size : 
+        Not relevant at the current time.
+        
+    tile_unpick_method : 
+        The scheme to be used for unpicking tiles. Defaults to
         'sequential'. See the documentation for TaipanTile.unpick_tile for 
         details.
-    combined_weight, sequential_ordering -- Additional arguments to be used in
+        
+    combined_weight, sequential_ordering : 
+        Additional arguments to be used in
         the tile unpicking process. See the documentation for 
         TaipanTile.unpick_tile for details.
-    rank_supplements -- Optional Boolean value, denoting whether to attempt to
+        
+    rank_supplements : 
+        Optional Boolean value, denoting whether to attempt to
         assign guides/standards in priority order. Defaults to False.
-    repick_after_complete -- Boolean value, denoting whether to repick each tile
+        
+    repick_after_complete : 
+        Boolean value, denoting whether to repick each tile
         after unpicking. Defaults to True.
-    recompute_difficulty -- Boolean value, denoting whether to recompute target
+        
+    recompute_difficulty : 
+        Boolean value, denoting whether to recompute target
         difficulties after a tile is moved to the results lsit. Defaults to
         True.
 
-    Returns:
-    tile_list -- The list of tiles making up the tiling.
-    final_completeness -- The target completeness achieved.
-    candidate_targets -- Any targets from candidate_targets that do not
+    Returns
+    -------
+    tile_list : 
+        The list of tiles making up the tiling.
+        
+    final_completeness : 
+        The target completeness achieved.
+        
+    candidate_targets : 
+        Any targets from candidate_targets that do not
         appear in the final tiling_list (i.e. were not assigned to a successful
         tile).
     """

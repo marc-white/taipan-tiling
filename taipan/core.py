@@ -262,6 +262,11 @@ def aitoff_plottable((ra, dec), ra_offset=0.0):
     """
     Convert coordinates to those compatible with matplotlib
     aitoff projection 
+    
+    Parameters
+    ----------
+    (ra,dec): float
+        Right Ascension and Declination in degrees.
     """
     ra = (ra + ra_offset) % 360. - 180.
     return (math.radians(ra), math.radians(dec))
@@ -319,14 +324,20 @@ def compute_offset_posn(ra, dec, dist, pa):
     from that position, and a position angle from that position.
     Based on http://williams.best.vwh.net/avform.htm .
 
-    Inputs:
-    ra, dec -- The initial position in decimal degrees.
-    dist -- The distance to the new point in arcseconds.
-    pa -- The position angle from the original position to the
+    Parameters
+    ----------
+    ra, dec: float
+        The initial position in decimal degrees.
+    dist: float
+        The distance to the new point in arcseconds.
+    pa: float
+        The position angle from the original position to the
         new position in decimal degrees.
 
-    Returns:
-    ra_new, dec_new -- The new coordinates in decimal degrees.
+    Returns
+    -------
+    ra_new, dec_new : 
+        The new coordinates in decimal degrees.
     """
     # This calculation is done in radians, so need to convert
     # the necessary inputs to that
@@ -351,18 +362,24 @@ def generate_ranking_list(candidate_targets,
     """
     Generate a ranking list for target assignment.
 
-    Inputs:
-    candidate_targets -- The list of TaipanTargets to rank.
-    method -- The ranking method. These methods are as for 
-        TaipanTile.assign_tile and TaipanTile.unpick_tile -- see the 
+    Parameters
+    ----------
+    candidate_targets : :class:`TaipanTarget` list
+        The list of TaipanTargets to rank.
+    method : string
+        The ranking method. These methods are as for 
+        :meth:`TaipanTile.assign_tile` and :meth:`TaipanTile.unpick_tile` -- see the 
         documentation for those functions for details. Defaults to 'priority'.
-    combined_weight, sequential_ordering -- Extra parameters for the
+    combined_weight, sequential_ordering : 
+        Extra parameters for the
         'combined_weighted' and 'sequential' ranking options. See docs for
         assign_tile/unpick_tile for details. Defaults to 1.0 and (1,2)
         respectively.
 
-    Returns:
-    ranking_list: A list of ints/floats describing the ranking of the
+    Returns
+    -------
+    ranking_list: 
+        A list of ints/floats describing the ranking of the
         candidate_targets. The largest values corresponds to the
         most highly-ranked target. The positions in the list correspond to the
         positions of targets in candidate_targets.
@@ -400,13 +417,18 @@ def grab_target_difficulty(target, target_list):
     """
     External means of computing the difficulty of a TaipanTarget.
 
-    Inputs:
-    target -- The target of interest.
-    target_list -- The list of targets with which to compare. Although not
+    Parameters
+    ----------
+    target : :class:`TaipanTarget`
+        The target of interest.
+    target_list : :class:`TaipanTarget` list
+        The list of targets with which to compare. Although not
         enforced, it should contain target.
 
-    Returns:
-    target -- The original target with an updated difficulty.
+    Returns
+    -------
+    target : :class:`TaipanTarget`
+        The original target with an updated difficulty.
     """
     target.compute_difficulty(target_list)
     return target
@@ -422,10 +444,14 @@ def compute_target_difficulties(target_list, verbose=False,
     of the target of interest. Note that the target itself will be included
     in this number; therefore, the minimum value of difficulty will be 1.
 
-    Inputs:
-    target_list -- The list of TaipanTargets to compute the difficulty for.
+    Parameters
+    ----------
+    target_list :
+        The list of TaipanTargets to compute the difficulty for.
 
-    Returns: Nil. TaipanTargets updated in-place.
+    Returns
+    ------- 
+        Nil. TaipanTargets updated in-place.
     """
     if len(target_list) == 0:
         return
@@ -459,14 +485,20 @@ def targets_in_range(ra, dec, target_list, dist):
     Computes the subset of targets within range of the given (ra, dec)
     coordinates.
 
-    Inputs:
-    ra, dec -- The RA and Dec of the position to be investigated, in decimal
+    Parameters
+    ----------
+    ra, dec :
+        The RA and Dec of the position to be investigated, in decimal
         degrees.
-    target_list -- The list of TaipanTarget objects to consider.
-    dist -- The distance to test against, in *arcseconds*. 
+    target_list :
+        The list of TaipanTarget objects to consider.
+    dist :
+        The distance to test against, in *arcseconds*. 
 
-    Returns:
-    targets_in_range -- The list of input targets which are within dist of
+    Returns
+    -------
+    targets_in_range :
+        The list of input targets which are within dist of
         (ra, dec).
     """
 
@@ -617,11 +649,15 @@ class TaipanTarget(object):
         """
         Compute the distance between this target and a given position
 
-        Inputs:
-        ra, dec -- The sky position to test. Should be in decimal degrees.
+        Parameters
+        ----------
+        ra, dec :
+            The sky position to test. Should be in decimal degrees.
 
-        Returns:
-        dist -- The angular distance between the two points in arcsec.
+        Returns
+        -------
+        dist :
+            The angular distance between the two points in arcsec.
         """
 
         # Arithmetic implementation - fast
@@ -658,11 +694,15 @@ class TaipanTarget(object):
         """
         Compute the distance between this target and another target.
 
-        Inputs:
-        tgt -- The target to check against
+        Parameters
+        ----------
+        tgt :
+            The target to check against
 
-        Returns:
-        dist -- The angular distance between the two points in arcsec.
+        Returns
+        -------
+        dist :
+            The angular distance between the two points in arcsec.
         """
 
         return self.dist_point((tgt.ra, tgt.dec))
@@ -672,11 +712,15 @@ class TaipanTarget(object):
         """
         Compute the APPROX distance between this target and another target.
 
-        Inputs:
-        tgt -- The target to check against
+        Parameters
+        ----------
+        tgt : 
+        The target to check against
 
-        Returns:
-        dist -- The angular distance between the two points in arcsec.
+        Returns
+        -------    
+        dist : 
+        The angular distance between the two points in arcsec.
         """
 
         return self.dist_point_approx((tgt.ra, tgt.dec))
@@ -686,11 +730,15 @@ class TaipanTarget(object):
         """
         Compute the mixed distance between this target and another target.
 
-        Inputs:
-        tgt -- The target to check against
+        Parameters
+        ----------    
+        tgt : 
+            The target to check against
 
-        Returns:
-        dist -- The angular distance between the two points in arcsec.
+        Returns
+        -------    
+        dist : 
+            The angular distance between the two points in arcsec.
         """
 
         return self.dist_point_mixed((tgt.ra, tgt.dec), dec_cut=dec_cut)
@@ -704,17 +752,24 @@ class TaipanTarget(object):
         tile. Note that, if the calling target is in the target list,
         it will appear in the returned list of forbidden targets.
 
-        Inputs:
-        tgts -- The list of TaipanTargets to test against
-        approx -- Boolean value, denoting whether to calculate distances using
+        Parameters
+        ----------    
+        tgts : 
+            The list of TaipanTargets to test against
+        approx : 
+            Boolean value, denoting whether to calculate distances using
             the approximate method. Defaults to False.
-        mixed -- Boolean value, denoting whether to calculate distances using
+        mixed : 
+            Boolean value, denoting whether to calculate distances using
             the mixed method (approx if dec < dec_cut, full otherwise). Defaults
             to False.
-        dec_cut -- (Absolute) declination value to use for mixed method.
+        dec_cut : 
+            (Absolute) declination value to use for mixed method.
 
-        Returns:
-        excluded_tgts -- The subset of tgts that cannot be on the same
+        Returns
+        -------    
+        excluded_tgts : 
+            The subset of tgts that cannot be on the same
                        tiling as the calling target.
         """
         excluded_tgts = targets_in_range(self.ra, self.dec, tgts,
@@ -728,16 +783,22 @@ class TaipanTarget(object):
         This will *under*estimate difficulty (by overestimating distance),
         especially near the poles.
 
-        Inputs:
-        tgts -- The list of TaipanTargets to test against
-        approx -- Boolean value, denoting whether to calculate distances using
+        Parameters
+        ----------    
+        tgts : 
+            The list of TaipanTargets to test against
+        approx : 
+            Boolean value, denoting whether to calculate distances using
             the approximate method. Defaults to False.
-        mixed -- Boolean value, denoting whether to calculate distances using
+        mixed : 
+            Boolean value, denoting whether to calculate distances using
             the mixed method (approx if dec < dec_cut, full otherwise). Defaults
             to False.
 
-        Returns:
-        excluded_tgts -- The subset of tgts that cannot be on the same
+        Returns
+        -------    
+        excluded_tgts : 
+            The subset of tgts that cannot be on the same
                        tiling as the calling target.
         """
         excluded_tgts = [t for t in tgts 
@@ -750,17 +811,24 @@ class TaipanTarget(object):
         """
         As for excluded_targets, but using the mixed distance calculation.
 
-        Inputs:
-        tgts -- The list of TaipanTargets to test against
-        approx -- Boolean value, denoting whether to calculate distances using
+        Parameters
+        ----------    
+        tgts : 
+            The list of TaipanTargets to test against
+        approx : 
+            Boolean value, denoting whether to calculate distances using
             the approximate method. Defaults to False.
-        mixed -- Boolean value, denoting whether to calculate distances using
+        mixed : 
+            Boolean value, denoting whether to calculate distances using
             the mixed method (approx if dec < dec_cut, full otherwise). Defaults
             to False.
-        dec_cut -- (Absolute) declination value to use for mixed method.
+        dec_cut : 
+            (Absolute) declination value to use for mixed method.
 
-        Returns:
-        excluded_tgts -- The subset of tgts that cannot be on the same
+        Returns
+        -------    
+        excluded_tgts : 
+            The subset of tgts that cannot be on the same
                        tiling as the calling target.
         """
         excluded_tgts = [t for t in tgts 
@@ -777,16 +845,23 @@ class TaipanTarget(object):
         FIBRE_EXCLUSION_RADIUS of the calling target. This means that this
         function will need to be invoked every time the comparison list changes.
 
-        Inputs: 
-        tgts -- List of targets to compare to.
-        approx -- Boolean value, denoting whether to calculate distances using
+        Parameters
+        ----------     
+        tgts :
+            List of targets to compare to.
+        approx : bool
+            Boolean value, denoting whether to calculate distances using
             the approximate method. Defaults to False.
-        mixed -- Boolean value, denoting whether to calculate distances using
+        mixed : bool
+            Boolean value, denoting whether to calculate distances using
             the mixed method (approx if dec < dec_cut, full otherwise). Defaults
             to False.
-        dec_cut -- (Absolute) declination value to use for mixed method.
+        dec_cut :
+            (Absolute) declination value to use for mixed method.
 
-        Returns: Nil. Target's difficulty parameter is updated in place. Note
+        Returns
+        -------     
+            Nil. Target's difficulty parameter is updated in place. Note
             that if the calling target is also within tgts, it will count
             towards the computed difficulty.
         """
@@ -814,11 +889,15 @@ class TaipanTarget(object):
         """
         Test against a list of other targets to see if this target is forbidden.
 
-        Inputs:
-        tgts -- The list of targets to test against.
+        Parameters
+        ----------    
+        tgts :
+            The list of targets to test against.
 
-        Returns:
-        forbidden -- Boolean value.
+        Returns
+        -------    
+        forbidden :
+            Boolean value.
         """
         if len(tgts) == 0:
             return False
@@ -914,12 +993,16 @@ class TaipanTile(object):
         Un-assign any targets appearing in assigned_objects that are
         attached to a fibre in this tile.
 
-        Inputs:
-        assigned_targets -- A list or set of already-assigned
+        Parameters
+        ----------    
+        assigned_targets :
+            A list or set of already-assigned
             TaipanTargets.
 
-        Returns:
-        removed_targets -- A list of TaipanTargets that have been removed
+        Returns
+        -------    
+        removed_targets :
+            A list of TaipanTargets that have been removed
             from this tile.
         """
 
@@ -937,11 +1020,15 @@ class TaipanTile(object):
         """
         Un-assign a fibre.
 
-        Inputs:
-        fibre -- The fibre to un-assign.
+        Parameters
+        ----------    
+        fibre :
+            The fibre to un-assign.
 
-        Returns:
-        removed_target -- The TaipanTarget/string removed from the fibre. If the
+        Returns
+        -------    
+        removed_target :
+            The TaipanTarget/string removed from the fibre. If the
             fibre was already empty, None is returned.
         """
         removed_target = self._fibres[fibre]
@@ -954,11 +1041,15 @@ class TaipanTile(object):
         """
         Compute a fibre position.
 
-        Inputs:
-        fibre -- The fibre to compute the position of.
+        Parameters
+        ----------    
+        fibre :
+            The fibre to compute the position of.
 
-        Returns:
-        ra, dec -- The position of the fibre on the sky.
+        Returns
+        -------    
+        ra, dec : float
+            The position of the fibre on the sky.
         """
         fibre = int(fibre)
         if fibre not in BUGPOS_MM:
@@ -975,13 +1066,17 @@ class TaipanTile(object):
         """
         Return a list of all TaipanTargets currently assigned to this tile.
 
-        Inputs:
-        return_dict -- Boolean value denoting whether to return the result as
+        Parameters
+        ----------    
+        return_dict : bool
+            Boolean value denoting whether to return the result as
             a dictionary with keys corresponding to fibre number (True), or
             a simple list of targets (False). Defaults to False.
 
-        Returns:
-        assigned_targets -- The list of TaipanTargets currently assigned to
+        Returns
+        -------    
+        assigned_targets :
+            The list of TaipanTargets currently assigned to
             this tile.
         """
         assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
@@ -995,13 +1090,17 @@ class TaipanTile(object):
         """
         Return a list of science TaipanTargets currently assigned to this tile.
 
-        Inputs:
-        return_dict -- Boolean value denoting whether to return the result as
+        Parameters
+        ----------    
+        return_dict :
+            Boolean value denoting whether to return the result as
             a dictionary with keys corresponding to fibre number (True), or
             a simple list of targets (False). Defaults to False.
 
-        Returns:
-        assigned_targets -- The list of science TaipanTargets currently assigned
+        Returns
+        -------    
+        assigned_targets :
+            The list of science TaipanTargets currently assigned
             to this tile.
         """
         assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
@@ -1017,10 +1116,13 @@ class TaipanTile(object):
         """
         Count the number of science targets assigned to this tile.
 
-        Inputs: Nil.
+        Parameters
+        ----------    
 
-        Returns:
-        no_assigned_targets -- The number of science targets assigned to this
+        Returns
+        -------    
+        no_assigned_targets :
+            The number of science targets assigned to this
             tile.
         """
         no_assigned_targets = len(self.get_assigned_targets_science())
@@ -1031,13 +1133,17 @@ class TaipanTile(object):
         """
         Return a list of standard TaipanTargets currently assigned to this tile.
 
-        Inputs:
-        return_dict -- Boolean value denoting whether to return the result as
+        Parameters
+        ----------    
+        return_dict : bool
+            Boolean value denoting whether to return the result as
             a dictionary with keys corresponding to fibre number (True), or
             a simple list of targets (False). Defaults to False.
 
-        Returns:
-        assigned_targets -- The list of standard TaipanTargets currently 
+        Returns
+        -------    
+        assigned_targets :
+            The list of standard TaipanTargets currently 
             assigned to this tile.
         """
         assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
@@ -1053,10 +1159,13 @@ class TaipanTile(object):
         """
         Count the number of standard targets assigned to this tile.
 
-        Inputs: Nil.
+        Parameters
+        ----------     
 
-        Returns:
-        no_assigned_targets -- The number of standard targets assigned to this
+        Returns
+        -------    
+        no_assigned_targets :
+            The number of standard targets assigned to this
             tile.
         """
         no_assigned_targets = len(self.get_assigned_targets_standard())
@@ -1067,13 +1176,17 @@ class TaipanTile(object):
         """
         Return a list of guide TaipanTargets currently assigned to this tile.
 
-        Inputs:
-        return_dict -- Boolean value denoting whether to return the result as
+        Parameters
+        ----------    
+        return_dict : bool
+            Boolean value denoting whether to return the result as
             a dictionary with keys corresponding to fibre number (True), or
             a simple list of targets (False). Defaults to False.
 
-        Returns:
-        assigned_targets -- The list of guide TaipanTargets currently 
+        Returns
+        -------    
+        assigned_targets :
+            The list of guide TaipanTargets currently 
             assigned to this tile.
         """
         assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
@@ -1089,10 +1202,13 @@ class TaipanTile(object):
         """
         Count the number of guide targets assigned to this tile.
 
-        Inputs: Nil.
+        Parameters
+        ----------     
 
-        Returns:
-        no_assigned_targets -- The number of guide targets assigned to this
+        Returns
+        -------    
+        no_assigned_targets :
+            The number of guide targets assigned to this
             tile.
         """
         no_assigned_targets = len(self.get_assigned_targets_guide())
@@ -1103,10 +1219,13 @@ class TaipanTile(object):
         """
         Count the number of assigned fibres on this tile.
 
-        Inputs: Nil.
+        Parameters
+        ----------     
 
-        Returns:
-        assigned_fibres -- The integer number of empty fibres.
+        Returns
+        -------    
+        assigned_fibres :
+            The integer number of empty fibres.
         """
         assigned_fibres = len([f for f in self._fibres.values()
             if f is not None])
@@ -1117,10 +1236,13 @@ class TaipanTile(object):
         """
         Count the number of empty fibres on this tile.
 
-        Inputs: Nil.
+        Parameters
+        ----------     
 
-        Returns:
-        empty_fibres -- The integer number of empty fibres.
+        Returns
+        -------    
+        empty_fibres :
+            The integer number of empty fibres.
         """
         empty_fibres = len([f for f in self._fibres if f is None])
         return empty_fibres
@@ -1130,10 +1252,13 @@ class TaipanTile(object):
         """
         Get the fibre numbers that have been assigned a target/sky.
 
-        Inputs: Nil.
+        Parameters
+        ----------     
 
-        Returns:
-        assigned_fibres_list -- The list of fibre identifiers (integers) which
+        Returns
+        -------    
+        assigned_fibres_list :
+            The list of fibre identifiers (integers) which
             have a target/sky assigned.
         """
         assigned_fibres_list = [f for f in self._fibres if f is not None]
@@ -1148,11 +1273,15 @@ class TaipanTile(object):
         because they would violate the FIBRE_EXCLUSION_RADIUS of targets
         already assigned.
 
-        Inputs:
-        tgts -- List of targets to check against.
+        Parameters
+        ----------    
+        tgts :
+            List of targets to check against.
 
-        Returns:
-        excluded_targets -- A subset of tgts, composed of targets which may
+        Returns
+        -------    
+        excluded_targets :
+            A subset of tgts, composed of targets which may
             not be assigned to this tile.
         """
         excluded_tgts = list(set([t.excluded_targets(tgts) 
@@ -1165,11 +1294,15 @@ class TaipanTile(object):
 
         This function does not perform any exclusion checking.
 
-        Inputs:
-        tgts -- List of targets to check against.
+        Parameters
+        ----------    
+        tgts :
+            List of targets to check against.
 
-        Returns:
-        available_targets -- A subset of tgts, composed of targets which are
+        Returns
+        -------    
+        available_targets :
+            A subset of tgts, composed of targets which are
             within the radius of this tile.
         """
         # available_targets = [t for t in tgts
@@ -1189,29 +1322,44 @@ class TaipanTile(object):
         of the calling tile according to the passed method. 
 
         Available ranking methods are as follows:
+        
         'completeness' -- Simple number of assigned science targets within the
-            tile.
+        tile.
+        
         'difficulty-sum' -- The cumulative difficulty of the assigned targets.
+        
         'difficulty-prod' -- The difficulty product of assigned targets.
+        
         'priority-sum' -- The cumulative priority of the assigned targets.
+        
         'priority-prod' -- The priority product of the assigned targets.
+        
         'combined-weighted-sum' -- The sum of a combined weight of difficulty
-            and priority, as given by the combined_weight variable.
+        and priority, as given by the combined_weight variable.
+        
         'combined-weighted-prod' -- The product of a combined weight of
-            difficulty and priority.
+        difficulty and priority.
 
-        Inputs:
-        method -- String denoting the ranking method to be used. See above for
+        Parameters
+        ----------    
+        method :
+            String denoting the ranking method to be used. See above for
             details. Defaults to 'completeness'.
-        combined_weight -- Optional float denoting the combined weighting
+            
+        combined_weight :
+            Optional float denoting the combined weighting
             to be use for combined-weighted-sum/prod. Defaults to 1.0.
-        disqualify_below_min -- Optional Boolean value denoting whether to
+            
+        disqualify_below_min :
+            Optional Boolean value denoting whether to
             rank tiles with a nubmer of guides below GUIDES_PER_TILE_MIN or
             a number of standards below STANDARDS_PER_TILE_MIN a score of
             0. Defaults to True.
 
-        Returns:
-        ranking_score -- The ranking score of this tile. Will always return
+        Returns
+        -------    
+        ranking_score :
+            The ranking score of this tile. Will always return
             a float, even if the ranking could be expressed as an integer. A
             higher score denotes a better-ranked tile.
         """
@@ -1270,11 +1418,15 @@ class TaipanTile(object):
         """
         Explicitly assign a TaipanTarget to a fibre on this tile.
 
-        Inputs:
-        fibre -- The fibre to assign to.
-        tgt -- The TaipanTarget, or None, to assign to this fibre.
+        Parameters
+        ----------    
+        fibre :
+            The fibre to assign to.
+        tgt :
+            The TaipanTarget, or None, to assign to this fibre.
 
-        Returns: Nil.
+        Returns
+        -------     
         """
         fibre = int(fibre)
         if fibre not in BUGPOS_OFFSET:
@@ -1305,64 +1457,93 @@ class TaipanTile(object):
         the fibre will have been reset to be empty.
 
         The methods are as follows:
-        closest - Assign the target closest to the bug rest position.
-        most_diffucult - Assign the target within the patrol radius
-            that has the most other targets within its exclusion radius 
-            (FIBRE_EXCLUSION_RADIUS).
-        priority - Assign the highest-priority target within the patrol
-            radius.
-        combined_weighted - Prioritise targets within the patrol radius
-            based on a weighted combination of most_diffucult and
-            priority. Uses the combined_weight keyword (see below)
-            as the weighting.
-        sequential - Prioritise targets for this fibre based on closest,
-            most_difficult and priority in the order given by
-            sequential_ordering variable (see below).
+        
+        *closest* - Assign the target closest to the bug rest position.
+        
+        *most_diffucult* - Assign the target within the patrol radius
+        that has the most other targets within its exclusion radius 
+        (FIBRE_EXCLUSION_RADIUS).
+        
+        *priority* - Assign the highest-priority target within the patrol
+        radius.
+        
+        *combined_weighted* - Prioritise targets within the patrol radius
+        based on a weighted combination of most_diffucult and
+        priority. Uses the combined_weight keyword (see below)
+        as the weighting.
+        
+        *sequential* - Prioritise targets for this fibre based on closest,
+        most_difficult and priority in the order given by
+        sequential_ordering variable (see below).
 
-        Inputs:
-        fibre -- The ID of the fibre to be assigned.
-        candidate_targets -- A list of potential TaipanTargets to assign.
-        check_tile_radius -- Boolean denoting whether the
+        Parameters
+        ----------    
+        fibre :
+            The ID of the fibre to be assigned.
+            
+        candidate_targets :
+            A list of potential TaipanTargets to assign.
+            
+        check_tile_radius :
+            Boolean denoting whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the tile.
             Defaults to True.
-        check_patrol_radius -- Boolean denoting whether the
+            
+        check_patrol_radius :
+            Boolean denoting whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the patrol radius of this fibre.
             Defaults to True.
-        check_tile_radius -- Boolean denoting whether the
+            
+        check_tile_radius :
+            Boolean denoting whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the tile. Defaults to True.
-        recompute_difficulty -- Boolean denoting whether to recompute the
+            
+        recompute_difficulty :
+        
+            Boolean denoting whether to recompute the
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
             function (targets affected are within FIBRE_EXCLUSION_RADIUS +
             TILE_RADIUS of the tile centre; targets for assignment are
             only within TILE_RADIUS). Defaults to True.
-        method -- The method to be used. Must be one of the methods
+        method :
+            The method to be used. Must be one of the methods
             specified above.
-        order_closest_secondary -- A Boolean value describing if candidate
+            
+        order_closest_secondary :
+            A Boolean value describing if candidate
             targets should be ordered by distance from the fibre rest position
             as a secondary consideration. Has no effect if method='closest'.
             Defaults to True.
-        combined_weight -- A float > 0 describing how to weight between
+            
+        combined_weight : float
+            A float > 0 describing how to weight between
             difficulty and priority. A value of 1.0 (default) weights
             equally. Values below 1.0 preference difficultly; values
             above 1.0 preference priority. Weighting is linear (e.g.
             a value of 2.0 will cause priority to be weighted twice as
             heavily as difficulty).
-        sequential_ordering -- A three-tuple or length-3 list determining
+            
+        sequential_ordering :
+            A three-tuple or length-3 list determining
             in which order to sequence potential targets. It must
             contain the integers 0, 1 and 2, which correspond to the
             position of closest (0), most_difficult (1) and priority (2)
             in the ordering sequence. Defaults to (0, 1, 2).
 
-        Returns:
-        remaining_targets -- The list of candidate_targets, with the newly-
+        Returns
+        -------    
+        remaining_targets :
+            The list of candidate_targets, with the newly-
             assigned target removed. If the assignment is unsuccessful, 
             the entire candidate_targets list is returned.
-        fibre_former_tgt -- The target that was removed from this fibre
+            
+        fibre_former_tgt :
+            The target that was removed from this fibre
             during the allocation process. Returns None if no object was on
             this fibre originally.
         """
@@ -1501,54 +1682,74 @@ class TaipanTile(object):
         automatically excluding forbidden targets.
 
         There are four defined methods for choosing targets:
-        most_difficult - Attempt to assign the targets in order of descending
-            difficulty, where difficulty is defined as the number of targets
-            within FIBRE_EXCLUSION_RADIUS of the target considered.
-            NOTE: Difficulty is computed based on the entire candidate_targets
-            list, not just those targets within the tile radius.
-        priority - Attempt to assign targets in order of priority. This is the
-            default.
-        combined_weighted - Attempt to assign targets based on a weighted
-            combination of difficulty and priority, as determined by the
-            factor combined_weight (see below).
-        sequential - Attempt to assign targets in order of priority and
-            difficulty, based on the ordering given in sequential_ordering 
-            (see below).
+        
+        *most_difficult* - Attempt to assign the targets in order of descending
+        difficulty, where difficulty is defined as the number of targets
+        within FIBRE_EXCLUSION_RADIUS of the target considered.
+        NOTE: Difficulty is computed based on the entire candidate_targets
+        list, not just those targets within the tile radius.
+            
+        *priority* - Attempt to assign targets in order of priority. This is the
+        default.
+            
+        *combined_weighted* - Attempt to assign targets based on a weighted
+        combination of difficulty and priority, as determined by the
+        factor combined_weight (see below).
+        
+        *sequential* - Attempt to assign targets in order of priority and
+        difficulty, based on the ordering given in sequential_ordering 
+        (see below).
 
-        Inputs:
-        candidate_targets -- A list of TaipanTargets objects to consider
-            assigning to this tile.
-        check_tile_radius -- Boolean denoting whether the
+        Parameters
+        ----------    
+        candidate_targets : :class:`TaipanTarget` list
+            Objects to consider assigning to this tile.
+        check_tile_radius : bool
+            Boolean denoting whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the tile. Defaults to True.
-        recompute_difficulty -- Boolean denoting whether to recompute the
+            
+        recompute_difficulty : bool:
+            Boolean denoting whether to recompute the
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
             function (targets affected are within FIBRE_EXCLUSION_RADIUS +
             TILE_RADIUS of the tile centre; targets for assignment are
             only within TILE_RADIUS). Defaults to True.
-        method -- The method to use to choose the target to assign (see above).
-        combined_weight -- A float > 0 describing how to weight between
+            
+        method : string
+            The method to use to choose the target to assign (see above).
+            
+        combined_weight : float
+            A float > 0 describing how to weight between
             difficulty and priority. A value of 1.0 (default) weights
             equally. Values below 1.0 preference difficultly; values
             above 1.0 preference priority. Weighting is linear (e.g.
             a value of 2.0 will cause priority to be weighted twice as
             heavily as difficulty).
-        sequential_ordering -- A two-tuple or length-2 list determining
+            
+        sequential_ordering :
+            A two-tuple or length-2 list determining
             in which order to sequence potential targets. It must
             contain the integers 1 and 2, which correspond to the
             position of most_difficult (1) and priority (2)
             in the ordering sequence. Defaults to (1, 2).
-        overwrite_existing -- A Boolean value, denoting whether to overwrite an
+            
+        overwrite_existing :
+            A Boolean value, denoting whether to overwrite an
             existing target allocation if the best fibre for the chosen target
             already has a target assigned. Defaults to False.
 
-        Returns:
-        candidate_targets -- The list of candidate_targets originally passed, 
+        Returns
+        -------    
+        candidate_targets :
+            The list of candidate_targets originally passed, 
             less the target which has been assigned. If no target is assigned,
             the output matches the input.
-        tile_former_tgt -- The target that may have been removed from the tile
+            
+        tile_former_tgt :
+            The target that may have been removed from the tile
             during this procedure. Returns None if this did not occur.
         """
         TILE_ALLOC_METHODS = [
@@ -1677,25 +1878,37 @@ class TaipanTile(object):
         other fibres are no longer within FIBRE_EXCLUSION_RADIUS of the guide
         we wish to assign.
 
-        Inputs:
-        guide_targets -- The list of candidate guides for assignment.
-        target_method -- The method that should be used to determine the
+        Parameters
+        ----------    
+        guide_targets :
+            The list of candidate guides for assignment.
+            
+        target_method :
+            The method that should be used to determine the
             lowest-priority target to remove to allow for an extra guide
             star assignment to be made. Values for this input are as for
             the 'method' option in assign_tile/unpick_tile. Defaults to
             'priority'.
-        combined_weight, sequential_ordering -- Additional control options
+            
+        combined_weight, sequential_ordering :
+            Additional control options
             for the specified target_method. See docs for assign_tile/
             unpick_tile for description. Defaults to 1.0 and (1,2)
             respectively.
-        check_tile_radius -- Boolean value, denoting whether to reduce the
+            
+        check_tile_radius :
+            Boolean value, denoting whether to reduce the
             guide_targets list to only those targets within the tile radius.
             Defaults to True.
-        rank_guides -- Attempt to assign guides in priority order. This allows
+            
+        rank_guides :
+            Attempt to assign guides in priority order. This allows
             for 'better' guides to be specified. Defaults to False.
 
-        Returns:
-        removed_targets -- A list of TaipanTargets that have been removed to
+        Returns
+        -------    
+        removed_targets :
+            A list of TaipanTargets that have been removed to
             make way for guide fibres. If no targets are removed, the empty
             list is returned. Targets are *not* separated by type (science or
             standard).
@@ -1864,60 +2077,86 @@ class TaipanTile(object):
 
         Target assignment methods are as for assign_tile.
 
-        Inputs:
-        candidate_targets -- A list of TaipanTarget objects to consider
+        Parameters
+        ----------    
+        candidate_targets :  :class:`TaipanTarget` list
+            Objects to consider
             assigning to this tile. These are the science targets.
-        standard_targets, guide_targets -- Lists of TaipanTarget objects
+            
+        standard_targets, guide_targets : :class:`TaipanTarget` list
+            Objects
             to consider assigning to this tile as standards and guides
             respectively. Standards, guides and sky fibres are assigned after
             science targets.
-        overwrite_existing -- Boolean, denoting whether to remove all existing
+            
+        overwrite_existing : bool
+            Boolean, denoting whether to remove all existing
             fibre assignments on this tile before attempting to unpick. Defaults
             to False.
-        check_tile_radius -- Boolean denoting whether the
+            
+        check_tile_radius : bool
+            Boolean denoting whether the
             input target lists need to be trimmed down such that
             all targets are within the tile. Defaults to True.
-        recompute_difficulty -- Boolean denoting whether to recompute the
+            
+        recompute_difficulty : bool
+            Boolean denoting whether to recompute the
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
             function (targets affected are within FIBRE_EXCLUSION_RADIUS +
             TILE_RADIUS of the tile centre; targets for assignment are
             only within TILE_RADIUS). Defaults to True.
-        method -- The method to use to choose science targets to assign. See the
+            
+        method : string
+            The method to use to choose science targets to assign. See the
             documentation for assign_tile for an explanation of the available
             methods.
-        combined_weight -- A float > 0 describing how to weight between
+            
+        combined_weight : float
+            A float > 0 describing how to weight between
             difficulty and priority. A value of 1.0 (default) weights
             equally. Values below 1.0 preference difficultly; values
             above 1.0 preference priority. Weighting is linear (e.g.
             a value of 2.0 will cause priority to be weighted twice as
             heavily as difficulty).
-        sequential_ordering -- A two-tuple or length-2 list determining
+            
+        sequential_ordering :
+            A two-tuple or length-2 list determining
             in which order to sequence potential targets. It must
             contain the integers 1 and 2, which correspond to the
             position of most_difficult (1) and priority (2)
             in the ordering sequence. Defaults to (1, 2).
-        rank_supplements -- Boolean value, denoting whether for rank the lists
+            
+        rank_supplements : bool 
+            Boolean value, denoting whether for rank the lists
             of standards and guides by their priority. This allows for the
             preferential selection of 'better' guides and standards, if this
             information is encapsulated in their stored priority values.
             Defaults to False.
-        repick_after_complete -- Boolean value denoting whether to invoke this
-             tile's repick_tile function once unpicking is complete. Defaults to
-             True.
-        consider_removed_targets -- Optional Boolean value denoting whether to
+            
+        repick_after_complete : bool 
+            value denoting whether to invoke this
+            tile's repick_tile function once unpicking is complete. Defaults to
+            True.
+            
+        consider_removed_targets : bool, optional        
+            Boolean value denoting whether to
             place targets removed (due to having overwrite_existing=True) back
             into the candidate_targets list. Defaults to True.
 
-        Returns:
-        remaining_targets -- The list of candidate_targets, less those targets
+        Returns
+        -------    
+        remaining_targets :
+            The list of candidate_targets, less those targets
             which have been assigned to this tile.
             Updated copies of standard_targets and guide_targets are NOT
             returned, as repeating these objects in other tiles is not an issue.
             Any science targets that are removed from the tile and not
             re-assigned will also be appended to this list.
-        removed_targets -- Deprecated - will now always be the empty list. A
+            
+        removed_targets :
+            Deprecated - will now always be the empty list. A
             warning will be printed if this list somehow becomes non-empty.
         """
 
@@ -2222,9 +2461,11 @@ class TaipanTile(object):
 
         Note that guide fibres are NOT included in the repick process.
 
-        Inputs: Nil.
+        Parameters
+        ----------     
 
-        Returns: Nil.
+        Returns
+        -------    
         """
 
         # Do unpicking separately for guides and science/standards/skies
