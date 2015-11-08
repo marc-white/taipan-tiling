@@ -4,6 +4,8 @@ Original by Marc White
 
 Copyright 2015, TAIPAN Survey Team (http://www.taipan-survey.org)
 
+Spherical codes are a selection from http://neilsloane.com/icosahedral.codes/
+
 ## Disclaimer
 
 This code is **BETA**. Use it at your own risk. Please notify (or fork and commit!) if you locate any bugs. Any use of this code must acknowledge the TAIPAN Survey Team.
@@ -25,6 +27,12 @@ In the test scripts, `taipan.core` is imported as `tp`, and `taipan.tiling` is i
 ### Running the test scripts
 
 **NOTE:** Some of the test scripts may be periodically modified to test things other than what their name suggests (e.g. computing target difficulties). Be aware!
+
+The test scripts are designed to be run inside an interactive ipython session using pylab. The best way to do this is to use the pylab option when starting your ipython session:
+
+```
+ipython --pylab
+```
 
 The test scripts are designed to run on an arbitrary catalogue of astronomical targets, guides and standards. It is **your** responsibility to update the test script code to load the data you wish to test on. To request access to the catalogues used for testing during development, please contact me directly.
 
