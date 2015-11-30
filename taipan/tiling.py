@@ -715,6 +715,11 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     i = 0
     # print len(candidate_targets)
     candidate_targets_master = candidate_targets[:]
+    # Initialise some of our counter variables
+    no_submitted_targets = len(candidate_targets_master)
+    if no_submitted_targets == 0:
+        raise ValueError('Attempting to generate a tiling with no targets!')
+
     for tile in candidate_tiles:
         # print 'inter: %d' % len(candidate_targets)
         burn = tile.unpick_tile(candidate_targets, standard_targets, 
@@ -730,8 +735,6 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         print 'Created %d / %d tiles' % (i, len(candidate_tiles))
     # print len(candidate_targets)
 
-    # Initialise some of our counter variables
-    no_submitted_targets = len(candidate_targets)
     # Compute initial rankings for all of the tiles
     ranking_list = [tile.calculate_tile_score(method=ranking_method,
         disqualify_below_min=disqualify_below_min) for tile in candidate_tiles]
