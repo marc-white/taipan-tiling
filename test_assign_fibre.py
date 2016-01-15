@@ -1,5 +1,4 @@
 #ipython --pylab
-from pylab import *
 
 # Test the various implementations of assign_fibre
 
@@ -18,7 +17,7 @@ try:
 		pass
 except NameError:
 	print 'Importing test data...'
-	tabdata = Table.read('/Users/mireland/tel/funnelweb/'
+	tabdata = Table.read('TaipanCatalogues/southernstrip/'
 		'SCOSxAllWISE.photometry.KiDS.fits')
 	print 'Generating targets...'
 	all_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 

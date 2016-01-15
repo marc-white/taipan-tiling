@@ -16,11 +16,11 @@ try:
 		pass
 except NameError:
 	print 'Importing test data...'
-	tabdata = Table.read('/Users/mireland/tel/funnelweb/'
+	tabdata = Table.read('TaipanCatalogues/southernstrip/'
 		'SCOSxAllWISE.photometry.KiDS.fits')
-	guidedata = Table.read('/Users/mireland/tel/funnelweb/'
+	guidedata = Table.read('TaipanCatalogues/southernstrip/'
 		'SCOSxAllWISE.photometry.KiDS.guides.fits')
-	standdata = Table.read('/Users/mireland/tel/funnelweb/'
+	standdata = Table.read('TaipanCatalogues/southernstrip/'
 		'SCOSxAllWISE.photometry.KiDS.standards.fits')
 	print 'Generating targets...'
 	all_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
