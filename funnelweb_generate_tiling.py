@@ -11,6 +11,10 @@ import random
 import sys
 import datetime
 
+
+#Change defaults
+tp.STANDARDS_PER_TILE_MIN = 3
+
 try:
     if all_targets and guide_targets and standard_targets:
         pass
@@ -20,7 +24,7 @@ except NameError:
         '2mass_AAA_i7-10_offplane.csv')
     guidedata = Table.read('/Users/mireland/tel/funnelweb/'
         '2mass_AAA_i7-10_offplane.csv')
-    guidedata = guidedata[(guidedata['imag'] < 9.9) & (guidedata['imag'] > 9.8)] 
+    guidedata = guidedata[guidedata['imag'] > 9.7] 
     standdata = Table.read('/Users/mireland/tel/funnelweb/'
         '2mass_AAA_i7-10_offplane.csv')
     standdata = standdata[standdata['imag'] > 9.9] 
