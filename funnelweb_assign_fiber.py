@@ -19,66 +19,25 @@ try:
 except NameError:
 	print 'Importing test data...'
 	tabdata = Table.read('/Users/mireland/tel/funnelweb/'
-		'SCOSxAllWISE.photometry.KiDS.fits')
+		'2mass_AAA_i7-10_offplane.csv')
+#	tabdata = Table.read('/Users/mireland/tel/funnelweb/'
+#		'2mass_AAA_i9-12_offplane.csv')
 	print 'Generating targets...'
-	all_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
-		priority=random.randint(1,8)) for r in tabdata ]
+	all_targets = [tp.TaipanTarget(str(r['mainid']), r['raj2000'], r['dej2000'], 
+		priority=1, mag=r['imag']) for r in tabdata ]
 		# if r[1] > 20 and r[1] < 43 and r[2] > -34 and r[2] < -26]
-	print 'Computing target difficulties...'
 	no_targets = len(all_targets)
 	print "Targets: %d" % no_targets
 	start = datetime.datetime.now()
-	# # Full time calculation
-	# for i in range(no_targets):
-	# 	all_targets[i].compute_difficulty(all_targets)
-	# 	# if i % 100 == 0:
-	# 	# 	print 'Done %d' % i
-	# # [t.compute_difficulty(all_targets) for t in all_targets]
-	# end = datetime.datetime.now()
-	# delta = end - start
-	# print 'Full time: %f' % (delta.total_seconds())
-
-	# print 'Waiting...'
-	# time.sleep(5)
-
-	# # Approx calculation
-	# print 'Computing target difficulties...'
-	# start = datetime.datetime.now()
-	# for i in range(no_targets):
-	# 	all_targets[i].compute_difficulty_approx(all_targets)
-	# 	# if i % 100 == 0:
-	# 	# 	print 'Done %d' % i
-	# # [t.compute_difficulty(all_targets) for t in all_targets]
-	# end = datetime.datetime.now()
-	# delta = end - start
-	# print 'Approx time: %f' % (delta.total_seconds())
-
-	# print 'Waiting...'
-	# time.sleep(5)
-
-	# # Mixed calculation
-	# print 'Computing target difficulties...'
-	# start = datetime.datetime.now()
-	# for i in range(no_targets):
-	# 	all_targets[i].compute_difficulty_mixed(all_targets, dec_cut=30.)
-	# 	# if i % 100 == 0:
-	# 	# 	print 'Done %d' % i
-	# # [t.compute_difficulty(all_targets) for t in all_targets]
-	# end = datetime.datetime.now()
-	# delta = end - start
-	# print 'Mixed time: %f' % (delta.total_seconds())
-
-	# print 'Waiting...'
-	# time.sleep(5)
 
 	# KDTree calculation
 	print 'Computing target difficulties...'
 	start = datetime.datetime.now()
-	tp.compute_target_difficulties(all_targets)
+	tp.compute_target_difficulties(all_targets, verbose=True)
 	end = datetime.datetime.now()
 	delta = end - start
 	print 'Mixed time: %d:%2.1f' % (delta.total_seconds()/60, 
-		delta.total_seconds())
+		delta.total_seconds() % 60)
 
 # del all_targets
 # sys.exit()
@@ -143,7 +102,7 @@ for fibre in tp.BUGPOS_OFFSET:
 fibres = tp.BUGPOS_OFFSET.keys()
 random.shuffle(fibres)
 for fibre in fibres:
-	print 'Assigning fibre %d' % (fibre, )
+	#print 'Assigning fibre %d' % (fibre, )
 	fibre_posn = test_tile.compute_fibre_posn(fibre)
 	ax.plot(fibre_posn[0], fibre_posn[1], 'r+', ms=10)
 	fibre_verts = np.asarray([tp.compute_offset_posn(fibre_posn[0],

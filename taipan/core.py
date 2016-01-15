@@ -25,11 +25,11 @@ BREAKEVEN_KDTREE = 5000
 # Instrument variables
 TARGET_PER_TILE = 120
 STANDARDS_PER_TILE = 10
-STANDARDS_PER_TILE_MIN = 5
+STANDARDS_PER_TILE_MIN = 1 #5
 SKY_PER_TILE = 20
 SKY_PER_TILE_MIN = 20
 GUIDES_PER_TILE = 9
-GUIDES_PER_TILE_MIN = 3
+GUIDES_PER_TILE_MIN = 1 #3
 FIBRES_PER_TILE = (TARGET_PER_TILE + STANDARDS_PER_TILE 
     + SKY_PER_TILE + GUIDES_PER_TILE)
 INSTALLED_FIBRES = 159
@@ -474,6 +474,9 @@ def compute_target_difficulties(target_list, verbose=False,
         target_list[i].difficulty = difficulties[i]
     if verbose:
         print 'Difficulties done!'
+        
+    if min(difficulties) ==0:
+        raise UserWarning
 
     return
 
@@ -524,7 +527,7 @@ class TaipanTarget(object):
 
     # Initialisation & input-checking
     def __init__(self, idn, ra, dec, priority=1, standard=False,
-        guide=False, difficulty=0):
+        guide=False, difficulty=0, mag=None):
     # def __init__(self):
         self._idn = None
         self._ra = None
@@ -533,6 +536,7 @@ class TaipanTarget(object):
         self._standard = None
         self._guide = None
         self._difficulty = None
+        self._mag = None
 
         # Insert given values
         # This causes the setter functions to be called, which does
@@ -544,6 +548,7 @@ class TaipanTarget(object):
         self.standard = standard
         self.guide = guide
         self.difficulty = difficulty
+        self.mag = mag
 
     def __repr__(self):
         return self._idn
@@ -643,6 +648,17 @@ class TaipanTarget(object):
         if d < 0:
             raise ValueError('Difficulty must be >= 0')
         self._difficulty = d
+
+    @property
+    def mag(self):
+        """Target Magnitude"""
+        return self._mag
+    @mag.setter
+    def mag(self, m):
+        if m:
+            assert (m > -10 and m < 30), "mag outside valid range"
+        self._mag = m
+
 
 
     def dist_point(self, (ra, dec)):
@@ -915,13 +931,15 @@ class TaipanTile(object):
     solution
     """
 
-    def __init__(self, ra, dec, pa=0.0):
+    def __init__(self, ra, dec, pa=0.0,mag_min=None, mag_max=None):
         self._fibres = {}
         for i in range(1, FIBRES_PER_TILE+1):
             self._fibres[i] = None
         # self._fibres = self.fibres(fibre_init)
         self._ra = None
         self._dec = None
+        self._mag_min = None
+        self._mag_max = None
         self._pa = 0.0
 
         # Insert the passed values
@@ -978,6 +996,27 @@ class TaipanTile(object):
             raise ValueError('PA must be 0 <= pa < 360')
         self._pa = p
 
+    @property
+    def mag_max(self):
+        """Maximum Target Magnitude"""
+        return self._mag_max
+    @mag_max.setter
+    def mag_max(self, m):
+        if m:
+            assert (m > -10 and m < 30), "mag_max outside valid range"
+        self._mag_max = m
+
+    @property
+    def mag_min(self):
+        """Minimum Target Magnitude"""
+        return self._mag_min
+    @mag_min.setter
+    def mag_min(self, m):
+        if m:
+            assert (m > -10 and m < 30), "mag_min outside valid range"
+        self._mag_min = m
+
+        
     def priority(self):
         """
         Calculate the priority ranking of this tile. Do this by summing
@@ -1384,6 +1423,10 @@ class TaipanTile(object):
 
         # Get all the science targets
         targets_sci = self.get_assigned_targets_science()
+        
+        #If there are no science targets... we obviously have no score!
+        if len(targets_sci) == 0:
+            return 0.
 
         # Perform the calculation
         if method == 'completeness':
@@ -1397,9 +1440,10 @@ class TaipanTile(object):
         elif method == 'priority-prod':
             ranking_score = prod([t.priority for t in targets_sci])
         elif 'combined-weighted' in method:
+            max_difficulty = float(max([t.difficulty for t in targets_sci]))
             ranking_list = np.asarray([t.difficulty 
-                for t in targets_sci]) + combined_weight * np.asarray(
-                [t.priority for t in targets_sci])
+                for t in targets_sci])/max_difficulty + combined_weight * np.asarray(
+                [t.priority for t in targets_sci]) / float(TARGET_PRIORITY_MAX)
             if '-sum' in method:
                 ranking_score = sum(ranking_list)
             elif '-prod' in method:
