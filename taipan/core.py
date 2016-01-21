@@ -3,14 +3,15 @@
 # Global definitions for TAIPAN tiling code
 
 # Created: Marc White, 2015-09-14
-# Last modified: Marc White, 2015-11-06
+# Last modified: Marc White, 2016-01-19
 
 import numpy as np
 import math
 import operator
 from matplotlib.cbook import flatten
 from multiprocessing import Pool, Array
-from scipy.spatial import KDTree
+from scipy.spatial import KDTree, cKDTree
+from sklearn.neighbors import KDTree as skKDTree
 
 # -------
 # CONSTANTS
@@ -19,7 +20,7 @@ from scipy.spatial import KDTree
 # Computational break-even points
 # Number of targets needed to make it worth doing difficulty calculations
 # with a KDTREE
-BREAKEVEN_KDTREE = 5000
+BREAKEVEN_KDTREE = 50
 
 
 # Instrument variables
@@ -231,8 +232,8 @@ FIBRES_GUIDE = [
     86,
 ]
 FIBRES_GUIDE.sort()
-# Uncomment the following code to force GUIDES_PER_TILE to be as high
-# as possible
+# Uncomment the following code to force GUIDES_PER_TILE 
+# to be as high as possible
 # if len(GUIDE_FIBRES) != GUIDES_PER_TILE:
 #   raise Exception('Length of GUIDE_FIBRES array does not match'
 #       'GUIDES_PER_TILE. Check the constant in taipan.core')
@@ -434,8 +435,8 @@ def grab_target_difficulty(target, target_list):
     return target
 
 
-def compute_target_difficulties(target_list, verbose=False,
-    leafsize=BREAKEVEN_KDTREE):
+def compute_target_difficulties(target_list, full_target_list=None,
+    verbose=False, leafsize=BREAKEVEN_KDTREE):
     """
     Compute the target difficulties for a list of targets.
 
@@ -448,26 +449,76 @@ def compute_target_difficulties(target_list, verbose=False,
     ----------
     target_list :
         The list of TaipanTargets to compute the difficulty for.
+    full_target_list :
+        The full list of targets to use in the difficulty computation. This is
+        useful for situations where targets need to be considered in a 
+        re-computation of difficulty, but the difficulty of those targets need
+        not be updated. This occurs, e.g. when target difficulties must be
+        updated after some targets have been assigned to a tile. Only targets
+        within TILE_RADIUS + FIBRE_EXCLUSION_RADIUS of the tile centre need
+        updating; however, targets within 
+        TILE_RADIUS + 2*FIBRE_EXCLUSION_RADIUS need to be considered in the 
+        calculation.
+        If given, target_list MUST be a sublist of full_target_list. If not,
+        an ValueError will be thrown.
+        Defaults to None, in which case, target difficulties are computed for
+        all targets in target_lists against target_list itself.
 
     Returns
     ------- 
         Nil. TaipanTargets updated in-place.
     """
+
+    tree_function = cKDTree
+
     if len(target_list) == 0:
         return
 
+    if full_target_list:
+        if verbose:
+            'Checking target_list against full_target_list...'
+        if not np.all(np.in1d(target_list, full_target_list)):
+            raise ValueError('target_list must be a sublist'
+                ' of full_target_list')
+
+    if verbose:
+        print 'Forming Cartesian positions...'
+    # Calculate UC positions if they haven't been done already
+    burn = [t.compute_ucposn() for t in target_list if t.ucposn is None]
+    cart_targets = np.asarray([t.ucposn for t in target_list])
+    if full_target_list:
+        burn = [t.compute_ucposn() for t in full_target_list 
+            if t.ucposn is None]
+        full_cart_targets = np.asarray([t.ucposn for t in full_target_list])
+    else:
+        full_cart_targets = np.copy(cart_targets)
+    
     if verbose:
         print 'Generating KDTree with leafsize %d' % leafsize
-        print 'Forming Cartesian positions...'
-    cart_targets = [polar2cart((t.ra, t.dec)) for t in target_list]
-    if verbose:
-        print 'Creating KDTree...'
-    tree = KDTree(np.asarray(cart_targets), leafsize=leafsize)
-    if verbose:
-        print 'Computing difficulties...'
-    difficulties = tree.query_ball_point(cart_targets,
-        dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
+    if tree_function == skKDTree:
+        tree = tree_function(full_cart_targets, leaf_size=leafsize)
+    else:
+        tree = tree_function(full_cart_targets, leafsize=leafsize)
+
+    dist_check = dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.)
+
+    if tree_function == skKDTree:
+        difficulties = tree.query_radius(cart_targets,
+            dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
+    else:
+        if len(target_list) < (100*leafsize):
+            if verbose:
+                print 'Computing difficulties...'
+            difficulties = tree.query_ball_point(cart_targets,
+                dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
+        else:
+            if verbose:
+                print 'Generating subtree for difficulties...'
+            subtree = tree_function(cart_targets, leafsize=leafsize)
+            difficulties = subtree.query_ball_tree(tree,
+                dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
     difficulties = [len(d) for d in difficulties]
+
     if verbose:
         print 'Assigning difficulties...'
     for i in range(len(difficulties)):
@@ -475,6 +526,7 @@ def compute_target_difficulties(target_list, verbose=False,
     if verbose:
         print 'Difficulties done!'
         
+    difficulties = [1]
     if min(difficulties) ==0:
         raise UserWarning
 
@@ -526,12 +578,13 @@ class TaipanTarget(object):
     """
 
     # Initialisation & input-checking
-    def __init__(self, idn, ra, dec, priority=1, standard=False,
+    def __init__(self, idn, ra, dec, ucposn=None, priority=1, standard=False,
         guide=False, difficulty=0, mag=None):
     # def __init__(self):
         self._idn = None
         self._ra = None
         self._dec = None
+        self._ucposn = None
         self._priority = None
         self._standard = None
         self._guide = None
@@ -544,6 +597,7 @@ class TaipanTarget(object):
         self.idn = idn
         self.ra = ra
         self.dec = dec
+        self.ucposn = ucposn
         self.priority = priority
         self.standard = standard
         self.guide = guide
@@ -609,6 +663,32 @@ class TaipanTarget(object):
         self._dec = d
 
     @property
+    def ucposn(self):
+        """Target position on the unit sphere, should be 3-list or 3-tuple"""
+        return self._ucposn
+    @ucposn.setter
+    def ucposn(self, value):
+        if value is None:
+            self._ucposn = None
+            return
+        if len(value) != 3:
+            raise Exception('ucposn must be a 3-list or 3-tuple')
+        if value[0] < -1. or value[0] > 1.:
+            raise Exception('x value %f outside allowed bounds (-1 <= x <= 1)'
+                % value[0])
+        if value[1] < -1. or value[1] > 1.:
+            raise Exception('y value %f outside allowed bounds (-1 <= x <= 1)'
+                % value[1])
+        if value[2] < -1. or value[2] > 1.:
+            raise Exception('z value %f outside allowed bounds (-1 <= x <= 1)'
+                % value[2])
+        if abs(value[0]**2 + value[1]**2 + value[2]**2 - 1.0) > 0.001:
+            raise Exception('ucposn must lie on unit sphere '
+                '(x^2 + y^2 + z^2 = 1.0 - error of %f)'
+                % (value[0]**2 + value[1]**2 + value[2]**2))
+        self._ucposn = list(value)
+
+    @property
     def priority(self):
         return self._priority
     @priority.setter
@@ -659,6 +739,25 @@ class TaipanTarget(object):
             assert (m > -10 and m < 30), "mag outside valid range"
         self._mag = m
 
+
+    def compute_ucposn(self):
+        """
+        Compute the position of this target on the unit circle from its
+        RA and Dec values.
+
+        Parameters
+        ----------
+        Nil.
+
+        Returns
+        -------
+        Nil. TaipanTarget updated in-situ.
+        """
+        if self.ra is None or self.dec is None:
+            raise Exception('Cannot compute ucposn because'
+                ' RA and/or Dec is None!')
+        self.ucposn = polar2cart((self.ra, self.dec))
+        return
 
 
     def dist_point(self, (ra, dec)):
@@ -1884,7 +1983,8 @@ class TaipanTile(object):
                         fibre = permitted_fibres[0]
                         compute_target_difficulties(targets_in_range(
                             self._fibres[fibre].ra, self._fibres[fibre].dec,
-                            candidate_targets_return, FIBRE_EXCLUSION_RADIUS))
+                            candidate_targets_return, FIBRE_EXCLUSION_RADIUS),
+                            full_target_list=candidate_targets_return)
 
                 else:
                     permitted_fibres.pop(0)
@@ -2486,7 +2586,9 @@ class TaipanTile(object):
             # around working out which targets need an update
             compute_target_difficulties([t for t in candidate_targets_return
                 if np.any(np.asarray([t.dist_point((at.ra, at.dec)) 
-                    for at in assigned_targets_sci]) < FIBRE_EXCLUSION_RADIUS)])
+                    for at in assigned_targets_sci]) 
+                < FIBRE_EXCLUSION_RADIUS)],
+                full_target_list=candidate_targets_return)
 
         return candidate_targets_return, removed_targets
 

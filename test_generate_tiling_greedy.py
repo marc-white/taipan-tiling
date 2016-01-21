@@ -16,26 +16,43 @@ try:
 		pass
 except NameError:
 	print 'Importing test data...'
-	tabdata = Table.read('TaipanCatalogues/southernstrip/'
-		'SCOSxAllWISE.photometry.KiDS.fits')
-	guidedata = Table.read('TaipanCatalogues/southernstrip/'
-		'SCOSxAllWISE.photometry.KiDS.guides.fits')
-	standdata = Table.read('TaipanCatalogues/southernstrip/'
-		'SCOSxAllWISE.photometry.KiDS.standards.fits')
+	start = datetime.datetime.now()
+	tabdata = Table.read('TaipanCatalogues/wholehemisphere/'
+		'Taipan.2MASS_selected.fits')
+	guidedata = Table.read('TaipanCatalogues/wholehemisphere/'
+		'SCOSxAllWISE.photometry.forTAIPAN.reduced.guides.fits')
+	standdata = Table.read('TaipanCatalogues/wholehemisphere/'
+		'SCOSxAllWISE.photometry.forTAIPAN.reduced.standards.fits')
 	print 'Generating targets...'
-	all_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
-		priority=random.randint(1,8)) for r in tabdata #]
-		if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
+	all_targets = [tp.TaipanTarget(str(r[0]), r[4], r[5], 
+		priority=random.randint(1,8)) for r in tabdata ]
+		# if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
 	guide_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
-		priority=random.randint(1,8), guide=True) for r in guidedata #]
-		if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
+		priority=random.randint(1,8), guide=True) for r in guidedata ]
+		# if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
 	standard_targets = [tp.TaipanTarget(str(r[0]), r[1], r[2], 
 		priority=random.randint(1,8), standard=True) for r in
-	standdata #]
-		if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
-	print 'Computing target difficulties...'
-	no_targets = len(all_targets)
-	tp.compute_target_difficulties(all_targets)
+		standdata ]
+		# if r[1] > 30 and r[1] < 50 and r[2] > -34 and r[2] < -26]
+	end = datetime.datetime.now()
+	delta = end - start
+	print ('Imported & generated %d targets, %d guides and %d standards'
+		' in %d:%02.1f') % (
+		len(all_targets), len(guide_targets), len(standard_targets),
+		delta.total_seconds()/60, 
+		delta.total_seconds() % 60.)
+	
+
+print 'Calculating target UC positions...'
+burn = [t.compute_ucposn() for t in all_targets]
+print 'Computing target difficulties...'
+no_targets = len(all_targets)
+tp.compute_target_difficulties(all_targets)
+end = datetime.datetime.now()
+delta = end - start
+print 'Computed %d target UC posns. and difficulties in %d:%02.1f' % (
+	len(all_targets), delta.total_seconds()/60, 
+	delta.total_seconds() % 60.)
 
 # tp.compute_target_difficulties(all_targets, ncpu=4)
 # sys.exit()
@@ -71,7 +88,7 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_greedy(
 	ranking_method=ranking_method,
 	tiling_method=tiling_method, randomise_pa=True, 
 	tiling_set_size=tiling_set_size,
-	ra_min=30., ra_max=53., dec_min=-36., dec_max=-26.,
+	# ra_min=30., ra_max=53., dec_min=-36., dec_max=-26.,
 	randomise_SH=True, tiling_file='ipack.3.8192.txt',
 	tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
 	combined_weight=combined_weight,

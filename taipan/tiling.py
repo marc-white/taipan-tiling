@@ -51,6 +51,13 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
         as standard ranges.
     """
 
+    # Special case - if the full range has been specified, simply return that
+    # If we don't do this, the checks below will trip up on machine error(s)
+    # and return weird results
+    if (abs(dec_min + 90.) < 1e-5 and abs(dec_max - 90.) < 1e-5 and 
+        abs(ra_min) < 1e-5 and abs(ra_max - 360.) < 1e-5):
+        return ra_min, ra_max, dec_min, dec_max
+
     if dec_min < -90. or dec_min > 90.0:
         raise ValueError('Min declination must be >= -90.0 and <= 90.0')
     if dec_max < -90. or dec_max > 90.0:
@@ -319,7 +326,7 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
     sequential_ordering=(1,2), rank_supplements=False,
     repick_after_complete=True, recompute_difficulty=True):
     """
-    Generate a complete tiling based on a 'by-roder' algorithm.
+    Generate a complete tiling based on a 'by-order' algorithm.
 
     This algorithm will completely fill one tile before moving
     on to the next tile in the sequence. This function will create tiles,
@@ -554,7 +561,8 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
         # and return to the top of the loop
         if tiling_method in ['random', 'average'] and len(
             candidate_targets) == targets_before:
-            print 'Failure detected in %s mode - switching to random-target mode' % tiling_method
+            print ('Failure detected in %s mode'
+                ' - switching to random-target mode') % (tiling_method, )
             tiling_method = 'random-target'
             continue
 
@@ -698,6 +706,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     # Push the coordinate limits into standard format
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max,
         dec_min, dec_max)
+    # print ra_min, ra_max, dec_min, dec_max
 
     # Generate the SH tiling to cover the region of interest
     candidate_tiles = generate_SH_tiling(tiling_file, 
@@ -803,7 +812,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
             print 'Re-computing target difficulties...'
             tp.compute_target_difficulties(tp.targets_in_range(
                 best_ra, best_dec, candidate_targets,
-                tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_RADIUS))
+                tp.TILE_RADIUS + 2.0*tp.FIBRE_EXCLUSION_RADIUS))
         # print 'e : %d' % len(candidate_targets)
 
         # Replace the removed tile in candidate_targets, repick any tiles

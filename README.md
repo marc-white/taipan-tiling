@@ -2,7 +2,7 @@
 
 Original by Marc White
 
-Copyright 2015, TAIPAN Survey Team (http://www.taipan-survey.org)
+Copyright 2016, TAIPAN Survey Team (http://www.taipan-survey.org)
 
 Spherical codes are a selection from http://neilsloane.com/icosahedral.codes/
 
@@ -34,13 +34,13 @@ The test scripts are designed to be run inside an interactive ipython session us
 ipython --pylab
 ```
 
-The test scripts are designed to run on an arbitrary catalogue of astronomical targets, guides and standards. It is **your** responsibility to update the test script code to load the data you wish to test on. To request access to the catalogues used for testing during development, please contact me directly.
+The test scripts are designed to run on an arbitrary catalogue of astronomical targets, guides and standards. It is **your** responsibility to update the test script code to load the data you wish to test on. To request access to the catalogues used for testing during development, please contact us directly.
 
-Note that, to successfully generate the target difficulties for more than a few thousand targets, you'll need to raise your system recursion limit, e.g.
+Note that, to successfully generate the target difficulties for more than a few thousand targets, you may need to raise your system recursion limit, e.g.
 
 ```
 import sys
 sys.setrecursionlimit(10000)
 ```
 
-For very large (> several 100,000s) target sets, target generation will be killed as it exceeds memory limits. Fixing this is a WIP.
+The computation of difficulties for many (> 10^5) targets has now been solved, using scipy.spatial.KDTree.
