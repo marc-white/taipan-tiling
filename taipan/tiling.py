@@ -738,7 +738,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
             method=tile_unpick_method, combined_weight=combined_weight,
             sequential_ordering=sequential_ordering,
             rank_supplements=rank_supplements, 
-            repick_after_complete=repick_after_complete,
+            repick_after_complete=False,
             consider_removed_targets=False)
         i += 1
         print 'Created %d / %d tiles' % (i, len(candidate_tiles))
@@ -836,7 +836,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
                 method=tile_unpick_method, combined_weight=combined_weight,
                 sequential_ordering=sequential_ordering,
                 rank_supplements=rank_supplements, 
-                repick_after_complete=repick_after_complete,
+                repick_after_complete=False,
                 consider_removed_targets=False)
             j += 1
             print 'Completed %d / %d' % (j, len(affected_tiles))

@@ -43,9 +43,11 @@ except NameError:
 		delta.total_seconds() % 60.)
 	
 
-print 'Calculating target UC positions...'
-burn = [t.compute_ucposn() for t in all_targets]
+	print 'Calculating target UC positions...'
+	burn = [t.compute_ucposn() for t in all_targets]
+
 print 'Computing target difficulties...'
+start = datetime.datetime.now()
 no_targets = len(all_targets)
 tp.compute_target_difficulties(all_targets)
 end = datetime.datetime.now()

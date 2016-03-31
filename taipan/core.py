@@ -6,7 +6,10 @@
 # Last modified: Marc White, 2016-01-19
 
 import numpy as np
+import os
 import math
+import random
+import string
 import operator
 from matplotlib.cbook import flatten
 from multiprocessing import Pool, Array
@@ -605,10 +608,10 @@ class TaipanTarget(object):
         self.mag = mag
 
     def __repr__(self):
-        return self._idn
+        return str(self._idn)
 
     def __str__(self):
-        return self._idn
+        return str(self._idn)
 
     # Uncomment to have target equality decided on ID
     # WARNING - make sure your IDs are unique!
@@ -687,6 +690,7 @@ class TaipanTarget(object):
                 '(x^2 + y^2 + z^2 = 1.0 - error of %f)'
                 % (value[0]**2 + value[1]**2 + value[2]**2))
         self._ucposn = list(value)
+    
 
     @property
     def priority(self):
@@ -738,6 +742,35 @@ class TaipanTarget(object):
         if m:
             assert (m > -10 and m < 30), "mag outside valid range"
         self._mag = m
+
+
+    def return_target_code(self):
+        """
+        Return a single-character string based on the type of TaipanTarget passed
+        as a function argument.
+
+        Parameters
+        ----------
+        Nil.
+
+        Returns
+        -------
+        code:
+            A single-character string, denoting the type of TaipanTarget passed in.
+            Codes are currently:
+            X - science
+            G - guide
+            S - standard
+        """
+
+        if self.standard:
+            code = 'S'
+        elif self.guide:
+            code ='G'
+        else:
+            code ='X'
+
+        return code
 
 
     def compute_ucposn(self):
@@ -1124,6 +1157,16 @@ class TaipanTile(object):
         priority = sum([t.priority for t in self.fibres 
                         if isinstance(t, TaipanTarget)])
         return priority
+
+
+    def difficulty(self):
+        """
+        Calculate the difficulty ranking of this tile. Do this by summing
+        up the difficulties of the TaipanTargets within the tile.
+        """
+        difficulty = sum([t.difficulty for t in self.fibres 
+                          if isinstance(t, TaipanTarget)])
+        return difficulty
 
 
     def remove_duplicates(self, assigned_targets):
@@ -2680,3 +2723,57 @@ class TaipanTile(object):
                     # print 'Swapped %d and %d' % (wf, swap_to, )
                     fibres_assigned_targets = [fibre for fibre in fibre_posns
                     if isinstance(self._fibres[fibre], TaipanTarget)]
+
+
+    def save_to_file(self, save_path='', return_filename=False):
+        """
+        Save configuration information for this tile to a simple text config
+        file.
+
+        Parameters
+        ----------
+        save_path:
+            The path to save the file to. Can be relative to present
+            working directory or absolute. Details to the empty string
+            (i.e. file will be saved in present working directory.) Note that,
+            if defined, the destination directory must already exist, or an
+            IOError will be raised.
+        return_filename:
+            Boolean value denoting whether the function should return the
+            full path to the written file. Defaults to False.
+
+        Returns
+        -------
+        Nil, UNLESS return_filename=True, then:
+        filename:
+            Full path to the file written.
+        """
+
+        # Generate a unique filename to save this file as
+        unique_name = 'TaipanTile_R%3.1f_D%3.1f_P%4f_D%4d_%s.csv' % (
+            self.ra, self.dec, self.priority, self.difficulty,
+            random.sample(string.letters, 3) # random element
+        )
+
+        # Generate the grid of values to write out
+        values = []
+        values.append(['Target', 'RA', 'Dec', 'Type'])
+        for fibre in self.fibres:
+            if isinstance(self.fibres[fibre], TaipanTarget):
+                values.append([fibre, self.fibres[fibre].ra,
+                               self.fibres[fibre].dec,
+                               self.fibres[fibre].return_target_code()])
+
+
+        # Open the file and write out
+        with open(save_path + os.sep + unique_name, 'wb') as fileobj:
+            csvwriter = csv.writer(delimiter=' ')
+            csvwriter.writerows(values)
+
+        if return_filename:
+            filename = os.path.abspath(save_path + os.sep + unique_name)
+            return filename
+
+        return
+
+
