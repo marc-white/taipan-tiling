@@ -1063,7 +1063,7 @@ class TaipanTile(object):
     solution
     """
 
-    def __init__(self, ra, dec, pa=0.0,mag_min=None, mag_max=None):
+    def __init__(self, ra, dec, pa=0.0, mag_min=None, mag_max=None):
         self._fibres = {}
         for i in range(1, FIBRES_PER_TILE+1):
             self._fibres[i] = None
