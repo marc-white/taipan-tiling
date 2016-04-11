@@ -12,7 +12,6 @@ import random
 import string
 import operator
 from matplotlib.cbook import flatten
-from multiprocessing import Pool, Array
 from scipy.spatial import KDTree, cKDTree
 from sklearn.neighbors import KDTree as skKDTree
 
@@ -39,7 +38,7 @@ FIBRES_PER_TILE = (TARGET_PER_TILE + STANDARDS_PER_TILE
 INSTALLED_FIBRES = 159
 if FIBRES_PER_TILE < INSTALLED_FIBRES:
     raise Exception('WARNING: Not all fibres will be utilised. '
-                  'Check the fibre constants in taipan/core.py.')
+                    'Check the fibre constants in taipan/core.py.')
 if FIBRES_PER_TILE > INSTALLED_FIBRES:
     raise Exception('You are attempting to assign more fibres than'
                     'are currently installed. Check the fibre'
@@ -209,8 +208,8 @@ BUGPOS_MM = {
              159: (146.6, -21.7)}
 if len(BUGPOS_MM) != INSTALLED_FIBRES:
     raise Exception('The number of fibre positions defined does'
-        ' not match the set value for INSTALLED_FIBRES. Please '
-        'check the fibre configuration variables in taipan.py.')
+                    ' not match the set value for INSTALLED_FIBRES. Please '
+                    'check the fibre configuration variables in taipan.py.')
 ARCSEC_PER_MM = 67.2
 # Convert BUGPOS_MM to arcsec
 BUGPOS_ARCSEC = {key: (value[0]*ARCSEC_PER_MM, value[1]*ARCSEC_PER_MM)
@@ -273,7 +272,7 @@ def aitoff_plottable((ra, dec), ra_offset=0.0):
         Right Ascension and Declination in degrees.
     """
     ra = (ra + ra_offset) % 360. - 180.
-    return (math.radians(ra), math.radians(dec))
+    return math.radians(ra), math.radians(dec)
 
 
 def dist_points(ra, dec, ra1, dec1):
@@ -290,7 +289,7 @@ def dist_points_approx(ra, dec, ra1, dec1):
     decfac = np.cos(dec * np.pi / 180.)
     dra = ra - ra1
     if np.abs(dra) > 180.:
-        dra = dra - np.sign(dra) * 360.
+        dra -= np.sign(dra) * 360.
     dist = np.sqrt((dra / decfac)**2 + (dec - dec1)**2)
     return dist * 3600.
 
@@ -361,6 +360,7 @@ def compute_offset_posn(ra, dec, dist, pa):
     dec_new = math.degrees(dec_new)
     return ra_new, dec_new
 
+
 def generate_ranking_list(candidate_targets,
         method='priority', combined_weight=1.0, sequential_ordering=(1,2)):
     """
@@ -417,6 +417,7 @@ def generate_ranking_list(candidate_targets,
 
     return ranking_list
 
+
 def grab_target_difficulty(target, target_list):
     """
     External means of computing the difficulty of a TaipanTarget.
@@ -466,6 +467,13 @@ def compute_target_difficulties(target_list, full_target_list=None,
         an ValueError will be thrown.
         Defaults to None, in which case, target difficulties are computed for
         all targets in target_lists against target_list itself.
+    verbose:
+        Whether to print detailed run-time information to the terminal.
+        Defaults to False.
+    leafsize:
+        The leafsize (i.e. number of targets) where it becomes more efficient
+        to construct a KDTree rather than brute-force the distances between
+        targets. Defaults to the module default (i.e. BREAKEVEN_KDTREE).
 
     Returns
     ------- 
@@ -583,7 +591,6 @@ class TaipanTarget(object):
     # Initialisation & input-checking
     def __init__(self, idn, ra, dec, ucposn=None, priority=1, standard=False,
         guide=False, difficulty=0, mag=None):
-    # def __init__(self):
         self._idn = None
         self._ra = None
         self._dec = None
@@ -638,6 +645,7 @@ class TaipanTarget(object):
     def idn(self):
         """TAIPAN target ID"""
         return self._idn
+
     @idn.setter
     def idn(self, d):
         if not d: raise Exception('ID may not be empty')
@@ -647,6 +655,7 @@ class TaipanTarget(object):
     def ra(self):
         """Target RA"""
         return self._ra
+
     @ra.setter
     def ra(self, r):
         if r is None: raise Exception('RA may not be blank')
@@ -658,6 +667,7 @@ class TaipanTarget(object):
     def dec(self):
         """Target dec"""
         return self._dec
+
     @dec.setter
     def dec(self, d):
         if d is None: raise Exception('Dec may not be blank')
@@ -669,6 +679,7 @@ class TaipanTarget(object):
     def ucposn(self):
         """Target position on the unit sphere, should be 3-list or 3-tuple"""
         return self._ucposn
+
     @ucposn.setter
     def ucposn(self, value):
         if value is None:
@@ -695,6 +706,7 @@ class TaipanTarget(object):
     @property
     def priority(self):
         return self._priority
+
     @priority.setter
     def priority(self, p):
         # Make sure priority is an int
@@ -708,6 +720,7 @@ class TaipanTarget(object):
     def standard(self):
         """Is this target a standard"""
         return self._standard
+
     @standard.setter
     def standard(self, b):
         b = bool(b)
@@ -717,6 +730,7 @@ class TaipanTarget(object):
     def guide(self):
         """Is this target a guide"""
         return self._guide
+
     @guide.setter
     def guide(self, b):
         b = bool(b)
@@ -726,6 +740,7 @@ class TaipanTarget(object):
     def difficulty(self):
         """Difficulty, i.e. number of targets within FIBRE_EXCLUSION_RADIUS"""
         return self._difficulty
+
     @difficulty.setter
     def difficulty(self, d):
         d = int(d)
@@ -737,6 +752,7 @@ class TaipanTarget(object):
     def mag(self):
         """Target Magnitude"""
         return self._mag
+
     @mag.setter
     def mag(self, m):
         if m:
@@ -828,7 +844,6 @@ class TaipanTarget(object):
         return dist * 3600.
 
 
-
     def dist_point_mixed(self, (ra, dec), dec_cut=30.):
         dec_cut = abs(dec_cut)
         if abs(dec) <= dec_cut and abs(self.dec) <= dec_cut:
@@ -873,7 +888,6 @@ class TaipanTarget(object):
 
         return self.dist_point_approx((tgt.ra, tgt.dec))
 
-
     def dist_target_mixed(self, tgt, dec_cut=30.):
         """
         Compute the mixed distance between this target and another target.
@@ -891,8 +905,6 @@ class TaipanTarget(object):
 
         return self.dist_point_mixed((tgt.ra, tgt.dec), dec_cut=dec_cut)
 
-
-
     def excluded_targets(self, tgts):
         """
         Given a list of other TaipanTargets, return a list of those 
@@ -904,15 +916,6 @@ class TaipanTarget(object):
         ----------    
         tgts : 
             The list of TaipanTargets to test against
-        approx : 
-            Boolean value, denoting whether to calculate distances using
-            the approximate method. Defaults to False.
-        mixed : 
-            Boolean value, denoting whether to calculate distances using
-            the mixed method (approx if dec < dec_cut, full otherwise). Defaults
-            to False.
-        dec_cut : 
-            (Absolute) declination value to use for mixed method.
 
         Returns
         -------    
@@ -921,9 +924,8 @@ class TaipanTarget(object):
                        tiling as the calling target.
         """
         excluded_tgts = targets_in_range(self.ra, self.dec, tgts,
-            FIBRE_EXCLUSION_RADIUS)
+                                         FIBRE_EXCLUSION_RADIUS)
         return excluded_tgts
-
 
     def excluded_targets_approx(self, tgts):
         """
@@ -935,13 +937,6 @@ class TaipanTarget(object):
         ----------    
         tgts : 
             The list of TaipanTargets to test against
-        approx : 
-            Boolean value, denoting whether to calculate distances using
-            the approximate method. Defaults to False.
-        mixed : 
-            Boolean value, denoting whether to calculate distances using
-            the mixed method (approx if dec < dec_cut, full otherwise). Defaults
-            to False.
 
         Returns
         -------    
@@ -954,7 +949,6 @@ class TaipanTarget(object):
 
         return excluded_tgts
 
-
     def excluded_targets_mixed(self, tgts, dec_cut=30.):
         """
         As for excluded_targets, but using the mixed distance calculation.
@@ -963,13 +957,6 @@ class TaipanTarget(object):
         ----------    
         tgts : 
             The list of TaipanTargets to test against
-        approx : 
-            Boolean value, denoting whether to calculate distances using
-            the approximate method. Defaults to False.
-        mixed : 
-            Boolean value, denoting whether to calculate distances using
-            the mixed method (approx if dec < dec_cut, full otherwise). Defaults
-            to False.
         dec_cut : 
             (Absolute) declination value to use for mixed method.
 
@@ -984,7 +971,6 @@ class TaipanTarget(object):
             < FIBRE_EXCLUSION_RADIUS]
 
         return excluded_tgts
-
 
     def compute_difficulty(self, tgts):
         """Calculate & set the difficulty of this target.
@@ -1023,7 +1009,6 @@ class TaipanTarget(object):
         self.difficulty = len(self.excluded_targets_approx(tgts))
         return
 
-
     def compute_difficulty_mixed(self, tgts, dec_cut=30.):
         """
         As for compute_difficulty, but use the mixed distance calculation.
@@ -1031,7 +1016,6 @@ class TaipanTarget(object):
         self.difficulty = len(self.excluded_targets_mixed(tgts,
             dec_cut=30.))
         return
-
 
     def is_target_forbidden(self, tgts):
         """
@@ -1054,7 +1038,6 @@ class TaipanTarget(object):
             FIBRE_EXCLUSION_RADIUS)) > 0:
             return True
         return False
-
 
 
 class TaipanTile(object):
@@ -1493,7 +1476,7 @@ class TaipanTile(object):
         return available_targets
 
     def calculate_tile_score(self, method='completeness',
-        combined_weight=1.0, disqualify_below_min=True):
+                             combined_weight=1.0, disqualify_below_min=True):
         """
         Compute a ranking score for this tile.
 
@@ -1621,15 +1604,14 @@ class TaipanTile(object):
             raise ValueError('tgt must be a TaipanTarget or None')
         self._fibres[fibre] = tgt
         return
-        
 
     def assign_fibre(self, fibre, candidate_targets, 
-        check_patrol_radius=True, check_tile_radius=True,
-        recompute_difficulty=True,
-        order_closest_secondary=True,
-        method='combined_weighted', 
-        combined_weight=1.0,
-        sequential_ordering=(0,1,2)):
+                     check_patrol_radius=True, check_tile_radius=True,
+                     recompute_difficulty=True,
+                     order_closest_secondary=True,
+                     method='combined_weighted',
+                     combined_weight=1.0,
+                     sequential_ordering=(0,1,2)):
         """
         Assign a target from the target list to the given fibre.
 
@@ -1851,13 +1833,11 @@ class TaipanTile(object):
 
         return candidate_targets_return, fibre_former_tgt
 
-
-
     def assign_tile(self, candidate_targets,
-        check_tile_radius=True, recompute_difficulty=True,
-        method='priority', combined_weight=1.0,
-        sequential_ordering=(1,2),
-        overwrite_existing=False):
+                    check_tile_radius=True, recompute_difficulty=True,
+                    method='priority', combined_weight=1.0,
+                    sequential_ordering=(1,2),
+                    overwrite_existing=False):
         """
         Assign a single target to a tile as a whole, choosing the best fibre
         to assign to.
@@ -1980,9 +1960,11 @@ class TaipanTile(object):
         # Compute the ranking list for the selection procedure
         # If the ranking method is sequential, compute the equivalent
         # combined_weight and change the method to combined_weighted
-        ranking_list = generate_ranking_list(candidates_this_tile,
+        ranking_list = generate_ranking_list(
+            candidates_this_tile,
             method=method, combined_weight=combined_weight,
-            sequential_ordering=sequential_ordering)
+            sequential_ordering=sequential_ordering
+        )
 
         # Search for the best assign-able target
         candidate_found = False
@@ -2047,12 +2029,11 @@ class TaipanTile(object):
 
         return candidate_targets_return, fibre_former_tgt
 
-
     def assign_guides(self, guide_targets,
-        target_method='priority',
-        combined_weight=1.0, sequential_ordering=(1,2),
-        check_tile_radius=True,
-        rank_guides=False):
+                      target_method='priority',
+                      combined_weight=1.0, sequential_ordering=(1,2),
+                      check_tile_radius=True,
+                      rank_guides=False):
         """
         Assign guides to this tile.
 
@@ -2191,9 +2172,11 @@ class TaipanTile(object):
             # ranking, the scaling of the weights if we do the calculation for
             # each sub-list of problem_targets separately
             problem_targets_all = list(set(flatten(problem_targets)))
-            ranking_list = generate_ranking_list(problem_targets_all,
+            ranking_list = generate_ranking_list(
+                problem_targets_all,
                 method=target_method, combined_weight=combined_weight,
-                sequential_ordering=sequential_ordering)
+                sequential_ordering=sequential_ordering
+            )
             problem_targets_rankings = [np.sum([ranking_list[i] 
                 for i in range(len(ranking_list)) 
                 if problem_targets_all[i] in pt]) for pt in problem_targets]
@@ -2232,18 +2215,16 @@ class TaipanTile(object):
                 burn = guides_this_tile.pop(i)
 
         return removed_targets
-
-
     
     def unpick_tile(self, candidate_targets,
-        standard_targets, guide_targets,
-        overwrite_existing=False,
-        check_tile_radius=True, recompute_difficulty=True,
-        method='priority', combined_weight=1.0, 
-        sequential_ordering=(0,1,2),
-        rank_supplements=False,
-        repick_after_complete=True,
-        consider_removed_targets=True):
+                    standard_targets, guide_targets,
+                    overwrite_existing=False,
+                    check_tile_radius=True, recompute_difficulty=True,
+                    method='priority', combined_weight=1.0,
+                    sequential_ordering=(0,1,2),
+                    rank_supplements=False,
+                    repick_after_complete=True,
+                    consider_removed_targets=True):
         """
         Unpick this tile, i.e. make a full allocation of targets, guides etc.
 
@@ -2413,9 +2394,11 @@ class TaipanTile(object):
 
         # Generate the ranking list for the candidate targets
         # print 'Computing ranking list...'
-        ranking_list = generate_ranking_list(candidates_this_tile,
+        ranking_list = generate_ranking_list(
+            candidates_this_tile,
             method=method, combined_weight=combined_weight,
-            sequential_ordering=sequential_ordering)
+            sequential_ordering=sequential_ordering
+        )
 
         # Re-order the ranking lists for guides and standards, if requested
         if rank_supplements:
@@ -2690,8 +2673,9 @@ class TaipanTile(object):
                 candidate_fibres = [fibre for fibre in fibre_posns 
                     if tgt_wf.dist_point(fibre_posns[fibre]) < PATROL_RADIUS]
                 # print 'Candidates for shifting: %d' % len(candidate_fibres)
-                # ID which of these fibres would be a better match to the 'worst'
-                # targe than the 'worst' fibre
+                # ID which of these fibres would
+                # be a better match to the 'worst'
+                # target than the 'worst' fibre
                 # This is a combination of fibres which are:
                 # - empty (None), or
                 # - Have a currently assigned target which is further from the 
@@ -2723,7 +2707,6 @@ class TaipanTile(object):
                     # print 'Swapped %d and %d' % (wf, swap_to, )
                     fibres_assigned_targets = [fibre for fibre in fibre_posns
                     if isinstance(self._fibres[fibre], TaipanTarget)]
-
 
     def save_to_file(self, save_path='', return_filename=False):
         """
@@ -2763,7 +2746,6 @@ class TaipanTile(object):
                 values.append([fibre, self.fibres[fibre].ra,
                                self.fibres[fibre].dec,
                                self.fibres[fibre].return_target_code()])
-
 
         # Open the file and write out
         with open(save_path + os.sep + unique_name, 'wb') as fileobj:
