@@ -615,10 +615,10 @@ class TaipanTarget(object):
         self.mag = mag
 
     def __repr__(self):
-        return str(self._idn)
+        return 'TP TGT %s' % str(self._idn)
 
     def __str__(self):
-        return str(self._idn)
+        return 'TP TGT %s' % str(self._idn)
 
     # Uncomment to have target equality decided on ID
     # WARNING - make sure your IDs are unique!
