@@ -1046,13 +1046,15 @@ class TaipanTile(object):
     solution
     """
 
-    def __init__(self, ra, dec, pa=0.0, mag_min=None, mag_max=None):
+    def __init__(self, ra, dec, field_id=None,
+                 pa=0.0, mag_min=None, mag_max=None):
         self._fibres = {}
         for i in range(1, FIBRES_PER_TILE+1):
             self._fibres[i] = None
         # self._fibres = self.fibres(fibre_init)
         self._ra = None
         self._dec = None
+        self._field_id = None
         self._mag_min = None
         self._mag_max = None
         self._pa = 0.0
@@ -1063,6 +1065,12 @@ class TaipanTile(object):
         self.ra = ra
         self.dec = dec
         self.pa = pa
+
+    def __str__(self):
+        string = 'Tile at RA %3.1f Dec %2.1f' % (self.ra, self.dec)
+        if self.field_id:
+            string += ' (field %d)' % (self.field_id, )
+        return string
 
     @property
     def fibres(self):
@@ -1110,6 +1118,15 @@ class TaipanTile(object):
         if p < 0.0 or p >= 360.0:
             raise ValueError('PA must be 0 <= pa < 360')
         self._pa = p
+
+    @property
+    def field_id(self):
+        """Tile field ID"""
+        return self._field_id
+    @field_id.setter
+    def field_id(self, p):
+        p = int(p)
+        self._field_id = p
 
     @property
     def mag_max(self):
