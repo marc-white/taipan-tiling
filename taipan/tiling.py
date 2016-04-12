@@ -15,6 +15,7 @@ import random
 import math
 import numpy as np
 
+import copyy
 
 
 # ------
@@ -632,16 +633,19 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
 
 
 def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
-    completeness_target = 1.0,
-    ranking_method='completeness',
-    disqualify_below_min=True,
-    tiling_method='SH', randomise_pa=True,
-    randomise_SH=True, tiling_file='ipack.3.8192.txt',
-    ra_min=0.0, ra_max=360.0, dec_min=-90.0, dec_max=90.0,
-    tiling_set_size=1000,
-    tile_unpick_method='sequential', combined_weight=1.0, 
-    sequential_ordering=(1,2), rank_supplements=False,
-    repick_after_complete=True, recompute_difficulty=True):
+                           completeness_target=1.0,
+                           ranking_method='completeness',
+                           tiles=None,
+                           disqualify_below_min=True,
+                           tiling_method='SH', randomise_pa=True,
+                           randomise_SH=True, tiling_file='ipack.3.8192.txt',
+                           ra_min=0.0, ra_max=360.0, dec_min=-90.0,
+                           dec_max=90.0,
+                           tiling_set_size=1000,
+                           tile_unpick_method='sequential', combined_weight=1.0,
+                           sequential_ordering=(1,2), rank_supplements=False,
+                           repick_after_complete=True,
+                           recompute_difficulty=True):
     """
     Generate a tiling based on the greedy algorithm.
 
@@ -673,8 +677,15 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         documentation for TaipanTile.calculate_tile_score for details.
         
     tiling_method : 
-        The method by which to generate a tiling set. Currently,
-        only 'SH' (Sloane-Harding tiling centres) are available.
+        The method by which to generate a tiling set. Currently available are:
+        'SH' - Use Slaone-Harding tilings
+        'user' - Use a user-provided set of TaipanTiles as the 'seed' tiling
+
+    tiles:
+        List of TaipanTile objects to be used as the initial distribution of
+        tiles. Only required if tiling_method='user'. If tiling_method='user'
+        and tiles is not provided/is not a list of TaipanTiles, and error will
+        be thrown.
         
     randomise_pa : 
         Optional Boolean, denoting whether to randomise the pa of
@@ -739,6 +750,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     # Input checking
     TILING_METHODS = [
         'SH',               # Sloane-Harding
+        'user',             # user defined
     ]
     if tiling_method not in TILING_METHODS:
         raise ValueError('tiling_method must be one of %s' 
@@ -751,16 +763,32 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     if completeness_target <= 0. or completeness_target > 1:
         raise ValueError('completeness_target must be in the range (0, 1]')
 
+    if tiling_method == 'user' and tiles is None:
+        raise ValueError("Must provide tiles list if tiling_method is 'user'")
+
+    if not(isinstance(tiles, list)):
+        raise ValueError('tiles must be a list of TaipanTile objects')
+    if np.all([isinstance(t, tp.TaipanTile) for t in tiles]):
+        raise ValueError('tiles must be a list of TaipanTile objects')
+
     # Push the coordinate limits into standard format
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max,
         dec_min, dec_max)
     # print ra_min, ra_max, dec_min, dec_max
 
-    # Generate the SH tiling to cover the region of interest
-    candidate_tiles = generate_SH_tiling(tiling_file, 
-        randomise_seed=randomise_SH, randomise_pa=randomise_pa)
-    candidate_tiles = [t for t in candidate_tiles
-        if is_within_bounds(t, ra_min, ra_max, dec_min, dec_max)]
+    if tiling_method == 'SH':
+        # Generate the SH tiling to cover the region of interest
+        candidate_tiles = generate_SH_tiling(tiling_file,
+                                             randomise_seed=randomise_SH,
+                                             randomise_pa=randomise_pa)
+        candidate_tiles = [t for t in candidate_tiles
+                           if is_within_bounds(t, ra_min, ra_max,
+                                               dec_min, dec_max)]
+    elif tiling_method == 'user':
+        # Using copy.deepcopy copies both the list *and* makes fresh copies of
+        # the passed tiles list, so the original list & objects aren't
+        # unexpectedly modified
+        candidate_tiles = copy.deepcopy(tiles)
 
     # Unpick ALL of these tiles
     # Note that we are *not* updating candidate_targets during this process,
