@@ -1067,9 +1067,15 @@ class TaipanTile(object):
         self.pa = pa
 
     def __str__(self):
-        string = 'Tile at RA %3.1f Dec %2.1f' % (self.ra, self.dec)
+        string = 'TP TILE RA %3.1f Dec %2.1f' % (self.ra, self.dec)
         if self.field_id:
-            string += ' (field %d)' % (self.field_id, )
+            string += ' (f %d)' % (self.field_id, )
+        return string
+
+    def __repr__(self):
+        string = 'TP TILE RA %3.1f Dec %2.1f' % (self.ra, self.dec)
+        if self.field_id:
+            string += ' (f %d)' % (self.field_id,)
         return string
 
     @property
