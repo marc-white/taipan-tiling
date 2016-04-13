@@ -1268,7 +1268,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                 logging.info('Detected no remaining legal tiles - '
                              'relaxing requirements')
                 disqualify_below_min = False
-                ranking_list = [tile.calculate_tile_score(method=ranking_method,
+                ranking_list = [tile.calculate_tile_score(
+                    method=ranking_method,
                     disqualify_below_min=disqualify_below_min) 
                     for tile in candidate_tiles]
                 # print ranking_list
