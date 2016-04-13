@@ -20,7 +20,7 @@ UKST_LATITUDE = -31.272231
 UKST_LONGITUDE = +149.071233 
 UKST_ELEVATION = 1165 # metres
 
-UKST_TELESCOPE= ephem.Observer()
+UKST_TELESCOPE = ephem.Observer()
 UKST_TELESCOPE.lat = np.radians( UKST_LATITUDE )  # radians everywhere
 UKST_TELESCOPE.lon = np.radians( UKST_LONGITUDE ) # radians everywhere
 UKST_TELESCOPE.elevation = UKST_ELEVATION

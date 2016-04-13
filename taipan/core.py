@@ -41,7 +41,7 @@ if FIBRES_PER_TILE < INSTALLED_FIBRES:
                     'Check the fibre constants in taipan/core.py.')
 if FIBRES_PER_TILE > INSTALLED_FIBRES:
     raise Exception('You are attempting to assign more fibres than'
-                    'are currently installed. Check the fibre'
+                    'are currently installed. Check the fibre '
                     'constants in taipan/core.py.')
 
 # Fibre positioning
