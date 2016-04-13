@@ -1,6 +1,7 @@
 import numpy as np
 
-def test_redshift_success( priority, num_visits ):
+
+def test_redshift_success(priority, num_visits):
     """
     FOR TEST USE ONLY
 
@@ -27,7 +28,7 @@ def test_redshift_success( priority, num_visits ):
 
     """
 
-    if np.any( num_visits <= 0 ):
+    if np.any(num_visits <= 0):
         print 'must increment num_visits before calling test_success!' 
     score = np.random.rand( priority.size ).reshape( priority.shape )
     # score is a random number between 0 and 1
