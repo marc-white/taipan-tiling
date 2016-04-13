@@ -11,6 +11,7 @@ import math
 import random
 import string
 import operator
+import logging
 from matplotlib.cbook import flatten
 from scipy.spatial import KDTree, cKDTree
 from sklearn.neighbors import KDTree as skKDTree
@@ -468,8 +469,8 @@ def compute_target_difficulties(target_list, full_target_list=None,
         Defaults to None, in which case, target difficulties are computed for
         all targets in target_lists against target_list itself.
     verbose:
-        Whether to print detailed run-time information to the terminal.
-        Defaults to False.
+        Whether to print detailed debug information to the root logger. Defaults
+        to False.
     leafsize:
         The leafsize (i.e. number of targets) where it becomes more efficient
         to construct a KDTree rather than brute-force the distances between
@@ -490,10 +491,10 @@ def compute_target_difficulties(target_list, full_target_list=None,
             'Checking target_list against full_target_list...'
         if not np.all(np.in1d(target_list, full_target_list)):
             raise ValueError('target_list must be a sublist'
-                ' of full_target_list')
+                             ' of full_target_list')
 
     if verbose:
-        print 'Forming Cartesian positions...'
+        logging.debug('Forming Cartesian positions...')
     # Calculate UC positions if they haven't been done already
     burn = [t.compute_ucposn() for t in target_list if t.ucposn is None]
     cart_targets = np.asarray([t.ucposn for t in target_list])
@@ -505,7 +506,7 @@ def compute_target_difficulties(target_list, full_target_list=None,
         full_cart_targets = np.copy(cart_targets)
     
     if verbose:
-        print 'Generating KDTree with leafsize %d' % leafsize
+        logging.debug('Generating KDTree with leafsize %d' % leafsize)
     if tree_function == skKDTree:
         tree = tree_function(full_cart_targets, leaf_size=leafsize)
     else:
@@ -519,23 +520,23 @@ def compute_target_difficulties(target_list, full_target_list=None,
     else:
         if len(target_list) < (100*leafsize):
             if verbose:
-                print 'Computing difficulties...'
+                logging.debug('Computing difficulties...')
             difficulties = tree.query_ball_point(cart_targets,
                 dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
         else:
             if verbose:
-                print 'Generating subtree for difficulties...'
+                logging.debug('Generating subtree for difficulties...')
             subtree = tree_function(cart_targets, leafsize=leafsize)
             difficulties = subtree.query_ball_tree(tree,
                 dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
     difficulties = [len(d) for d in difficulties]
 
     if verbose:
-        print 'Assigning difficulties...'
+        logging.debug('Assigning difficulties...')
     for i in range(len(difficulties)):
         target_list[i].difficulty = difficulties[i]
     if verbose:
-        print 'Difficulties done!'
+        logging.debug('Difficulties done!')
         
     difficulties = [1]
     if min(difficulties) ==0:
@@ -1606,7 +1607,6 @@ class TaipanTile(object):
         ranking_score = float(ranking_score)
         return ranking_score
 
-
     def set_fibre(self, fibre, tgt):
         """
         Explicitly assign a TaipanTarget to a fibre on this tile.
@@ -1762,7 +1762,8 @@ class TaipanTile(object):
                 'containing the integers 0, 1 and 2 once each')
         if recompute_difficulty and not check_tile_radius:
             raise ValueError('recompute_difficulty requires a full '
-                'target list (i.e. that would require check_tile_radius)')
+                             'target list (i.e. that would'
+                             ' require check_tile_radius)')
 
         # Reset the fibre to be empty
         fibre_former_tgt = self._fibres[fibre]
@@ -2049,7 +2050,8 @@ class TaipanTile(object):
         # This should be removed in production
         if candidate_found and len(candidate_targets) - len(
             candidate_targets_return) != 1:
-            print '### WARNING - assign_tile has mangled the target list'
+            logging.error('### WARNING - assign_tile has '
+                          'mangled the target list')
 
         return candidate_targets_return, fibre_former_tgt
 
