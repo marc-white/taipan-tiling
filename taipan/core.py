@@ -591,7 +591,8 @@ class TaipanTarget(object):
 
     # Initialisation & input-checking
     def __init__(self, idn, ra, dec, ucposn=None, priority=1, standard=False,
-        guide=False, difficulty=0, mag=None):
+                 guide=False, difficulty=0, mag=None,
+                 h0=False, vpec=False, lowz=False):
         self._idn = None
         self._ra = None
         self._dec = None
@@ -601,6 +602,10 @@ class TaipanTarget(object):
         self._guide = None
         self._difficulty = None
         self._mag = None
+        # Taipan-specific fields
+        self._h0 = None
+        self._vpec = None
+        self._lowz = None
 
         # Insert given values
         # This causes the setter functions to be called, which does
@@ -614,6 +619,9 @@ class TaipanTarget(object):
         self.guide = guide
         self.difficulty = difficulty
         self.mag = mag
+        self.h0 = h0
+        self.vpec = vpec
+        self.lowz = lowz
 
     def __repr__(self):
         return 'TP TGT %s' % str(self._idn)
@@ -760,6 +768,35 @@ class TaipanTarget(object):
             assert (m > -10 and m < 30), "mag outside valid range"
         self._mag = m
 
+    @property
+    def h0(self):
+        """Is this a h0 target?"""
+        return self._h0
+
+    @h0.setter
+    def h0(self, b):
+        b = bool(b)
+        self._h0 = b
+
+    @property
+    def lowz(self):
+        """Is this a lowz target?"""
+        return self._lowz
+
+    @lowz.setter
+    def lowz(self, b):
+        b = bool(b)
+        self._lowz = b
+
+    @property
+    def vpec(self):
+        """Is this a vpec (peculiar velocity) target?"""
+        return self._vpec
+
+    @vpec.setter
+    def vpec(self, b):
+        b = bool(b)
+        self._vpec = b
 
     def return_target_code(self):
         """
