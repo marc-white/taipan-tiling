@@ -729,7 +729,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
     # Push the coordinate limits into standard format
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max,
-        dec_min, dec_max)
+                                                      dec_min, dec_max)
     # print ra_min, ra_max, dec_min, dec_max
 
     if tiling_method == 'SH':

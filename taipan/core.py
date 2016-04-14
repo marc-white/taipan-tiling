@@ -1107,13 +1107,13 @@ class TaipanTile(object):
 
     def __str__(self):
         string = 'TP TILE RA %3.1f Dec %2.1f' % (self.ra, self.dec)
-        if self._field_id:
+        if self._field_id is not None:
             string += ' (f %d)' % (self.field_id, )
         return string
 
     def __repr__(self):
         string = 'TP TILE RA %3.1f Dec %2.1f' % (self.ra, self.dec)
-        if self._field_id:
+        if self._field_id is not None:
             string += ' (f %d)' % (self.field_id,)
         return string
 
