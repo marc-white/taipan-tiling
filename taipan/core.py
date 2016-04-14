@@ -707,8 +707,9 @@ class TaipanTarget(object):
                 % value[2])
         if abs(value[0]**2 + value[1]**2 + value[2]**2 - 1.0) > 0.001:
             raise Exception('ucposn must lie on unit sphere '
-                '(x^2 + y^2 + z^2 = 1.0 - error of %f)'
-                % (value[0]**2 + value[1]**2 + value[2]**2))
+                '(x^2 + y^2 + z^2 = 1.0 - error of %f (%f, %f, %f) )'
+                % (value[0]**2 + value[1]**2 + value[2]**2,
+                   value[0], value[1], value[2]))
         self._ucposn = list(value)
     
 
