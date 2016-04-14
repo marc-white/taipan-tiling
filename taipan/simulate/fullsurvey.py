@@ -6,6 +6,12 @@ from taipan import core as tp
 from taipan import tiling as tl
 from taipan import scheduling as ts
 
+import numpy as np
+from matplotlib import pyplot as plt
+import atpy
+import ephem
+
+
 def execute():
     # Perform the simulation
     pass

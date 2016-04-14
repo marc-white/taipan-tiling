@@ -724,7 +724,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
     if not(isinstance(tiles, list)):
         raise ValueError('tiles must be a list of TaipanTile objects')
-    if np.all([isinstance(t, tp.TaipanTile) for t in tiles]):
+    if not(np.all([isinstance(t, tp.TaipanTile) for t in tiles])):
         raise ValueError('tiles must be a list of TaipanTile objects')
 
     # Push the coordinate limits into standard format

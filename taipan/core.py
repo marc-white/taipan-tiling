@@ -820,9 +820,9 @@ class TaipanTarget(object):
         if self.standard:
             code = 'S'
         elif self.guide:
-            code ='G'
+            code = 'G'
         else:
-            code ='X'
+            code = 'X'
 
         return code
 
