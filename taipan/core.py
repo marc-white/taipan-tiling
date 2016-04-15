@@ -2441,7 +2441,7 @@ class TaipanTile(object):
 
         # If necessary, strip down the target lists so that they are 
         # restricted to targets on this tile only
-        # print 'Trimming input lists...'
+        logging.debug('Trimming input lists...')
         candidates_this_tile = candidate_targets_return[:]
         standards_this_tile = standard_targets[:]
         guides_this_tile = guide_targets[:]
@@ -2457,7 +2457,7 @@ class TaipanTile(object):
             return candidate_targets, []#, removed_targets
 
         # Generate the ranking list for the candidate targets
-        # print 'Computing ranking list...'
+        logging.debug('Computing ranking list...')
         ranking_list = generate_ranking_list(
             candidates_this_tile,
             method=method, combined_weight=combined_weight,
@@ -2472,7 +2472,7 @@ class TaipanTile(object):
         # First, assign the science targets to the tile
         # This step will only fill TARGET_PER_TILE fibres; that is, it assumes
         # that we will want an optimal number of standards, guides and skies
-        # print 'Assigning targets...'
+        logging.debug('Assigning targets...')
         assigned_tgts = len([t for t in self._fibres.values() 
             if isinstance(t, TaipanTarget)
             and not t.guide and not t.standard])
@@ -2527,7 +2527,7 @@ class TaipanTile(object):
                 candidates_this_tile.pop(i)
 
         # Assign guides to this tile
-        # print 'Assigning guides...'
+        logging.debug('Assigning guides...')
         removed_for_guides = self.assign_guides(guides_this_tile,
             check_tile_radius=not(check_tile_radius), # don't recheck radius
             target_method=method, combined_weight=combined_weight,
@@ -2543,7 +2543,7 @@ class TaipanTile(object):
             and not t in standards_this_tile]
 
         # Attempt to assign standards to this tile
-        # print 'Assigning standards...'
+        logging.debug('Assigning standards...')
         assigned_standards = len([t for t in self._fibres.values() 
             if isinstance(t, TaipanTarget)
             and t.standard])
@@ -2664,12 +2664,12 @@ class TaipanTile(object):
 
         # Perform a repick if requested
         if repick_after_complete:
-            # print 'Repicking...'
+            logging.debug('Repicking...')
             self.repick_tile()
 
         # Update difficulties if requested
         if recompute_difficulty:
-            # print 'Recomputing difficulty...'
+            logging.debug('Recomputing difficulty...')
             # Just calculate difficulty for everything on the tile + fibre
             # exclusion radius
             # May calculate if change not strictly required, but no mucking
