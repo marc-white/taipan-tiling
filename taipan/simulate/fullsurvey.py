@@ -11,8 +11,8 @@ import numpy as np
 import atpy
 import ephem
 
-from TaipanDB.src.resources.v0_0_1.readout import *
-from TaipanDB.src.resources.v0_0_1.manipulate import *
+from src.resources.v0_0_1.readout import *
+from src.resources.v0_0_1.manipulate import *
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
