@@ -63,7 +63,7 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     # generate_outputs()
 
     # Ge the field centres in from the database
-    field_tiles = rCexec.execute(cursor)
+    field_tiles = rCexec(cursor)
 
 
 
