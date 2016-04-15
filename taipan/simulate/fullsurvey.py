@@ -11,7 +11,7 @@ import numpy as np
 import atpy
 import ephem
 
-from src.resources.v0_0_1.readout.loadCentroids import execute as lCexec
+from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.manipulate import *
 
 
@@ -63,7 +63,7 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     # generate_outputs()
 
     # Ge the field centres in from the database
-    field_tiles = lCexec.execute(cursor)
+    field_tiles = rCexec.execute(cursor)
 
 
 
