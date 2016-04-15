@@ -763,15 +763,16 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
     for tile in candidate_tiles:
         # print 'inter: %d' % len(candidate_targets)
-        burn = tile.unpick_tile(candidate_targets, standard_targets, 
-            guide_targets,
-            overwrite_existing=True, check_tile_radius=True,
-            recompute_difficulty=False,
-            method=tile_unpick_method, combined_weight=combined_weight,
-            sequential_ordering=sequential_ordering,
-            rank_supplements=rank_supplements, 
-            repick_after_complete=False,
-            consider_removed_targets=False)
+        burn = tile.unpick_tile(candidate_targets, standard_targets,
+                                guide_targets,
+                                overwrite_existing=True, check_tile_radius=True,
+                                recompute_difficulty=False,
+                                method=tile_unpick_method,
+                                combined_weight=combined_weight,
+                                sequential_ordering=sequential_ordering,
+                                rank_supplements=rank_supplements,
+                                repick_after_complete=False,
+                                consider_removed_targets=False)
         i += 1
         logging.info('Created %d / %d tiles' % (i, len(candidate_tiles)))
     # print len(candidate_targets)
@@ -1154,7 +1155,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         remaining_priority_targets = no_priority_targets
         while ((float(no_priority_targets - remaining_priority_targets) 
             / float(no_priority_targets)) < completeness_target) and (
-            max(ranking_list) > 0.05): #!!! Warning: 0.05 is hardwirded here - what does it mean???
+            max(ranking_list) > 0.05): # !!! Warning: 0.05 is hardwirded here
+            # - what does it mean??? It a simple proxy for max > 0
 
             # Find the highest-ranked tile in the candidates_list, and remove it
             i = np.argmax(ranking_list)
@@ -1223,7 +1225,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             affected_tiles = [t for t in candidate_tiles
                 if np.any(map(lambda x: x in t.get_assigned_targets_science(),
                     assigned_targets))]
-            # This won't cause the new tile to be re-picked, so manually add that
+            # This won't cause the new tile to be re-picked,
+            # so manually add that
             affected_tiles.append(candidate_tiles[-1])
             for tile in affected_tiles:
                 # print 'inter: %d' % len(candidate_targets)
@@ -1294,3 +1297,155 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             t.repick_tile()
 
     return tile_list, final_completeness, candidate_targets
+
+
+def generate_tiling_greedy_npasses(candidate_targets, standard_targets, npass,
+                                   guide_targets,
+                                   ranking_method='completeness',
+                                   tiles=None,
+                                   ra_min=0, ra_max=360., dec_min=-90.,
+                                   dec_max=90.,
+                                   tile_unpick_method='sequential',
+                                   combined_weight=1.0,
+                                   sequential_ordering=(1, 2),
+                                   rank_supplements=False,
+                                   repick_after_complete=True,
+                                   recompute_difficulty=True
+                                   ):
+    """
+    Generate a tiling based on the greedy algorithm, but instead of going
+    to some completeness target, generate the n best tiles for each input tile
+    (i.e. position).
+
+    This algorithm works as follows:
+
+    - Generate the best tile at the field position;
+    - Remove the assigned targets from consideration and repeat n times;
+    - Repeat for each tile in the input tiles.
+
+
+    Parameters
+    ----------
+    candidate_targets, standard_targets, guide_targets :
+        The lists of science,
+        standard and guide targets to consider, respectively. Should be lists
+        of TaipanTarget objects.
+
+    completeness_target :
+        A float in the range (0, 1] denoting the science
+        target completeness to stop at. Defaults to 1.0 (full completeness).
+
+    ranking_method :
+        The scheme to use for ranking the tiles. See the
+        documentation for TaipanTile.calculate_tile_score for details.
+
+    tiling_method :
+        The method by which to generate a tiling set. Currently available are:
+        'SH' - Use Slaone-Harding tilings
+        'user' - Use a user-provided set of TaipanTiles as the 'seed' tiling
+
+    tiles:
+        List of TaipanTile objects to be used as the initial distribution of
+        tiles. Only required if tiling_method='user'. If tiling_method='user'
+        and tiles is not provided/is not a list of TaipanTiles, and error will
+        be thrown.
+
+    randomise_pa :
+        Optional Boolean, denoting whether to randomise the pa of
+        seed tiles or not. Defaults to True.
+
+    randomise_SH :
+        Optional Boolean, denoting whether or not to randomise the
+        RA of the 'seed' of the SH tiling. Defaults to True.
+
+    tiling_file :
+        The SH tiling file to use for generating tiling centres.
+        Defaults to 'ipack.3.8192.txt'.
+
+    ra_min, ra_max, dec_min, dec_max :
+        The RA and Dec bounds of the region to
+        be considered, in decimal degrees. To have an RA range spanning across
+        0 deg RA, either use a negative value for ra_min, or give an ra_min >
+        ra_max.
+
+    tiling_set_size :
+        Not relevant at the current time.
+
+    tile_unpick_method :
+        The scheme to be used for unpicking tiles. Defaults to
+        'sequential'. See the documentation for TaipanTile.unpick_tile for
+        details.
+
+    combined_weight, sequential_ordering :
+        Additional arguments to be used in
+        the tile unpicking process. See the documentation for
+        TaipanTile.unpick_tile for details.
+
+    rank_supplements :
+        Optional Boolean value, denoting whether to attempt to
+        assign guides/standards in priority order. Defaults to False.
+
+    repick_after_complete :
+        Boolean value, denoting whether to repick each tile
+        after unpicking. Defaults to True.
+
+    recompute_difficulty :
+        Boolean value, denoting whether to recompute target
+        difficulties after a tile is moved to the results lsit. Defaults to
+        True.
+
+    Returns
+    -------
+    tile_list :
+        The list of tiles making up the tiling.
+
+    final_completeness :
+        The target completeness achieved.
+
+    candidate_targets :
+        Any targets from candidate_targets that do not
+        appear in the final tiling_list (i.e. were not assigned to a successful
+        tile).
+    """
+
+    # Input checking
+    if not (isinstance(tiles, list)):
+        raise ValueError('tiles must be a list of TaipanTile objects')
+    if not (np.all([isinstance(t, tp.TaipanTile) for t in tiles])):
+        raise ValueError('tiles must be a list of TaipanTile objects')
+
+    # Push the coordinate limits into standard format
+    ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max,
+                                                      dec_min, dec_max)
+
+    logging.info('Starting tile unpicking')
+    no_submitted_targets = len(candidate_targets)
+    if no_submitted_targets == 0:
+        raise ValueError('Attempting to generate a tiling with no targets!')
+
+    # Loop over each tile in the tiles input n times, doing a tiling
+    # sequence for each an append the result to the output
+    output_tiles = []
+    for tile in tiles:
+        # Regenerate the target catalogue
+        candidate_targets_master = candidate_targets[:]
+        for i in range(npass):
+            # Create a tile copy
+            candidate_tile = copy.copy(tile)
+            # Unpick the tile based on the candidate list
+            candidate_targets_master = candidate_tile.unpick_tile(
+                candidate_targets_master,
+                standard_targets,
+                guide_targets,
+                overwrite_existing=True,
+                check_tile_radius=True,
+                method=tile_unpick_method,
+                combined_weight=combined_weight,
+                sequential_ordering=sequential_ordering,
+                rank_supplements=rank_supplements,
+                repick_after_complete=repick_after_complete,
+                consider_removed_targets=False)
+            output_tiles.append(candidate_tile)
+
+    # Send the returned tiles back
+    return output_tiles

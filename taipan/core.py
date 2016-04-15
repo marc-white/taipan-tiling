@@ -1612,7 +1612,7 @@ class TaipanTile(object):
         # Get all the science targets
         targets_sci = self.get_assigned_targets_science()
         
-        #If there are no science targets... we obviously have no score!
+        # If there are no science targets... we obviously have no score!
         if len(targets_sci) == 0:
             return 0.
 
