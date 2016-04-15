@@ -1429,8 +1429,11 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
     output_tiles = []
     for tile in tiles:
         # Regenerate the target catalogue
+        logging.debug('Tiling for field %d (RA %3.1f, DEC %2.1f' %
+                      (tile.field_id, tile.ra, tile.dec))
         candidate_targets_master = candidate_targets[:]
         for i in range(npass):
+            logging.debug('Pass %d of %d' % (i+1, npass))
             # Create a tile copy
             candidate_tile = copy.copy(tile)
             # Unpick the tile based on the candidate list
