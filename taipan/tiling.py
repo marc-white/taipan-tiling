@@ -1299,8 +1299,9 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     return tile_list, final_completeness, candidate_targets
 
 
-def generate_tiling_greedy_npasses(candidate_targets, standard_targets, npass,
+def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    guide_targets,
+                                   npass,
                                    ranking_method='completeness',
                                    tiles=None,
                                    ra_min=0, ra_max=360., dec_min=-90.,

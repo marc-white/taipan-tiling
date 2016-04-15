@@ -35,6 +35,9 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     the virtual observer), and plots are generated and placed in the output
     folder.
     """
+
+    SIMULATE_LOG_PREFIX = 'SIMULATOR: '
+
     # This is just a rough scaffold to show the steps the code will need to
     # take
 
@@ -65,13 +68,21 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     # generate_outputs()
 
     # Ge the field centres in from the database
+    logging.info(SIMULATE_LOG_PREFIX+'Loading targets')
     field_tiles = rCexec(cursor)
     candidate_targets = rScexec(cursor)
     guide_targets = rGexec(cursor)
     standard_targets = rSexec(cursor)
 
-    # candidate_tiles = tl.generate_tiling_greedy_npasses()
+    logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
+    candidate_tiles = tl.generate_tiling_greedy_npasses(candidate_targets,
+                                                        standard_targets,
+                                                        guide_targets,
+                                                        1,
+                                                        tiles=field_tiles,
+                                                        )
 
+    return
 
 
 if __name__ == '__main__':
