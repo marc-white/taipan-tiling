@@ -2674,6 +2674,7 @@ class TaipanTile(object):
             # exclusion radius
             # May calculate if change not strictly required, but no mucking
             # around working out which targets need an update
+            assigned_targets_sci = self.get_assigned_targets_science()
             compute_target_difficulties([t for t in candidate_targets_return
                 if np.any(np.asarray([t.dist_point((at.ra, at.dec)) 
                     for at in assigned_targets_sci]) 
