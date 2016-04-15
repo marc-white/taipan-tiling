@@ -12,7 +12,9 @@ import atpy
 import ephem
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
-from src.resources.v0_0_1.manipulate import *
+from src.resources.v0_0_1.readout.readGuides import execute as rGexec
+from src.resources.v0_0_1.readout.readStandards import execute as rSexec
+from src.resources.v0_0_1.readout.readScience import execute as rScexec
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
@@ -64,6 +66,11 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
     # Ge the field centres in from the database
     field_tiles = rCexec(cursor)
+    candidate_targets = rScexec(cursor)
+    guide_targets = rGexec(cursor)
+    standard_targets = rSexec(cursor)
+
+    # candidate_tiles = tl.generate_tiling_greedy_npasses()
 
 
 
