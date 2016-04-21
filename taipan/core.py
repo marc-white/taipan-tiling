@@ -1153,7 +1153,7 @@ class TaipanTile(object):
 
     @ra.setter
     def ra(self, r):
-        if ra is None: raise Exception('RA may not be blank')
+        d = float(d)
         if r < 0.0 or r >= 360.0: 
             raise Exception('RA outside valid range')
         self._ra = r
@@ -1165,7 +1165,7 @@ class TaipanTile(object):
 
     @dec.setter
     def dec(self, d):
-        if d is None: raise Exception('Dec may not be blank')
+        d = float(d)
         if d < -90.0 or d > 90.0:
             raise Exception('Dec outside valid range')
         self._dec = d
