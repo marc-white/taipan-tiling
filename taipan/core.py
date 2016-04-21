@@ -572,9 +572,20 @@ def targets_in_range(ra, dec, target_list, dist):
     if len(target_list) == 0:
         return []
 
-    # Turns out this is always faster if just brute-forced
-    targets_in_range = [t for t in target_list
-        if t.dist_point((ra, dec)) < dist]
+    # Decide whether to brute-force or construct a KDTree
+    if len(target_list) <= BREAKEVEN_KDTREE:
+        targets_in_range = [t for t in target_list
+            if t.dist_point((ra, dec)) < dist]
+    else:
+        # Do KDTree computation
+        logging.debug('Generating KDTree with leafsize %d' % leafsize)
+        cart_targets = np.asarray([t.ucposn for t in target_list])
+        tree = cKDTree(cart_targets, leafsize=leafsize)
+        inds = tree.query_ball_point(polar2cart((ra, dec)),
+                                     dist_euclidean(FIBRE_EXCLUSION_RADIUS/
+                                                    3600.))
+        targets_in_range = [target_list[i] for i in inds]
+
     return targets_in_range
 
 
@@ -707,9 +718,10 @@ class TaipanTarget(object):
                 % value[2])
         if abs(value[0]**2 + value[1]**2 + value[2]**2 - 1.0) > 0.001:
             raise Exception('ucposn must lie on unit sphere '
-                '(x^2 + y^2 + z^2 = 1.0 - error of %f (%f, %f, %f) )'
-                % (value[0]**2 + value[1]**2 + value[2]**2,
-                   value[0], value[1], value[2]))
+                            '(x^2 + y^2 + z^2 = 1.0 - error of %f '
+                            '(%f, %f, %f) )'
+                            % (value[0]**2 + value[1]**2 + value[2]**2,
+                               value[0], value[1], value[2]))
         self._ucposn = list(value)
     
 
@@ -1085,7 +1097,7 @@ class TaipanTile(object):
     solution
     """
 
-    def __init__(self, ra, dec, field_id=None,
+    def __init__(self, ra, dec, field_id=None, ucposn=None,
                  pa=0.0, mag_min=None, mag_max=None):
         self._fibres = {}
         for i in range(1, FIBRES_PER_TILE+1):
@@ -1093,6 +1105,7 @@ class TaipanTile(object):
         # self._fibres = self.fibres(fibre_init)
         self._ra = None
         self._dec = None
+        self._ucposn = None
         self._field_id = None
         self._mag_min = None
         self._mag_max = None
@@ -1103,6 +1116,7 @@ class TaipanTile(object):
         # called, which provides error checking
         self.ra = ra
         self.dec = dec
+        self.ucposn = ucposn
         self.field_id = field_id
         self.pa = pa
 
@@ -1136,7 +1150,8 @@ class TaipanTile(object):
     def ra(self):
         """Target RA"""
         return self._ra
-    # @ra.setter
+
+    @ra.setter
     def ra(self, r):
         if not r: raise Exception('RA may not be blank')
         if r < 0.0 or r >= 360.0: 
@@ -1147,12 +1162,42 @@ class TaipanTile(object):
     def dec(self):
         """Target dec"""
         return self._dec
-    # @dec.setter
+
+    @dec.setter
     def dec(self, d):
         if not d: raise Exception('Dec may not be blank')
         if d < -90.0 or d > 90.0:
             raise Exception('Dec outside valid range')
         self._dec = d
+
+    @property
+    def ucposn(self):
+        """Target position on the unit sphere, should be 3-list or 3-tuple"""
+        return self._ucposn
+
+    @ucposn.setter
+    def ucposn(self, value):
+        if value is None:
+            self._ucposn = None
+            return
+        if len(value) != 3:
+            raise Exception('ucposn must be a 3-list or 3-tuple')
+        if value[0] < -1. or value[0] > 1.:
+            raise Exception('x value %f outside allowed bounds (-1 <= x <= 1)'
+                            % value[0])
+        if value[1] < -1. or value[1] > 1.:
+            raise Exception('y value %f outside allowed bounds (-1 <= x <= 1)'
+                            % value[1])
+        if value[2] < -1. or value[2] > 1.:
+            raise Exception('z value %f outside allowed bounds (-1 <= x <= 1)'
+                            % value[2])
+        if abs(value[0] ** 2 + value[1] ** 2 + value[2] ** 2 - 1.0) > 0.001:
+            raise Exception('ucposn must lie on unit sphere '
+                            '(x^2 + y^2 + z^2 = 1.0 - error of %f'
+                            ' (%f, %f, %f) )'
+                            % (value[0] ** 2 + value[1] ** 2 + value[2] ** 2,
+                               value[0], value[1], value[2]))
+        self._ucposn = list(value)
 
     @property
     def pa(self):
