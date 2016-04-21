@@ -2639,7 +2639,7 @@ class TaipanTile(object):
         assigned_objs = self.get_assigned_targets()
 
         if assigned_standards < STANDARDS_PER_TILE_MIN:
-            # print 'Having to strip targets for standards...'
+            logging.debug('Having to strip targets for standards...')
             standards_this_tile = [t for t in standard_targets
                 if t not in assigned_objs]
             if check_tile_radius:
@@ -2664,7 +2664,10 @@ class TaipanTile(object):
                     failure_detected = True
                     # print 'Failure detected!'
                 if removed is not None and removed != 'sky':
-                    if (isinstance(removed, TaipanTarget) and (not removed.guide) and (not removed.standard) and (removed not in candidate_targets)): 
+                    if (isinstance(removed, TaipanTarget)
+                        and (not removed.guide)
+                        and (not removed.standard)
+                        and (removed not in candidate_targets)):
                         candidates_this_tile.append(removed)
 
         # All fibres except for sky fibres should now be assigned, unless there
@@ -2680,7 +2683,8 @@ class TaipanTile(object):
 
         if len([f for f in self._fibres if self._fibres[f]
              is None and f not in FIBRES_GUIDE]) > SKY_PER_TILE:
-            # print 'Looking to assign targets to remaining empty fibres...'
+            logging.debug('Looking to assign targets to '
+                          'remaining empty fibres...')
             # Reconstruct the targets_this_tile list
             candidates_this_tile = candidate_targets_return[:]
             if check_tile_radius:
