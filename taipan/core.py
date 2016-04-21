@@ -1153,7 +1153,7 @@ class TaipanTile(object):
 
     @ra.setter
     def ra(self, r):
-        d = float(d)
+        r = float(r)
         if r < 0.0 or r >= 360.0: 
             raise Exception('RA outside valid range')
         self._ra = r
