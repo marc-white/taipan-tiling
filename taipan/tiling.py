@@ -1427,6 +1427,11 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
     # Loop over each tile in the tiles input n times, doing a tiling
     # sequence for each an append the result to the output
     output_tiles = []
+    if npass == 1:
+        recompute_difficulty = False
+    else:
+        recompute_difficulty = True
+
     for tile in tiles:
         # Regenerate the target catalogue
         logging.debug('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
@@ -1448,7 +1453,9 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                 sequential_ordering=sequential_ordering,
                 rank_supplements=rank_supplements,
                 repick_after_complete=repick_after_complete,
-                consider_removed_targets=False)
+                consider_removed_targets=False,
+                recompute_difficulty=recompute_difficulty
+            )
             output_tiles.append(candidate_tile)
 
     # Send the returned tiles back
