@@ -2699,7 +2699,7 @@ class TaipanTile(object):
                 candidates_before = candidates_this_tile[:]
                 candidates_this_tile, removed_target = self.assign_tile(
                     candidates_this_tile,
-                    check_tile_radius=False,
+                    check_tile_radius=check_tile_radius,
                     method=method, combined_weight=combined_weight,
                     sequential_ordering=sequential_ordering)
                 # Overwrite is False, so removed_target will always be None
