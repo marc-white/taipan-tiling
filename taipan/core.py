@@ -545,7 +545,8 @@ def compute_target_difficulties(target_list, full_target_list=None,
     return
 
 
-def targets_in_range(ra, dec, target_list, dist):
+def targets_in_range(ra, dec, target_list, dist,
+                     leafsize=BREAKEVEN_KDTREE):
     """
     Return the subset of target_list within dist of (ra, dec).
 
