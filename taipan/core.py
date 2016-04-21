@@ -2688,17 +2688,18 @@ class TaipanTile(object):
             # Reconstruct the targets_this_tile list
             candidates_this_tile = candidate_targets_return[:]
             if check_tile_radius:
-                candidates_this_tile = [t for t in candidates_this_tile
-                    if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
+                candidates_this_tile = targets_in_range(self.ra, self.dec,
+                                                        candidates_this_tile,
+                                                        TILE_RADIUS)
 
             failure_detected = False
             while len([f for f in self._fibres 
-                if self._fibres[f] is None]) > SKY_PER_TILE and (
+                       if self._fibres[f] is None]) > SKY_PER_TILE and (
                     not failure_detected):
                 candidates_before = candidates_this_tile[:]
                 candidates_this_tile, removed_target = self.assign_tile(
                     candidates_this_tile,
-                    check_tile_radius=check_tile_radius,
+                    check_tile_radius=False,
                     method=method, combined_weight=combined_weight,
                     sequential_ordering=sequential_ordering)
                 # Overwrite is False, so removed_target will always be None
