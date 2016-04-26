@@ -1139,8 +1139,9 @@ class TaipanTile(object):
         return self._fibres
     @fibres.setter
     def fibres(self, d):
-        if (not isinstance(d, dict) 
-            or [i for i in d].sort() != [i for i in BUGPOS_MM].sort()):
+        if (not isinstance(d, dict) or [i for
+                                        i in d].sort() != [i for i in
+                                                           BUGPOS_MM].sort()):
             raise Exception('Tile fibres must be a dictionary'
                             ' with keys %s' % (
                                 str(sorted([i for i in BUGPOS_MM])), )

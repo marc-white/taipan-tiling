@@ -16,6 +16,8 @@ from src.resources.v0_0_1.readout.readGuides import execute as rGexec
 from src.resources.v0_0_1.readout.readStandards import execute as rSexec
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
 
+from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
+
 
 def execute(cursor, date_start, date_end, output_loc='.'):
     """
@@ -75,12 +77,15 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     standard_targets = rSexec(cursor)
 
     logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
+    # TEST ONLY: Trim the tile list to 10 to test DB write-out
+    field_tiles = field_tiles[:10]
     candidate_tiles = tl.generate_tiling_greedy_npasses(candidate_targets,
                                                         standard_targets,
                                                         guide_targets,
                                                         1,
                                                         tiles=field_tiles,
                                                         )
+    iTexec(cursor, candidate_tiles)
 
     return
 
