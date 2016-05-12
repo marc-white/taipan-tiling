@@ -2495,10 +2495,16 @@ class TaipanTile(object):
         if check_tile_radius:
             candidates_this_tile = targets_in_range(self.ra, self.dec,
                 candidates_this_tile, TILE_RADIUS)
+            logging.debug('%d science targets remain' %
+                          len(candidates_this_tile))
             standards_this_tile = targets_in_range(self.ra, self.dec,
                 standards_this_tile, TILE_RADIUS)
+            logging.debug('%d standards targets remain' %
+                          len(standards_this_tile))
             guides_this_tile = targets_in_range(self.ra, self.dec,
                 guides_this_tile, TILE_RADIUS)
+            logging.debug('%d guide targets remain' %
+                          len(guides_this_tile))
 
         if len(candidates_this_tile) == 0:
             return candidate_targets, []#, removed_targets
@@ -2732,6 +2738,13 @@ class TaipanTile(object):
                     for at in assigned_targets_sci]) 
                 < FIBRE_EXCLUSION_RADIUS)],
                 full_target_list=candidate_targets_return)
+
+        logging.debug('Made tile with %d science, %d standard '
+                      'and %d guide targets' %
+                      (len(self.get_assigned_targets_science()),
+                       len(self.get_assigned_targets_standard()),
+                       len(self.get_assigned_targets_guide()), ))
+
 
         return candidate_targets_return, removed_targets
 
