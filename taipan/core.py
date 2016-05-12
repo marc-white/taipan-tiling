@@ -2486,6 +2486,13 @@ class TaipanTile(object):
         # Re-blank the removed_targets list
         removed_targets = []
 
+        logging.debug('Considering %d science, %d standard and '
+                      '%d guide targets'
+                      % (len(candidate_targets),
+                         len(standard_targets),
+                         len(guide_targets), )
+                      )
+
         # If necessary, strip down the target lists so that they are 
         # restricted to targets on this tile only
         logging.debug('Trimming input lists...')
