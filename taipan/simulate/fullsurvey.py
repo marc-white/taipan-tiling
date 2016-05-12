@@ -10,6 +10,7 @@ import simulate as tsim
 import numpy as np
 import atpy
 import ephem
+import random
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
@@ -78,7 +79,7 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
     logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
     # TEST ONLY: Trim the tile list to 10 to test DB write-out
-    field_tiles = field_tiles[:10]
+    field_tiles = random.sample(field_tiles, 15)
     candidate_tiles = tl.generate_tiling_greedy_npasses(candidate_targets,
                                                         standard_targets,
                                                         guide_targets,
