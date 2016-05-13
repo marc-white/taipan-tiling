@@ -583,7 +583,7 @@ def targets_in_range(ra, dec, target_list, dist,
         cart_targets = np.asarray([t.ucposn for t in target_list])
         tree = cKDTree(cart_targets, leafsize=leafsize)
         inds = tree.query_ball_point(polar2cart((ra, dec)),
-                                     dist_euclidean(dist))
+                                     dist_euclidean(dist / 3600.))
         targets_in_range = [target_list[i] for i in inds]
 
     return targets_in_range
