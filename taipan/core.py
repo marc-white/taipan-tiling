@@ -242,10 +242,10 @@ FIBRES_GUIDE.sort()
 #       'GUIDES_PER_TILE. Check the constant in taipan.core')
 FIBRES_NORMAL = [f for f in BUGPOS_OFFSET if f not in FIBRES_GUIDE]
 
-FIBRE_EXCLUSION_RADIUS = 10.0 * 60.0 # arcsec
-TILE_RADIUS = 3.0 * 60.0 * 60.0      # arcsec
-TILE_DIAMETER = 2.0 * TILE_RADIUS    # arcsec
-PATROL_RADIUS = 1.2 * 3600.          # arcsec
+FIBRE_EXCLUSION_RADIUS = 10.0 * 60.0  # arcsec
+TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec
+TILE_DIAMETER = 2.0 * TILE_RADIUS     # arcsec
+PATROL_RADIUS = 1.2 * 3600.           # arcsec
 
 TARGET_PRIORITY_MIN = 0
 TARGET_PRIORITY_MAX = 10
@@ -262,16 +262,20 @@ def prod(iterable):
     return reduce(operator.mul, iterable, 1)
 
 
-def aitoff_plottable((ra, dec), ra_offset=0.0):
+def aitoff_plottable(radec, ra_offset=0.0):
     """
     Convert coordinates to those compatible with matplotlib
     aitoff projection 
     
     Parameters
     ----------
-    (ra,dec): float
+    radec: 2-tuple of floats
         Right Ascension and Declination in degrees.
+    ra_offset: float
+        Number of degrees to offset the centre of the coordinate system.
+        Defaults to 0.
     """
+    ra, dec = radec
     ra = (ra + ra_offset) % 360. - 180.
     return math.radians(ra), math.radians(dec)
 
@@ -312,10 +316,21 @@ def dist_euclidean(dist_ang):
     return 2. * np.sin(np.radians(dist_ang/2.))
 
 
-def polar2cart((ra, dec)):
+def polar2cart(radec):
     """
     Convert RA, Dec to x, y, z
+
+    Parameters
+    ----------
+    radec: 2-tuple of floats
+        The RA and Dec of the required position in degrees
+
+    Returns
+    -------
+    x, y, z:
+        A representation of the passed position on the unit sphere
     """
+    ra, dec = radec
     x = np.sin(np.radians(dec+90.)) * np.cos(np.radians(ra))
     y = np.sin(np.radians(dec+90.)) * np.sin(np.radians(ra))
     z = np.cos(np.radians(dec+90.))
@@ -839,7 +854,6 @@ class TaipanTarget(object):
 
         return code
 
-
     def compute_ucposn(self):
         """
         Compute the position of this target on the unit circle from its
@@ -859,14 +873,13 @@ class TaipanTarget(object):
         self.ucposn = polar2cart((self.ra, self.dec))
         return
 
-
-    def dist_point(self, (ra, dec)):
+    def dist_point(self, radec):
         """
         Compute the distance between this target and a given position
 
         Parameters
         ----------
-        ra, dec :
+        radec : 2-tuple of floats
             The sky position to test. Should be in decimal degrees.
 
         Returns
@@ -877,6 +890,7 @@ class TaipanTarget(object):
 
         # Arithmetic implementation - fast
         # Convert all to radians
+        ra, dec = radec
         ra = math.radians(ra)
         dec = math.radians(dec)
         ra1 = math.radians(self.ra)
@@ -885,8 +899,8 @@ class TaipanTarget(object):
             +math.cos(dec1)*math.cos(dec)*(math.sin((ra1-ra)/2.))**2))
         return math.degrees(dist) * 3600.
 
-
-    def dist_point_approx(self, (ra, dec)):
+    def dist_point_approx(self, radec):
+        ra, dec = radec
         decfac = np.cos(dec * np.pi / 180.)
         dra = ra - self.ra
         if np.abs(dra) > 180.:
@@ -894,8 +908,8 @@ class TaipanTarget(object):
         dist = np.sqrt((dra / decfac)**2 + (dec - self.dec)**2)
         return dist * 3600.
 
-
-    def dist_point_mixed(self, (ra, dec), dec_cut=30.):
+    def dist_point_mixed(self, radec, dec_cut=30.):
+        ra, dec = radec
         dec_cut = abs(dec_cut)
         if abs(dec) <= dec_cut and abs(self.dec) <= dec_cut:
             dist = self.dist_point_approx((ra, dec))
@@ -1097,7 +1111,7 @@ class TaipanTile(object):
     solution
     """
 
-    def __init__(self, ra, dec, field_id=None, ucposn=None,
+    def __init__(self, ra, dec, field_id=None, pk=None, ucposn=None,
                  pa=0.0, mag_min=None, mag_max=None):
         self._fibres = {}
         for i in range(1, FIBRES_PER_TILE+1):
@@ -1107,6 +1121,7 @@ class TaipanTile(object):
         self._dec = None
         self._ucposn = None
         self._field_id = None
+        self._pk = None
         self._mag_min = None
         self._mag_max = None
         self._pa = 0.0
@@ -1118,6 +1133,7 @@ class TaipanTile(object):
         self.dec = dec
         self.ucposn = ucposn
         self.field_id = field_id
+        self.pk = pk
         self.pa = pa
 
     def __str__(self):
@@ -1217,8 +1233,22 @@ class TaipanTile(object):
         return self._field_id
     @field_id.setter
     def field_id(self, p):
+        if p is None:
+            return
         p = int(p)
         self._field_id = p
+
+    @property
+    def pk(self):
+        """Unique database ID"""
+        return self._pk
+
+    @pk.setter
+    def pk(self, p):
+        if p is None:
+            return
+        p = int(p)
+        self._pk = p
 
     @property
     def mag_max(self):
