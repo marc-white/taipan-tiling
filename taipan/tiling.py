@@ -1332,10 +1332,6 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         standard and guide targets to consider, respectively. Should be lists
         of TaipanTarget objects.
 
-    completeness_target :
-        A float in the range (0, 1] denoting the science
-        target completeness to stop at. Defaults to 1.0 (full completeness).
-
     ranking_method :
         The scheme to use for ranking the tiles. See the
         documentation for TaipanTile.calculate_tile_score for details.

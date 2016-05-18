@@ -1730,7 +1730,9 @@ class TaipanTile(object):
         fibre :
             The fibre to assign to.
         tgt :
-            The TaipanTarget, or None, to assign to this fibre.
+            The TaipanTarget, or None, to assign to this fibre. Also, the
+            special string 'sky' can be assigned to denote a fibre is
+            assigned to sky observations.
 
         Returns
         -------     
@@ -1738,7 +1740,7 @@ class TaipanTile(object):
         fibre = int(fibre)
         if fibre not in BUGPOS_OFFSET:
             raise ValueError('Invalid fibre')
-        if not(tgt is None or isinstance(tgt, TaipanTarget)):
+        if not(tgt is None or tgt == 'sky' or isinstance(tgt, TaipanTarget)):
             raise ValueError('tgt must be a TaipanTarget or None')
         self._fibres[fibre] = tgt
         return
