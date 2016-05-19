@@ -21,6 +21,8 @@ from src.resources.v0_0_1.readout.readScience import execute as rScexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
+from scripts.connection import get_connection
+
 
 def execute(cursor, date_start, date_end, output_loc='.'):
     """
@@ -112,4 +114,4 @@ if __name__ == '__main__':
     conn = get_connection()
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
-    execute()
+    execute(cursor, None, None)
