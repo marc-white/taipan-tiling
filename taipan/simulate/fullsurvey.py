@@ -7,6 +7,8 @@ import taipan.tiling as tl
 import taipan.scheduling as ts
 import simulate as tsim
 
+import pickle
+
 import numpy as np
 import atpy
 import ephem
@@ -86,6 +88,18 @@ def execute(cursor, date_start, date_end, output_loc='.'):
                                                         1,
                                                         tiles=field_tiles,
                                                         )
+
+    # 'Pickle' the tiles so they don't need to be regenerated later for tests
+    with open('candidate_targets.pobj', 'w') as cfile:
+        pickle.dump(candidate_targets, cfile)
+    with open('standard_targets.pobj', 'w') as sfile:
+        pickle.dump(standard_targets, sfile)
+    with open('guide_targets.pobj', 'w') as gfile:
+        pickle.dump(guide_targets, gfile)
+    with open('tiles.pobj', 'w') as tfile:
+        pickle.dump(candidate_tiles, tfile)
+
+    # Write the tiles to DB
     iTexec(cursor, candidate_tiles)
 
     return
@@ -93,6 +107,7 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
 if __name__ == '__main__':
     # Get a cursor
+    # TODO: Correct package imports & references
     conn = get_connection()
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
