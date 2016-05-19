@@ -21,7 +21,7 @@ from src.resources.v0_0_1.readout.readScience import execute as rScexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
-from scripts.connection import get_connection
+from src.scripts.connection import get_connection
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
