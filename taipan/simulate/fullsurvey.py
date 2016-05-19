@@ -109,9 +109,16 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
 
 if __name__ == '__main__':
+    # Set the logging to write to terminal
+    logging.info('Executing fullsurvey.py as file')
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
     # Get a cursor
     # TODO: Correct package imports & references
+    logging.debug('Getting connection')
     conn = get_connection()
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
+    logging.debug('Doing scripts execute function')
     execute(cursor, None, None)
