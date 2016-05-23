@@ -1704,7 +1704,8 @@ class TaipanTile(object):
         elif method == 'priority-prod':
             ranking_score = prod([t.priority for t in targets_sci])
         elif 'combined-weighted' in method:
-            max_difficulty = float(max([t.difficulty for t in targets_sci]))
+            max_difficulty = float(max([t.difficulty for t in targets_sci] +
+                                       [1]))  # Stops NaN if all diffs are 0
             ranking_list = np.asarray([t.difficulty 
                 for t in targets_sci])/max_difficulty + combined_weight * np.asarray(
                 [t.priority for t in targets_sci]) / float(TARGET_PRIORITY_MAX)
@@ -1741,7 +1742,7 @@ class TaipanTile(object):
         if fibre not in BUGPOS_OFFSET:
             raise ValueError('Invalid fibre')
         if not(tgt is None or tgt == 'sky' or isinstance(tgt, TaipanTarget)):
-            raise ValueError('tgt must be a TaipanTarget or None')
+            raise ValueError('tgt must be a TaipanTarget, "sky" or None')
         self._fibres[fibre] = tgt
         return
 
