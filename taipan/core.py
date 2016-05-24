@@ -648,6 +648,34 @@ def targets_in_range_multi(ra_dec_list, target_list, dist,
     return targets
 
 
+def targets_in_range_tiles(tile_list, target_list,
+                           leafsize=BREAKEVEN_KDTREE):
+    """
+    Alias to targets_in_range_multi for use when passing a list of
+    TaipanTile objects.
+
+    Parameters
+    ----------
+    tile_list:
+        List of TaipanTiles.
+    target_list:
+        List of TaipanTargets to consider.
+    leafsize:
+        Optional. Leafsize of the constructed KDTree. Defaults to
+        BREAKEVEN_KDTREE.
+
+    Returns
+    -------
+
+    """
+
+    return targets_in_range_multi(
+        [(t.ra, t.dec) for tile in tile_list],
+        target_list,
+        TILE_RADIUS,
+        leafsize=leafsize
+    )
+
 # ------
 # TILING OBJECTS
 # ------
