@@ -1331,7 +1331,7 @@ class TaipanTile(object):
     @mag_max.setter
     def mag_max(self, m):
         if m:
-            assert (m > -10 and m < 30), "mag_max outside valid range"
+            assert (-10 < m < 30), "mag_max outside valid range"
         self._mag_max = m
 
     @property
