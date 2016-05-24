@@ -1307,6 +1307,7 @@ class TaipanTile(object):
     def field_id(self, p):
         if p is None:
             return
+            # This means field_id cannot be deleted, only altered
         p = int(p)
         self._field_id = p
 
@@ -1319,6 +1320,7 @@ class TaipanTile(object):
     def pk(self, p):
         if p is None:
             return
+            # This means PK cannot be deleted, only altered
         p = int(p)
         self._pk = p
 
