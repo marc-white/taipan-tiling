@@ -21,6 +21,8 @@ from src.resources.v0_0_1.readout.readScience import execute as rScexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
+import src.resources.v0_0_1.manipulate.makeTargetsRemain as mTR
+
 from src.scripts.connection import get_connection
 
 
@@ -104,6 +106,9 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
     # Write the tiles to DB
     iTexec(cursor, candidate_tiles)
+
+    # Compute the n_sci_rem and n_sci_obs for these tiles
+    mTR.execute(cursor)
 
     return
 
