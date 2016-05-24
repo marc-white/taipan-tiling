@@ -604,6 +604,49 @@ def targets_in_range(ra, dec, target_list, dist,
     return targets_in_range
 
 
+def targets_in_range_multi(ra_dec_list, target_list, dist,
+                           leafsize=BREAKEVEN_KDTREE):
+    """
+    Return the number of targets in target_list
+    within each position specified in ra_dec_list.
+
+    Computes the subset of targets within range of the given (ra, dec)
+    coordinates.
+
+    Parameters
+    ----------
+    ra_dec_list :
+        An iterable of (ra, dec) tuples to compute the targets in range of.
+    target_list :
+        The list of TaipanTarget objects to consider.
+    dist :
+        The distance to test against, in *arcseconds*.
+
+    Returns
+    -------
+    targets_in_range :
+        A list of lists of TaipanTargets. Each sublist contains the targets
+        within dist of the corresponding (ra, dec) in ra_dec_list.
+    """
+
+    # Make sure ra_dec_list is an iterable
+    try:
+        _ = (e for e in ra_dec_list)
+    except TypeError:
+        ra_dec_list = [ra_dec_list]
+
+    if len(target_list) == 0:
+        return [[]] * len(ra_dec_list)
+
+    cart_targets = np.asarray([t.ucposn for t in target_list])
+    tree = cKDTree(cart_targets, leafsize=leafsize)
+    inds = [tree.query_ball_point(polar2cart(radec),
+                                  dist_euclidean(dist / 3600.))
+            for radec in ra_dec_list]
+    targets = [[target_list[i] for i in ind] for ind in inds]
+
+    return targets
+
 
 # ------
 # TILING OBJECTS
@@ -1611,7 +1654,7 @@ class TaipanTile(object):
         # available_targets = [t for t in tgts
         #   if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
         available_targets = targets_in_range(self.ra, self.dec, tgts,
-            TILE_RADIUS)
+                                             TILE_RADIUS)
         return available_targets
 
     def calculate_tile_score(self, method='completeness',
