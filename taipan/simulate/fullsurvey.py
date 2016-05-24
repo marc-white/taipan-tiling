@@ -95,12 +95,6 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     logging.info('First tile pass complete!')
 
     # 'Pickle' the tiles so they don't need to be regenerated later for tests
-    # with open('candidate_targets.pobj', 'w') as cfile:
-    #     pickle.dump(candidate_targets, cfile)
-    # with open('standard_targets.pobj', 'w') as sfile:
-    #     pickle.dump(standard_targets, sfile)
-    # with open('guide_targets.pobj', 'w') as gfile:
-    #     pickle.dump(guide_targets, gfile)
     with open('tiles.pobj', 'w') as tfile:
         pickle.dump(candidate_tiles, tfile)
 

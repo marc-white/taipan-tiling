@@ -680,6 +680,7 @@ def targets_in_range_tiles(tile_list, target_list,
 # TILING OBJECTS
 # ------
 
+
 class TaipanTarget(object):
     """
     Holds information and convenience functions for a TAIPAN
