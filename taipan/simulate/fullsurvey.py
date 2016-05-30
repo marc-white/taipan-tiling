@@ -25,6 +25,7 @@ import src.resources.v0_0_1.manipulate.makeTargetsRemain as mTR
 
 from src.scripts.connection import get_connection
 
+SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
 def execute(cursor, date_start, date_end, output_loc='.'):
     """
@@ -44,8 +45,6 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     the virtual observer), and plots are generated and placed in the output
     folder.
     """
-
-    SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
     # This is just a rough scaffold to show the steps the code will need to
     # take
@@ -76,6 +75,24 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     # read_in_observed_tiles()
     # generate_outputs()
 
+    sim_prepare_db(cursor)
+
+
+def sim_prepare_db(cursor):
+    """
+    This initial step prepares the database for the simulation run by getting
+    the fields in from the database, performing the initial tiling of fields,
+    and then returning that information to the database for later use.
+
+    Parameters
+    ----------
+    cursor
+
+    Returns
+    -------
+
+    """
+
     # Ge the field centres in from the database
     logging.info(SIMULATE_LOG_PREFIX+'Loading targets')
     field_tiles = rCexec(cursor)
@@ -105,6 +122,25 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     mTR.execute(cursor)
 
     return
+
+
+def sim_do_night(cursor, date):
+    """
+    Do a simulated 'night' of observations. This involves:
+    - Determine the tiles to do tonight
+    - 'Observe' them
+    - Update the DB appropriately
+
+    Parameters
+    ----------
+    cursor
+    date
+
+    Returns
+    -------
+
+    """
+    pass
 
 
 if __name__ == '__main__':
