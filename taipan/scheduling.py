@@ -1,7 +1,10 @@
 import numpy as np
 import datetime
 
-import os, sys, time
+import os
+import sys
+import time
+import logging
 
 import ephem
 
@@ -11,208 +14,232 @@ import ephem
 
 # define twilight values for when observing can start/must end
 
-SOLAR_TWILIGHT_HORIZON = np.radians( -10. )      # radians everywhere
-LUNAR_TWILIGHT_HORIZON = np.radians( 0. )        # radians everywhere
+SOLAR_TWILIGHT_HORIZON = np.radians(-10.)      # radians everywhere
+LUNAR_TWILIGHT_HORIZON = np.radians(0.)        # radians everywhere
 
 # define and establish emph.Observer object for UKST-Taipan
 #  all from https://en.wikipedia.org/wiki/Siding_Spring_Observatory
 UKST_LATITUDE = -31.272231
 UKST_LONGITUDE = +149.071233 
-UKST_ELEVATION = 1165 # metres
+UKST_ELEVATION = 1165  # metres
 
 UKST_TELESCOPE = ephem.Observer()
-UKST_TELESCOPE.lat = np.radians( UKST_LATITUDE )  # radians everywhere
-UKST_TELESCOPE.lon = np.radians( UKST_LONGITUDE ) # radians everywhere
+UKST_TELESCOPE.lat = np.radians(UKST_LATITUDE)   # radians everywhere
+UKST_TELESCOPE.lon = np.radians(UKST_LONGITUDE)  # radians everywhere
 UKST_TELESCOPE.elevation = UKST_ELEVATION
 UKST_TELESCOPE.temp = 10.
 
 # ______________________________________________________________________________
 
-def airmass( RA, Dec, date_J2000=None, observer=UKST_TELESCOPE ):
+
+def airmass(ra, dec, datej2000=None, observer=UKST_TELESCOPE):
     # initialise ephem observer object with specified datetime
-    if not ( date_J2000 is None ):
-        observer.date = date_J2000
+    if date_J2000 is not None:
+        observer.date = datej2000
     # initialise ephem target object with specified coordinates
     target = ephem.FixedBody()             # create ephem target object
-    target._ra = np.radians( RA )          # radians everywhere 
-    target._dec = np.radians( Dec )        # radians everywhere 
-    target.compute( observer )             # intialise ephem target object
+    target._ra = np.radians(ra)          # radians everywhere
+    target._dec = np.radians(dec)        # radians everywhere
+    target.compute(observer)             # intialise ephem target object
 
     # return airmass if target is accessible with UKST
-    if np.degrees( target.alt ) > 5 :
-        return 1./np.sin( target.alt )
-    else :
+    if np.degrees(target.alt) > 5:
+        return 1./np.sin(target.alt)
+    else:
         return 99.
 
 # ______________________________________________________________________________
 
-def next_dark_period( UKST=UKST_TELESCOPE ):
-    _date = UKST.date
+
+def next_dark_period(observer=UKST_TELESCOPE):
+    _date = observer.date
     # determine next sun and moon rise and set times from now.
-    sunrise, sunset = next_sunrise( UKST ), next_sunset( UKST )
-    moonrise,moonset=next_moonrise( UKST ),next_moonset( UKST )
+    sunrise, sunset = next_sunrise(observer), next_sunset(observer)
+    moonrise, moonset = next_moonrise(observer), next_moonset(observer)
     # are the sun and moon up now? (will they set before they rise?)
     is_sun_up = sunset < sunrise
     is_moon_up = moonset < moonrise
-    while ( is_sun_up or is_moon_up ) :
-        until = UKST.date + 1./1440 # advance at least 1 min into the future
+    while (is_sun_up or is_moon_up):
+        until = observer.date + 1./1440 # advance at least 1 min into the future
         # advance time to when sun/moon have set (whichever is furthest ahead)
-        if is_sun_up :  until = max( until,  sunset ) 
-        if is_moon_up : until = max( until, moonset )
-        UKST.date = until
+        if is_sun_up:
+            until = max(until,  sunset)
+        if is_moon_up:
+            until = max(until, moonset)
+        observer.date = until
         # update rise/set times as necessary
-        if sunrise <= until  : sunrise  = next_sunrise( UKST )
-        if sunset <= until   : sunset   = next_sunset(  UKST )
-        if moonrise <= until : moonrise = next_moonrise(UKST )
-        if moonset <= until  : moonset  = next_moonset( UKST )
-        # how about now? are the sun and moon up now? 
+        if sunrise <= until:
+            sunrise = next_sunrise(observer)
+        if sunset <= until:
+            sunset = next_sunset(observer)
+        if moonrise <= until:
+            moonrise = next_moonrise(observer)
+        if moonset <= until:
+            moonset = next_moonset(observer)
+        # how about now? are the sun and moon up now?
         is_sun_up = sunset < sunrise
         is_moon_up = moonset < moonrise
-    darkstart = UKST.date
+    darkstart = observer.date
     # dark time ends when either the sun or the moon rises
-    darkend = min( sunrise, moonrise )
-    print 'next dark period: %s --> %s' % ( darkstart, darkend )
-    # return UKST.date to its original value
-    UKST.date = _date
+    darkend = min(sunrise, moonrise)
+    logging.debug('next dark period: %s --> %s' % (darkstart, darkend, ))
+    # return observer.date to its original value
+    observer.date = _date
     return darkstart, darkend        
 
 # ______________________________________________________________________________
 
-def hours_observable( ra, dec,
-                      start_date_J2000=None, end_date_J2000=None,
-                      observing_period_in_days=365.25/2.,
-                      minimum_airmass=2.0, verbose=0 ):
 
-    if start_date_J2000 is None :
-        start_date_J2000 = utc_to_J2000()
+def hours_observable(ra, dec, observer=UKST_TELESCOPE,
+                     start_date=None, end_date=None,
+                     observing_period=365.25 / 2.,
+                     minimum_airmass=2.0, verbose=False):
+
+    # Input checking
+    if end_date is None and observing_period is None:
+        raise ValueError('Either end_date or observing_period must be defined')
+
+    if start_date is None:
+        start_date = utc_to_J2000() # Set start time to now
 
     # determine end of observing period if necessary
-    if end_date_J2000 is None :
-        UKST_TELESCOPE.date = start_date_J2000  # pyephem accepts datetime object
-        end_date_J2000 = UKST_TELESCOPE.date + observing_period_in_days
-        UKST_TELESCOPE.date = end_date_J2000
+    if end_date is None:
+        observer.date = start_date  # pyephem accepts datetime object
+        end_date = observer.date + observing_period
+        observer.date = end_date
+
+    if end_date <= start_date:
+        raise ValueError('The end date is before the start date! Refine either '
+                         'your passed end_date or observing_period')
         
     # initialise ephem fixed body object for target
     target = ephem.FixedBody()
-    target._ra = np.radians( ra ) # radians everywhere
-    target._dec = np.radians( dec ) # radians everywhere
+    target._ra = np.radians(ra)    # radians everywhere
+    target._dec = np.radians(dec)  # radians everywhere
 
     # define angle corresponding to minimum_airmass and twilight_horizon
-    observable = np.arcsin( 1./ minimum_airmass ) # radians everywhere
+    observable = np.arcsin(1. / minimum_airmass)  # radians everywhere
 
     # hack around weird pyephem behavior near target's zenith
-    zenith = np.abs( np.abs( UKST_TELESCOPE.lat ) + np.radians( dec - 90. ) )
-#    print observable, np.degrees( observable ), 1./np.sin( observable )
-#    print zenith, np.degrees( zenith ), 1./np.sin( zenith )
-    observable = np.clip( observable, 0., zenith - np.radians(.1) )
-#    print observable, np.degrees( observable ), 1./np.sin( observable )
+    # Precisely what is this doing?
+    zenith = np.abs(np.abs(observer.lat) + np.radians(dec - 90.))
+    observable = np.clip(observable, 0., zenith - np.radians(.1))
     
-    def next_rise( ):
-        UKST_TELESCOPE.horizon = observable
-        target.compute( UKST_TELESCOPE )
-        return UKST_TELESCOPE.next_rising( target )
-    def next_set( ):
-        UKST_TELESCOPE.horizon = observable
-        target.compute( UKST_TELESCOPE )
-        return UKST_TELESCOPE.next_setting( target )
+    def next_rise(obs):
+        obs.horizon = observable
+        target.compute(obs)
+        return obs.next_rising(target)
 
+    def next_set(obs):
+        obs.horizon = observable
+        target.compute(obs)
+        return obs.next_setting(target)
         
     # from start of observing, compute next rise/set dates 
-    UKST_TELESCOPE.date = start_date_J2000    # pyephem accepts datetime object
-    sunrise = next_sunrise( UKST_TELESCOPE )
-    sunset = next_sunset( UKST_TELESCOPE )
-    moonrise = next_moonrise( UKST_TELESCOPE )
-    moonset = next_moonset( UKST_TELESCOPE )
+    observer.date = start_date    # pyephem accepts datetime object
+    sunrise = next_sunrise(observer)
+    sunset = next_sunset(observer)
+    moonrise = next_moonrise(observer)
+    moonset = next_moonset(observer)
 
     # given its Dec, check whether target actually ever sets, or is circumpolar
-    target.compute( UKST_TELESCOPE )
-    always_up_declination = -np.pi/2. + np.abs(UKST_TELESCOPE.lat) - observable
-                                            # radians everywhere
-    target_always_up = dec < np.degrees( always_up_declination )
-    
-#    print airmass( ra, dec, UKST_TELESCOPE.date )
-#    print 'target_always_up', target_always_up
+    target.compute(observer)
+    always_up_declination = -np.pi/2. + np.abs(observer.lat) - observable
+    target_always_up = dec < np.degrees(always_up_declination)
 
     # and then compute target rise/set times if necessary
-    if target_always_up :
-        targetrise, targetset = UKST_TELESCOPE.date, end_date_J2000
-    else :
-        targetrise = next_rise( )
-        targetset = next_set( )
+    if target_always_up:
+        targetrise, targetset = observer.date, end_date
+    else:
+        targetrise = next_rise(observer)
+        targetset = next_set(observer)
 
     # and now step forward through the observing period
     hours_total = 0.
-    while UKST_TELESCOPE.date < end_date_J2000 :
+    while observer.date < end_date:
         
         # if sun rises before it sets then it is nighttime (good)
         is_night_time = sunrise < sunset 
         # if moon rises before it sets then it is darktime (good)
         is_dark_time = moonrise < moonset
         # if target sets before it rises then it is visible (good)
-        is_target_up = ( targetset < targetrise ) #or target_always_up
+        is_target_up = (targetset < targetrise)  # or target_always_up
 
         # if target is observable record how long it is observable for
-        if is_night_time and is_dark_time and is_target_up :
+        if is_night_time and is_dark_time and is_target_up:
 
             # determine when target becomes unobservable
-            until = min( sunrise, moonrise, targetset, end_date_J2000 )
+            until = min(sunrise, moonrise, targetset, end_date)
 
             # record amount of observable time in hours
-            hours_tonight = ( until - UKST_TELESCOPE.date ) * 24.
+            hours_tonight = (until - observer.date) * 24.
             # add this to the total observable time in the full period
             hours_total += hours_tonight
 
-            if verbose > 1 :
-                print ( UKST_TELESCOPE.date, '-->', until,
-                        '(%.3f hr)' % hours_tonight )
-            
-        else :
+            if verbose:
+                print (observer.date, '-->', until,
+                       '(%.3f hr)' % hours_tonight)
+        else:
             # if target is not observable, determine when it might next be
             # advance by a minimum of one minute to sidestep pyephem oddnesses
-            until = UKST_TELESCOPE.date + 1./1440
-            if not is_night_time : until = max( until, sunset )
-            if not is_dark_time : until = max( until, moonset )
-            if not is_target_up : until = max( until, targetrise )
+            until = observer.date + 1./1440
+            if not is_night_time:
+                until = max(until, sunset)
+            if not is_dark_time:
+                until = max(until, moonset)
+            if not is_target_up:
+                until = max(until, targetrise)
 
-        if UKST_TELESCOPE.date == until :
-            print 'oh no!', UKST_TELESCOPE.date
-            print
-            until = UKST_TELESCOPE.date
-            print until, float( until )
-            print is_night_time ; until = max( until, sunset ) 
-            print until, float( until )
-            print is_dark_time ;  until = max( until, moonset )
-            print until, float( until )
-            print is_target_up ; until = max( until, targetrise )
-            print until, float( until )
-            print
-            print 'currently', UKST_TELESCOPE.date, float( UKST_TELESCOPE.date )
-            print 'sunrise', sunrise, sunrise - UKST_TELESCOPE.date
-            print 'sunset', sunset, sunset- UKST_TELESCOPE.date
-            print 'is_night_time', is_night_time, sunset-UKST_TELESCOPE.date
-            print 'moonrise', moonrise, moonrise - UKST_TELESCOPE.date
-            print 'moonset', moonset, moonset - UKST_TELESCOPE.date
-            print 'is_dark_time', is_dark_time, moonset-UKST_TELESCOPE.date
-            print 'targetrise', targetrise, targetrise - UKST_TELESCOPE.date
-            print 'targetset', targetset, targetset - UKST_TELESCOPE.date
-            print 'is_target_up', is_target_up, targetrise - UKST_TELESCOPE.date
-            print 'checks', targetset <= until, targetset - until, targetset - next_set()
-            print 'until', until, until - UKST_TELESCOPE.date
-            print 'target_always_up', target_always_up
+        if observer.date == until:
+            pass
+            # This code block triggers if until is the same as the osberver date
+            # So, that's in the event that either:
+            # - The target is observable, but the until unobservable date is
+            #   somehow the same;
+            # - The target is unobservable, but somehow is magically observable
+            #   at the current date
+            # print 'oh no!', observer.date
+            # print
+            # until = observer.date
+            # print until, float(until)
+            # print is_night_time; until = max(until, sunset)
+            # print until, float(until)
+            # print is_dark_time;  until = max(until, moonset)
+            # print until, float( until )
+            # print is_target_up; until = max(until, targetrise)
+            # print until, float(until)
+            # print
+            # print 'currently', observer.date, float(observer.date)
+            # print 'sunrise', sunrise, sunrise - observer.date
+            # print 'sunset', sunset, sunset - observer.date
+            # print 'is_night_time', is_night_time, sunset - observer.date
+            # print 'moonrise', moonrise, moonrise - observer.date
+            # print 'moonset', moonset, moonset - observer.date
+            # print 'is_dark_time', is_dark_time, moonset-observer.date
+            # print 'targetrise', targetrise, targetrise - observer.date
+            # print 'targetset', targetset, targetset - observer.date
+            # print 'is_target_up', is_target_up, targetrise - observer.date
+            # print 'checks', targetset <= until, targetset - until, \
+            #     targetset - next_set()
+            # print 'until', until, until - observer.date
+            # print 'target_always_up', target_always_up
 #            time.sleep( 10. )
 
-            
         # advance time to next change in circumstances
-        UKST_TELESCOPE.date = min( until, end_date_J2000 )
+        observer.date = min(until, end_date)
         
         # update any/all event times that need updating
-        if sunrise <= until : sunrise = next_sunrise( observer=UKST_TELESCOPE )
-        if sunset <= until : sunset = next_sunset( observer=UKST_TELESCOPE )
-        if moonrise <= until : moonrise = next_moonrise(observer=UKST_TELESCOPE )
-        if moonset <= until : moonset = next_moonset( observer=UKST_TELESCOPE )
-        if targetrise <= until and not target_always_up :
+        if sunrise <= until:
+            sunrise = next_sunrise(observer=observer)
+        if sunset <= until:
+            sunset = next_sunset(observer=observer)
+        if moonrise <= until:
+            moonrise = next_moonrise(observer=observer)
+        if moonset <= until:
+            moonset = next_moonset(observer=observer)
+        if targetrise <= until and not target_always_up:
             targetrise = next_rise()
-        if targetset <= until and not target_always_up :
+        if targetset <= until and not target_always_up:
             targetset = next_set()
 
     # all done!
@@ -221,67 +248,68 @@ def hours_observable( ra, dec,
         
 # ______________________________________________________________________________
 
-def hours_observable_bruteforce( ra, dec, 
-                                 start_date_J2000=None, end_date_J2000=None,
-                                 observing_period_in_days=365.25/2.,
-                                 minimum_airmass=2.0, verbose=0,
-                                 resolution_in_min=15., full_output=False,
-                                 dates_J2000=None ):
+def hours_observable_bruteforce(ra, dec, observer=UKST_TELESCOPE,
+                                start_date=None, end_date=None,
+                                observing_period=365.25 / 2.,
+                                minimum_airmass=2.0, verbose=0,
+                                resolution=15., full_output=False,
+                                dates_j2000=None):
+
+    # TODO: Add input checking
 
     # define horizons for observability computation
-    observable = np.arcsin( 1./ minimum_airmass ) # radians everywhere
-    solar_horizon = SOLAR_TWILIGHT_HORIZON - np.radians( 0.24 )
-    lunar_horizon = LUNAR_TWILIGHT_HORIZON - np.radians( 0.27 )
+    observable = np.arcsin(1./ minimum_airmass) # radians everywhere
+    solar_horizon = SOLAR_TWILIGHT_HORIZON - np.radians(0.24)
+    lunar_horizon = LUNAR_TWILIGHT_HORIZON - np.radians(0.27)
     # remember that the sun and moon both have a size! (0.24 and 0.27 deg)
     
     # initialise ephem fixed body object for pointing
     target = ephem.FixedBody()
-    target._ra = np.radians( ra ) # radians everywhere
-    target._dec = np.radians( dec ) # radians everywhere
+    target._ra = np.radians(ra)    # radians everywhere
+    target._dec = np.radians(dec)  # radians everywhere
 
     # instantiate ephem sun/moon objects
     sun, moon = ephem.Sun(), ephem.Moon()
 
     # define time grid if not given 
-    if dates_J2000 is None :
+    if dates_j2000 is None:
         # initialise ephem observer object for UKST @ SSO
-        UKST_TELESCOPE.date = start_date_J2000
+        observer.date = start_date
 
-        if end_date_J2000 is None :
-            end_date_J2000 = UKST_TELESCOPE.date + observing_period_in_days
+        if end_date is None:
+            end_date = observer.date + observing_period
         else :
-            observing_period_in_days = end_date_J2000 - UKST_TELESCOPE.date
-        dates_J2000 = ( UKST_TELESCOPE.date +
-            np.arange( 0, observing_period_in_days, resolution_in_min/1440. ) )
-                                     
-        
+            observing_period = end_date - observer.date
+        dates_j2000 = (observer.date +
+                       np.arange(0, observing_period, resolution / 1440.))
+
     # and finally the actual computation
     time_total = 0.
     sol_alt, lun_alt, target_alt, dark_time = [], [], [], []
-    for d in dates_J2000.ravel() :
-        UKST_TELESCOPE.date = d
-        sun.compute( UKST_TELESCOPE ) 
-        moon.compute( UKST_TELESCOPE )
-        target.compute( UKST_TELESCOPE )
+    for d in dates_j2000.ravel():
+        observer.date = d
+        sun.compute(observer)
+        moon.compute(observer)
+        target.compute(observer)
 
-        can_observe = ( sun.alt < solar_horizon ) & ( moon.alt < lunar_horizon )
-        if full_output :
-            sol_alt.append( sun.alt )
-            lun_alt.append( moon.alt )
-            target_alt.append( target.alt )
-            dark_time.append( can_observe )
+        can_observe = (sun.alt < solar_horizon) and (moon.alt < lunar_horizon)
+        if full_output:
+            sol_alt.append(sun.alt)
+            lun_alt.append(moon.alt)
+            target_alt.append(target.alt)
+            dark_time.append(can_observe)
         else :
-            if ( can_observe & ( target.alt > observable ) ) :
-                time_total += resolution_in_min
+            if can_observe and (target.alt > observable):
+                time_total += resolution
             
     if full_output :
         # convert results to numpy arrays
-        sol_alt = np.array( sol_alt ).reshape( dates_J2000.shape ) 
-        lun_alt = np.array( lun_alt ).reshape( dates_J2000.shape ) 
-        target_alt=np.array(target_alt).reshape(dates_J2000.shape ) 
-        dark_time=np.array( dark_time ).reshape( dates_J2000.shape )
-        return dates_J2000, sol_alt, lun_alt, target_alt, dark_time
-    else :
+        sol_alt = np.array(sol_alt).reshape(dates_j2000.shape)
+        lun_alt = np.array(lun_alt).reshape(dates_j2000.shape)
+        target_alt=np.array(target_alt).reshape(dates_j2000.shape)
+        dark_time=np.array(dark_time).reshape(dates_j2000.shape)
+        return dates_j2000, sol_alt, lun_alt, target_alt, dark_time
+    else:
         return time_total/60.
 
 
@@ -357,9 +385,9 @@ def create_dark_almanac( dark_almanac_filename,
     
     dates, sun, moon, target, is_dark_time = hours_observable_bruteforce(
         ra=0., dec=0., 
-        start_date_J2000=start_date_J2000, end_date_J2000=end_date_J2000,
-        observing_period_in_days=observing_period_in_days,
-        resolution_in_min=resolution_in_min, full_output=True )
+        start_date=start_date_J2000, end_date=end_date_J2000,
+        observing_period=observing_period_in_days,
+        resolution=resolution_in_min, full_output=True )
 
     solar_horizon = SOLAR_TWILIGHT_HORIZON - np.radians( 0.24 )
     lunar_horizon = LUNAR_TWILIGHT_HORIZON - np.radians( 0.27 )
@@ -394,7 +422,7 @@ def create_almanac( ra, dec, dates_J2000, almanac_filename ):
     sys.stdout.flush()
     
     dates, sun, moon, target, dark_time = hours_observable_bruteforce(
-        ra, dec, dates_J2000=dates_J2000, full_output=True )
+        ra, dec, dates_j2000=dates_J2000, full_output=True )
 
     airmass = np.clip( np.where( target > np.radians( 10. ),
                                  1./np.sin( target ), 99. ), 0., 9. )

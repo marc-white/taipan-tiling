@@ -1292,6 +1292,7 @@ class TaipanTile(object):
     def pa(self):
         """Tile position angle (PA)"""
         return self._pa
+
     @pa.setter
     def pa(self, p):
         p = float(p)
@@ -1303,6 +1304,7 @@ class TaipanTile(object):
     def field_id(self):
         """Tile field ID"""
         return self._field_id
+
     @field_id.setter
     def field_id(self, p):
         if p is None:
