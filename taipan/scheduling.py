@@ -315,58 +315,57 @@ def hours_observable_bruteforce(ra, dec, observer=UKST_TELESCOPE,
 
 # ______________________________________________________________________________
 
-def hours_observable_from_almanac( almanac_filename,
-                                   dates_J2000, is_dark_time,
-                                   ra=None, dec=None,
-                                   start_date_J2000=None, end_date_J2000=None,
-                                   observing_period_in_days=365.25/2.,
-                                   minimum_airmass=2.0 ):
-
+def hours_observable_from_almanac(almanac_filename,
+                                  dates_j2000, is_dark_time,
+                                  observer=UKST_TELESCOPE,
+                                  ra=None, dec=None,
+                                  start_date_j2000=None, end_date_j2000=None,
+                                  observing_period=365.25 / 2.,
+                                  minimum_airmass=2.0):
     # load almanac if it exists
-    if os.path.exists( almanac_filename ):
-        with np.load( almanac_filename ) as save_dict :
+    if os.path.exists(almanac_filename):
+        with np.load(almanac_filename) as save_dict:
             ddates, airmass = save_dict['dates_J2000'], save_dict['airmass']
         # check that almanac follows same date grid as input is_dark_time
-        if not np.allclose( dates_J2000, ddates ) :
-            print '''\n\nBADNESS!
+        if not np.allclose(dates_j2000, ddates):
+            logging.info('''\n\nBADNESS!
             dates found in almanac with filename %s do not match those given
             to hours_observable_from_almanac. this almanac must be remade.
             existing almanac is being removed and reconstructed.
-            ''' % almanac_filename
-            os.remove( almanac_filename )
+            ''' % almanac_filename)
+            os.remove(almanac_filename)
             # discard this almanac if its not right
 
     # create almanac if necessary
-    if not os.path.exists( almanac_filename ) :
-        if ( ra is None or dec is None ):
-            print '''\n\nBADNESS!
+    if not os.path.exists(almanac_filename):
+        if ra is None or dec is None:
+            raise RuntimeError('''BADNESS!
             almanac with filename %s does not exist.
             call hours_observable_from_almanac using ra, dec keywords to
             create a new almanac.  dying gracelessly now.
-            ''' % almanac_filename
-            exit()
-        airmass = create_almanac( ra, dec, dates_J2000, almanac_filename )
+            ''' % almanac_filename)
+        airmass = create_almanac(ra, dec, dates_j2000, almanac_filename)
 
-    if end_date_J2000 is None :
-        end_date_J2000 = UKST_TELESCOPE.date + observing_period_in_days
+    if end_date_j2000 is None:
+        end_date_j2000 = observer.date + observing_period
 
     # identify when target is observable during observing period
-    fair_game = ( is_dark_time 
-                  & ( start_date_J2000 <= dates_J2000 )
-                  & ( dates_J2000 <= end_date_J2000 ) )
+    fair_game = is_dark_time and \
+                (start_date_j2000 <= dates_j2000) and \
+                (dates_j2000 <= end_date_j2000)
 
 #    better_entries = np.sum( fair_game & ( airmass <= minimum_airmass ) )
-    better_entries = np.interp( minimum_airmass,
-                                np.sort( airmass[ fair_game ] ),
-                                np.arange( fair_game.sum() ) )    
+    better_entries = np.interp(minimum_airmass,
+                               np.sort(airmass[fair_game]),
+                               np.arange(fair_game.sum()))
     # this gives the number of dark time entries within the specified time
     # period where the airmass in the almanac is less than the minimum.
 
     # use dates grid to determine resolution in hours
-    first_date = dates_J2000[ np.unravel_index( 0, dates_J2000.shape ) ]
-    last_date = dates_J2000[ np.unravel_index( dates_J2000.size-1,
-                                               dates_J2000.shape ) ]
-    resolution_in_hours = ( last_date - first_date ) * 24. / dates_J2000.size
+    first_date = dates_j2000[np.unravel_index(0, dates_j2000.shape)]
+    last_date = dates_j2000[np.unravel_index(dates_j2000.size - 1,
+                                              dates_j2000.shape)]
+    resolution_in_hours = (last_date - first_date) * 24. / dates_j2000.size
     better_hours = better_entries * resolution_in_hours
 
     return better_hours
@@ -374,62 +373,60 @@ def hours_observable_from_almanac( almanac_filename,
     
 # ______________________________________________________________________________
 
-def create_dark_almanac( dark_almanac_filename,
-                         start_date_J2000=None, end_date_J2000=None,
-                         observing_period_in_days=int(4*365.25),
-                         resolution_in_min=15. ):
+def create_dark_almanac(dark_almanac_filename,
+                        start_date_j2000=None, end_date_j2000=None,
+                        observing_period=int(4 * 365.25),
+                        resolution=15.):
 
-    print
-    print 'creating dark almanac', dark_almanac_filename, '...',
-    sys.stdout.flush()
+    logging.info('creating dark almanac %s ...' % (dark_almanac_filename), )
+    # sys.stdout.flush()
     
     dates, sun, moon, target, is_dark_time = hours_observable_bruteforce(
         ra=0., dec=0., 
-        start_date=start_date_J2000, end_date=end_date_J2000,
-        observing_period=observing_period_in_days,
-        resolution=resolution_in_min, full_output=True )
+        start_date=start_date_j2000, end_date=end_date_j2000,
+        observing_period=observing_period,
+        resolution=resolution, full_output=True)
 
-    solar_horizon = SOLAR_TWILIGHT_HORIZON - np.radians( 0.24 )
-    lunar_horizon = LUNAR_TWILIGHT_HORIZON - np.radians( 0.27 )
+    solar_horizon = SOLAR_TWILIGHT_HORIZON - np.radians(0.24)
+    lunar_horizon = LUNAR_TWILIGHT_HORIZON - np.radians(0.27)
     # remember that the sun and moon both have a size! (0.24 and 0.27 deg)
 
-    times_per_day = 1440./resolution_in_min
-    if not times_per_day == int( times_per_day ):
-        print '''\n\nBADNESS!
+    times_per_day = 1440. / resolution
+    if not times_per_day == int(times_per_day):
+        logging.info('''BADNESS!
         resolution_in_min must divide a day into an integer no pieces.
         in other words, resolution_in_min must be a divisor of 1440.
         valid values include 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60, etc.
-        the recommended value is 15.'''
-    shape = ( dates.size/times_per_day, times_per_day )
+        the recommended value is 15.''')
+    shape = (dates.size/times_per_day, times_per_day)
 
-    dates_J2000 = dates.reshape( shape )
-    sun, moon = sun.reshape( shape ), moon.reshape( shape )
-    target = target.reshape( shape )
-    is_dark_time = is_dark_time.reshape( shape )
+    dates_J2000 = dates.reshape(shape)
+    sun, moon = sun.reshape(shape), moon.reshape(shape)
+    target = target.reshape(shape)
+    is_dark_time = is_dark_time.reshape(shape)
 
     save_dict = { 'dates_J2000' : dates_J2000, 'is_dark_time' : is_dark_time }
-    np.savez( dark_almanac_filename, **save_dict )
-    print 'done.'
+    np.savez(dark_almanac_filename, **save_dict)
+    logging.info('done.')
     
     return dates_J2000, is_dark_time
     
     
 # ______________________________________________________________________________
 
-def create_almanac( ra, dec, dates_J2000, almanac_filename ):
-    print
-    print 'creating almanac', almanac_filename,
-    sys.stdout.flush()
+def create_almanac(ra, dec, dates_j2000, almanac_filename):
+    logging.info('creating almanac' % (almanac_filename, ))
+    # sys.stdout.flush()
     
     dates, sun, moon, target, dark_time = hours_observable_bruteforce(
-        ra, dec, dates_j2000=dates_J2000, full_output=True )
+        ra, dec, dates_j2000=dates_j2000, full_output=True)
 
-    airmass = np.clip( np.where( target > np.radians( 10. ),
-                                 1./np.sin( target ), 99. ), 0., 9. )
+    airmass = np.clip(np.where(target > np.radians(10.),
+                               1./np.sin(target), 99.), 0., 9.)
 
-    save_dict = { 'dates_J2000' : dates_J2000, 'airmass' : airmass }
-    np.savez( almanac_filename, **save_dict )
-    print 'done.'
+    save_dict = {'dates_J2000': dates_j2000, 'airmass': airmass}
+    np.savez(almanac_filename, **save_dict)
+    logging.info('done.')
 
     return airmass
 
@@ -440,42 +437,46 @@ def create_almanac( ra, dec, dates_J2000, almanac_filename ):
 
 # ephem does everything internally using J2000 dates
 
-def utc_to_J2000( datetime_utc=datetime.datetime.utcnow() ):
-    return ephem.julian_date( datetime_utc ) - 2415020.
+def utc_to_J2000(datetime_utc=datetime.datetime.utcnow()):
+    return ephem.julian_date(datetime_utc) - 2415020.
 
-def next_sunrise( observer=UKST_TELESCOPE, horizon=SOLAR_TWILIGHT_HORIZON ):
+
+def next_sunrise(observer=UKST_TELESCOPE, horizon=SOLAR_TWILIGHT_HORIZON):
     observer.horizon = horizon             # specify horizon for rise/set
     target = ephem.Sun()                   # set target as Sol
-    target.compute( observer )             # intialise ephem target object
-    return observer.next_rising( target )  # return next rise date
+    target.compute(observer)             # intialise ephem target object
+    return observer.next_rising(target)  # return next rise date
 
-def next_sunset( observer=UKST_TELESCOPE, horizon=SOLAR_TWILIGHT_HORIZON ):
+
+def next_sunset(observer=UKST_TELESCOPE, horizon=SOLAR_TWILIGHT_HORIZON):
     observer.horizon = horizon             # specify horizon for rise/set
     target = ephem.Sun()                   # set target as Sol
-    target.compute( observer )             # intialise ephem target object
-    return observer.next_setting( target ) # return next set date
+    target.compute(observer)             # intialise ephem target object
+    return observer.next_setting(target) # return next set date
 
-def next_moonrise( observer=UKST_TELESCOPE, horizon=LUNAR_TWILIGHT_HORIZON ):
+
+def next_moonrise(observer=UKST_TELESCOPE, horizon=LUNAR_TWILIGHT_HORIZON):
     observer.horizon = horizon             # specify horizon for rise/set
     target = ephem.Moon()                  # set target as the moon
-    target.compute( observer )             # intialise ephem target object
-    return observer.next_rising( target )  # return next rise date
+    target.compute(observer)             # intialise ephem target object
+    return observer.next_rising(target)  # return next rise date
 
-def next_moonset( observer=UKST_TELESCOPE, horizon=LUNAR_TWILIGHT_HORIZON ):
+
+def next_moonset(observer=UKST_TELESCOPE, horizon=LUNAR_TWILIGHT_HORIZON):
     observer.horizon = horizon             # specify horizon for rise/set
     target = ephem.Moon()                  # set target as the moon
-    target.compute( observer )             # intialise ephem target object
-    return observer.next_setting( target ) # return next set date
+    target.compute(observer)             # intialise ephem target object
+    return observer.next_setting(target)  # return next set date
 
-def next_riseset( RA, Dec, observer=UKST_TELESCOPE, horizon_in_degrees=0. ):
-    observer.horizon = np.radians( horizon_in_degrees ) # radians everywhere 
+
+def next_riseset(RA, Dec, observer=UKST_TELESCOPE, horizon_in_degrees=0.):
+    observer.horizon = np.radians(horizon_in_degrees) # radians everywhere
     target = ephem.FixedBody()             # create ephem target object
-    target._ra = np.radians( RA )          # radians everywhere 
-    target._dec = np.radians( Dec )        # radians everywhere 
-    target.compute( observer )             # intialise ephem target object
-    risedate = observer.next_rising( target )
-    setdate = observer.next_setting( target )
+    target._ra = np.radians(RA)          # radians everywhere
+    target._dec = np.radians(Dec)        # radians everywhere
+    target.compute(observer)             # intialise ephem target object
+    risedate = observer.next_rising(target)
+    setdate = observer.next_setting(target)
     return risedate, setdate               # return rise and set dates
 
 # ______________________________________________________________________________
-
