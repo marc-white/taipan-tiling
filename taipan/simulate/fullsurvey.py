@@ -74,7 +74,7 @@ def sim_prepare_db(cursor):
     return
 
 
-def sim_do_night(cursor, date):
+def sim_do_night(cursor, date, date_start, date_end):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonight
@@ -83,11 +83,20 @@ def sim_do_night(cursor, date):
 
     Parameters
     ----------
-    cursor
-    date
+    cursor:
+        The psycopg2 cursor for interacting with the database
+    date:
+        Python datetime.date object. This should be the local date that the
+        night *starts* on, eg. the night of 23-24 July should be passed as
+        23 July.
+    date_start, date_end:
+        The dates the observing run starts and ends on. These are required
+        in order to compute the amount of time a certain field will remain
+        observable.
 
     Returns
     -------
+    Nil. All actions are internal or apply to the database.
 
     """
     pass

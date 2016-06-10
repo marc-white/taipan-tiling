@@ -1,10 +1,12 @@
 import numpy as np
 import datetime
+from collections import OrderedDict
 
 import os
 import sys
 import time
 import logging
+import pickle
 
 import ephem
 
@@ -29,13 +31,289 @@ UKST_TELESCOPE.lon = np.radians(UKST_LONGITUDE)  # radians everywhere
 UKST_TELESCOPE.elevation = UKST_ELEVATION
 UKST_TELESCOPE.temp = 10.
 
+SECONDS_PER_DAY = 86400.
+
+ALMANAC_RESOLUTION_MAX = 60. * 4.
+
+
+# ______________________________________________________________________________
+# CLASS DEFINITIONS
 # ______________________________________________________________________________
 
 
-def airmass(ra, dec, datej2000=None, observer=UKST_TELESCOPE):
+class Almanac:
+    """
+    Object which stores observability information for a specific point on the
+    sky.
+    """
+
+    # Define class attributes
+    _ra = None
+    _dec = None
+    _start_date = None
+    _end_date = None
+    _airmass = None
+    _resolution = None
+    _minimum_airmass = None
+    _observer = None
+
+    # Setters & getters
+    @property
+    def ra(self):
+        """
+        RA for this almanac
+        """
+        return self._ra
+
+    @ra.setter
+    def ra(self, r):
+        r = float(r)
+        if r < 0. or r >= 360.:
+            raise ValueError('Almanac must have 0 <= RA < 360')
+        self._ra = r
+
+    @property
+    def dec(self):
+        """
+        RA for this almanac
+        """
+        return self._dec
+
+    @ra.setter
+    def ra(self, d):
+        d = float(d)
+        if d < -90. or d > 90.:
+            raise ValueError('Almanac must have -90 <= RA <= 90')
+        self._dec = d
+
+    @property
+    def start_date(self):
+        """
+        Almanac start date as a datetime date object
+        """
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, d):
+        if not isinstance(d, datetime.date):
+            raise ValueError("start_date must be an instance of "
+                             "datetime.datetime.date")
+        if self.end_date is not None:
+            if d >= self.end_date:
+                raise ValueError("Requested start_date is after the existing "
+                                 "end_date for this almanac")
+        self._start_date = d
+
+    @property
+    def end_date(self):
+        """
+        Almanac start date as a datetime date object
+        """
+        return self._end_date
+
+    @end_date.setter
+    def end_date(self, d):
+        if not isinstance(d, datetime.date):
+            raise ValueError("end_date must be an instance of "
+                             "datetime.datetime.date")
+        if self.end_date is not None:
+            if d >= self.end_date:
+                raise ValueError("Requested end_date is after the existing "
+                                 "start_date for this almanac")
+        self._end_date = d
+
+    @property
+    def airmass(self):
+        """
+        An OrderedDict of the type:
+        date_j2000: airmass
+        An OrderedDict is used to keep the entries in date (i.e. key) order
+        """
+        return self._airmass
+
+    @airmass.setter
+    def airmass(self, a):
+        if not isinstance(a, dict):
+            raise ValueError("airmass must be a dictionary")
+        self._airmass = a
+
+    @property
+    def minimum_airmass(self):
+        """
+        The minimum airmass that this almanac will consider 'observable'
+        """
+        return self._minimum_airmass
+
+    @minimum_airmass.setter
+    def minimum_airmass(self, a):
+        a = float(a)
+        if a < 0:
+            raise ValueError('Minimum airmass must be > 0')
+        if a > 100:
+            raise ValueError('Minimum airmass must be < 100 '
+                             '(max. practical value is ~ 38; 99 is used '
+                             'as a special value by this module')
+        self._minimum_airmass = a
+
+    @property
+    def resolution(self):
+        """
+        Resolution of almanac in minutes
+        """
+        return self._resolution
+
+    @resolution.setter
+    def resolution(self, r):
+        r = float(r)
+        if r <= 0:
+            raise ValueError('Resolution must be > 0 mins')
+        if r < float(ALMANAC_RESOLUTION_MAX):
+            raise ValueError('Resolution must be < %d mins' %
+                             (ALMANAC_RESOLUTION_MAX, ))
+
+    @property
+    def observer(self):
+        """
+        ephem observer object
+        """
+        return self._observer
+
+    @observer.setter
+    def observer(self, o):
+        if not isinstance(o, ephem.Observer):
+            raise ValueError('observer must be an instance of the Observer '
+                             'class from pyephem')
+        self._observer = o
+
+    # Helper functions
+    def compute_end_date(self, observing_period):
+        """
+        Compute the end date for this almanac and set it
+        """
+        delta = datetime.timedelta(observing_period)
+        end_date = self.start_date + delta
+        self.end_date = end_date
+
+    def get_observing_period(self):
+        return (self.end_date -
+                self.start_date).total_seconds() / SECONDS_PER_DAY
+
+    def generate_file_name(self):
+        filename = 'almanac_R%3.1f_D%2.1f_start%s_end%s_res%3f.amn' % (
+            self.ra, self.dec, self.start_date.strftime('%y%m%d'),
+            self.end_date.strftime('%y%m%d'), self.resolution,
+        )
+        return filename
+
+    # Initialization
+    def __init__(self, ra, dec, start_date, end_date=None,
+                 observing_period=None, observer=UKST_TELESCOPE,
+                 minimum_airmass=2.0, resolution=15.):
+        if end_date is None and observing_period is None:
+            raise ValueError("Must specify either one of end_date or "
+                             "observing_period")
+
+        self.ra = ra
+        self.dec = dec
+        self.start_date = start_date
+        if end_date:
+            self.end_date = end_date
+        else:
+            self.compute_end_date(self, observing_period)
+        self.airmass = {}
+        self.observer = observer
+        self.minimum_airmass = minimum_airmass
+        self.resolution = resolution
+
+        return
+
+    # Save & read from disk
+    # Uses pickle to seralize objects
+    def save(self, filename=None, filepath='./'):
+        if filepath[-1] != '/':
+            raise ValueError('filepath must end with /')
+        if filename is None:
+            filename = self.generate_file_name()
+        with open('%s%s' % (filepath, filename, )) as fileobj:
+            pickle.dump(self, fileobj)
+        return
+
+    def load(self, filepath='./'):
+        """
+        This function will attempt to load an almanac based on the file name of
+        almanacs available in the directory specified by filepath. This will be
+        based on the RA, Dec, starttime, endtime and resolution information
+        encoded within the filename. If successful, the function returns True.
+        If a filename matching the calling
+        almanac is not found, then the function will exit and return False.
+        """
+        if filepath[-1] != '/':
+            raise ValueError('filepath must end with /')
+        files_present = os.listdir(filepath)
+        if self.generate_file_name() not in files_present:
+            return False
+
+        with open('%s%s' % (filepath, filename,)) as fileobj:
+            file_almanac = pickle.load(self, fileobj)
+
+        self.ra = file_almanac.ra
+        self.dec = file_almanac.dec
+        self.start_date = file_almanac.start_date
+        self.end_date = file_almanac.end_date
+        self.observer = file_almanac.observer
+        self.resolution = file_almanac.resolution
+        self.airmass = file_almanac.airmass
+        self.minimum_airmass = file_almanac.airmass
+
+        return True
+
+
+class DarkAlamnac(Almanac):
+    """
+    Subclass of Almanac, which holds information on what times are 'dark'
+    Holds no RA, Dec information
+    """
+
+    # Setters and getters
+    @ra.setter
+    def ra(self, r):
+        if r is not None:
+            raise ValueError('Dark almanac does not require an RA value')
+
+    @dec.setter
+    def dec(self, r):
+        if r is not None:
+            raise ValueError('Dark almanac does not require an DEC value')
+
+    @minimum_airmass.setter
+    def minimum_airmass(self, a):
+        if a is not None:
+            raise ValueError('Dark almanac does not require a minimum_airmass'
+                             ' value')
+
+    def generate_file_name(self):
+        filename = 'darkalmanac_start%s_end%s_res%3f.amn' % (
+            self.start_date.strftime('%y%m%d'),
+            self.end_date.strftime('%y%m%d'), self.resolution,
+        )
+        return filename
+
+    # Initialization
+    def __init__(self, start_date, end_date=None,
+                 observing_period=None, observer=UKST_TELESCOPE,
+                 minimum_airmass=2.0, resolution=15.):
+        super(Almanac, self).__init__(None, None, start_date, end_date=end_date,
+                                      observing_period=observing_period,
+                                      observer=observer,
+                                      minimum_airmass=minimum_airmass,
+                                      resolution=resolution)
+# ______________________________________________________________________________
+
+
+def airmass(ra, dec, date_j2000=None, observer=UKST_TELESCOPE):
     # initialise ephem observer object with specified datetime
-    if date_J2000 is not None:
-        observer.date = datej2000
+    if date_j2000 is not None:
+        observer.date = date_j2000
     # initialise ephem target object with specified coordinates
     target = ephem.FixedBody()             # create ephem target object
     target._ra = np.radians(ra)          # radians everywhere
@@ -100,7 +378,7 @@ def hours_observable(ra, dec, observer=UKST_TELESCOPE,
         raise ValueError('Either end_date or observing_period must be defined')
 
     if start_date is None:
-        start_date = utc_to_J2000() # Set start time to now
+        start_date = utc_to_j2000() # Set start time to now
 
     # determine end of observing period if necessary
     if end_date is None:
@@ -437,7 +715,7 @@ def create_almanac(ra, dec, dates_j2000, almanac_filename):
 
 # ephem does everything internally using J2000 dates
 
-def utc_to_J2000(datetime_utc=datetime.datetime.utcnow()):
+def utc_to_j2000(datetime_utc=datetime.datetime.utcnow()):
     return ephem.julian_date(datetime_utc) - 2415020.
 
 
