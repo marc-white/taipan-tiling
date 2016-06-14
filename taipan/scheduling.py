@@ -19,6 +19,12 @@ import ephem
 SOLAR_TWILIGHT_HORIZON = np.radians(-10.)      # radians everywhere
 LUNAR_TWILIGHT_HORIZON = np.radians(0.)        # radians everywhere
 
+SOLAR_HORIZON = SOLAR_TWILIGHT_HORIZON - np.radians(0.24)
+LUNAR_HORIZON = LUNAR_TWILIGHT_HORIZON - np.radians(0.27)
+
+SUN = ephem.Sun()
+MOON = ephem.Moon()
+
 # define and establish emph.Observer object for UKST-Taipan
 #  all from https://en.wikipedia.org/wiki/Siding_Spring_Observatory
 UKST_LATITUDE = -31.272231
@@ -67,6 +73,9 @@ class Almanac:
 
     @ra.setter
     def ra(self, r):
+        if r is None:
+            self._ra = None
+            return
         r = float(r)
         if r < 0. or r >= 360.:
             raise ValueError('Almanac must have 0 <= RA < 360')
@@ -79,8 +88,11 @@ class Almanac:
         """
         return self._dec
 
-    @ra.setter
-    def ra(self, d):
+    @dec.setter
+    def dec(self, d):
+        if d is None:
+            self._dec = None
+            return
         d = float(d)
         if d < -90. or d > 90.:
             raise ValueError('Almanac must have -90 <= RA <= 90')
@@ -146,6 +158,9 @@ class Almanac:
 
     @minimum_airmass.setter
     def minimum_airmass(self, a):
+        if a is None:
+            self._minimum_airmass = None
+            return
         a = float(a)
         if a < 0:
             raise ValueError('Minimum airmass must be > 0')
@@ -267,6 +282,73 @@ class Almanac:
 
         return True
 
+    # Computation functions
+    def hours_observable_bruteforce(self, full_output=False):
+        # Define almanac-dependent horizons
+        observable = np.arcsin(1. / self.minimum_airmass)
+
+        # initialise ephem fixed body object for pointing
+        target = ephem.FixedBody()
+        target._ra = np.radians(self.ra)  # radians everywhere
+        target._dec = np.radians(self.dec)  # radians everywhere
+
+        # Calculate the time grid
+        if self.airmass is None:
+            self.observer.date = self.start_date
+            observing_period = (self.end_date -
+                                self.start_date).total_seconds() / \
+                               SECONDS_PER_DAY
+            dates_j2000 = (observer.date +
+                           np.arange(0, observing_period,
+                                     self.resolution / 1440.))
+        else:
+            dates_j2000 = sorted(self.airmass.keys())
+
+        # Perform the computation
+        time_total = 0.
+        sol_alt, lun_alt, target_alt, dark_time = [], [], [], []
+        for d in dates_j2000.ravel():
+            self.observer.date = d
+            SUN.compute(self.observer)
+            MOON.compute(self.observer)
+            target.compute(self.observer)
+
+            can_observe = (SUN.alt <
+                           SOLAR_HORIZON) and (MOON.alt < LUNAR_HORIZON)
+            if full_output:
+                sol_alt.append(SUN.alt)
+                lun_alt.append(MOON.alt)
+                target_alt.append(target.alt)
+                dark_time.append(can_observe)
+            else:
+                if can_observe and (target.alt > observable):
+                    time_total += self.resolution
+
+        if full_output:
+            # convert results to numpy arrays
+            sol_alt = np.array(sol_alt).reshape(dates_j2000.shape)
+            lun_alt = np.array(lun_alt).reshape(dates_j2000.shape)
+            target_alt = np.array(target_alt).reshape(dates_j2000.shape)
+            dark_time = np.array(dark_time).reshape(dates_j2000.shape)
+            return dates_j2000, sol_alt, lun_alt, target_alt, dark_time
+        else:
+            return time_total / 60.
+
+    def calculate_airmass(self):
+        dates, sun, moon, target, dark_time = self.hours_observable_bruteforce(
+            full_output=True)
+
+        airmass_values = np.clip(np.where(target > np.radians(10.),
+                                          1./np.sin(target), 99.), 0., 9.)
+
+        if self.airmass is None:
+            self.airmass = {}
+
+        for i in range(len(dates)):
+            self.airmass[dates[i]] = airmass_values[i]
+
+        return
+
 
 class DarkAlamnac(Almanac):
     """
@@ -277,13 +359,15 @@ class DarkAlamnac(Almanac):
     # Setters and getters
     @ra.setter
     def ra(self, r):
-        if r is not None:
-            raise ValueError('Dark almanac does not require an RA value')
+        r = float(r)
+        if abs(r - 0.) > 1e-5:
+            raise ValueError('Dark almanac must have RA = 0')
 
     @dec.setter
     def dec(self, r):
-        if r is not None:
-            raise ValueError('Dark almanac does not require an DEC value')
+        r = float(r)
+        if abs(r - 0.) > 1e-5:
+            raise ValueError('Dark almanac must have DEC = 0')
 
     @minimum_airmass.setter
     def minimum_airmass(self, a):
@@ -291,6 +375,36 @@ class DarkAlamnac(Almanac):
             raise ValueError('Dark almanac does not require a minimum_airmass'
                              ' value')
 
+    # Create a new class attribute, dark_time, which simply aliases
+    # airmass
+    # Furthermore, we'll override the Almanac getter & setter for airmass
+    # so that it doesn't appear as a valid class attribute
+    # However, the hidden value _airmass will still be used
+    @property
+    def airmass(self):
+        raise AttributeError('Dark almanacs do not have an airmass catalogue -'
+                             ' use dark_time instead')
+
+    @airmass.setter
+    def airmass(self, a):
+        raise AttributeError('Dark almanacs do not have an airmass catalogue -'
+                             ' use dark_time instead')
+
+    @property
+    def dark_time(self):
+        """
+        A catalogue of whether time should be considered 'dark' or not
+        """
+        return self._airmass
+
+    @dark_time.setter
+    def dark_time(self, d):
+        if not isinstance(d, dict):
+            raise ValueError('dark_time must be a dictionary of datetimes '
+                             'and corresponding Boolean values')
+        self._airmass = d
+
+    # Class functions
     def generate_file_name(self):
         filename = 'darkalmanac_start%s_end%s_res%3f.amn' % (
             self.start_date.strftime('%y%m%d'),
@@ -301,12 +415,36 @@ class DarkAlamnac(Almanac):
     # Initialization
     def __init__(self, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
-                 minimum_airmass=2.0, resolution=15.):
-        super(Almanac, self).__init__(None, None, start_date, end_date=end_date,
+                 resolution=15.):
+        super(Almanac, self).__init__(0., 0., start_date, end_date=end_date,
                                       observing_period=observing_period,
                                       observer=observer,
-                                      minimum_airmass=minimum_airmass,
+                                      minimum_airmass=None,
                                       resolution=resolution)
+
+    def create_dark_almanac(self):
+        """
+        Perform the necessary calculations to populate this almanac
+        """
+        dates, sun, moon, target, is_dark_time = \
+            self.hours_observable_bruteforce(full_output=True)
+
+        times_per_day = 1440. / self.resolution
+        if abs(times_per_day - int(times_per_day)) > 1e-5:
+            raise ValueError('Dark almanac resolution muyst divide into a day '
+                             'with no remainder (i.e. resolution must be a '
+                             'divisor of 1440).')
+
+        if self.dark_time is None:
+            self.dark_time = {}
+
+        for i in range(len(dates)):
+            self.dark_time[dates[i]] = is_dark_time[i]
+
+        return
+
+
+
 # ______________________________________________________________________________
 
 
