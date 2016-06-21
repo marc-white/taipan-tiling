@@ -223,7 +223,8 @@ class Almanac:
     # Initialization
     def __init__(self, ra, dec, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
-                 minimum_airmass=2.0, resolution=15.):
+                 minimum_airmass=2.0, resolution=15.,
+                 populate=True):
         if end_date is None and observing_period is None:
             raise ValueError("Must specify either one of end_date or "
                              "observing_period")
@@ -241,10 +242,12 @@ class Almanac:
         self.resolution = resolution
 
         # See if an almanac with these properties already exists in the PWD
-        load_success = self.load()
-        if not load_success:
-            # Couldn't find an almanac to load, so we need to populate this one
-            self.calculate_airmass()
+        if populate:
+            load_success = self.load()
+            if not load_success:
+                # Couldn't find an almanac to load, so we need to
+                # populate this one
+                self.calculate_airmass()
 
         return
 
@@ -341,6 +344,11 @@ class Almanac:
             return time_total / 60.
 
     def calculate_airmass(self):
+        logging.debug('Computing airmass values for almanac at %3.1f, %2.1f '
+                      'from %s to %s' %
+                      (self.ra, self.dec, self.start_date.strftime('%y-%m-%d'),
+                       self.end_date.strftime('%y-%m-%d'),
+                       ))
         dates, sun, moon, target, dark_time = self.generate_almanac_bruteforce(
             full_output=True)
 
@@ -433,12 +441,23 @@ class DarkAlamnac(Almanac):
     # Initialization
     def __init__(self, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
-                 resolution=15.):
+                 resolution=15., populate=True):
+        # 'super' the Almanac __init__ method, but do NOT attempt to
+        # populate the DarkAlmanac from this method (uses a different
+        # method)
         super(Almanac, self).__init__(0., 0., start_date, end_date=end_date,
                                       observing_period=observing_period,
                                       observer=observer,
                                       minimum_airmass=None,
-                                      resolution=resolution)
+                                      resolution=resolution, populate=False)
+
+        # See if an almanac with these properties already exists in the PWD
+        if populate:
+            load_success = self.load()
+            if not load_success:
+                # Couldn't find an almanac to load, so we need to
+                # populate this one
+                self.create_dark_almanac()
 
     def create_dark_almanac(self):
         """
