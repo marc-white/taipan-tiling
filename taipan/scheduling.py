@@ -414,7 +414,7 @@ class DarkAlmanac(Almanac):
     # However, the hidden value _airmass will still be used
     @property
     def airmass(self):
-        return self._airmass
+        return {}
 
     @airmass.setter
     def airmass(self, a):
