@@ -174,6 +174,8 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     dark_almanac = ts.DarkAlamnac(date_start, end_date=date_end,
                                   resolution=15.)
 
+    return almanacs, dark_almanac
+
 
 if __name__ == '__main__':
     # Set the logging to write to terminal
