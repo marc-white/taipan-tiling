@@ -185,6 +185,7 @@ class Almanac(object):
         if r > float(ALMANAC_RESOLUTION_MAX):
             raise ValueError('Resolution must be < %d mins' %
                              (ALMANAC_RESOLUTION_MAX, ))
+        self._resolution = r
 
     @property
     def observer(self):
