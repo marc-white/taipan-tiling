@@ -176,6 +176,7 @@ def execute(cursor, date_start, date_end, output_loc='.'):
                                   minimum_airmass=2)
                 for field in fields}
 
+    logging.info('Saving almanacs to disc...')
     for almanac in almanacs:
         almanac.save()
     dark_almanac.save()

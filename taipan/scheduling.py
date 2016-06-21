@@ -445,12 +445,14 @@ class DarkAlmanac(Almanac):
         # 'super' the Almanac __init__ method, but do NOT attempt to
         # populate the DarkAlmanac from this method (uses a different
         # method)
+        logging.debug('super-ing standard almanac creation')
         super(DarkAlmanac, self).__init__(0., 0., start_date, end_date=end_date,
-                                      observing_period=observing_period,
-                                      observer=observer,
-                                      minimum_airmass=None,
-                                      resolution=resolution, populate=False)
+                                          observing_period=observing_period,
+                                          observer=observer,
+                                          minimum_airmass=None,
+                                          resolution=resolution, populate=False)
 
+        logging.debug('Looking for existing dark almanac file')
         # See if an almanac with these properties already exists in the PWD
         if populate:
             load_success = self.load()
@@ -463,6 +465,8 @@ class DarkAlmanac(Almanac):
         """
         Perform the necessary calculations to populate this almanac
         """
+        logging.debug('Creating dark almanac')
+        logging.debug('Calculating from standard almanac functions...')
         dates, sun, moon, target, is_dark_time = \
             self.generate_almanac_bruteforce(full_output=True)
 
@@ -475,8 +479,11 @@ class DarkAlmanac(Almanac):
         if self.dark_time is None:
             self.dark_time = {}
 
+        logging.debug('Populating dark time dict')
         for i in range(len(dates)):
             self.dark_time[dates[i]] = is_dark_time[i]
+
+        logging.debug('Dark almanac created!')
 
         return
 
