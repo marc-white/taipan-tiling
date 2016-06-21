@@ -400,7 +400,7 @@ class DarkAlmanac(Almanac):
     def minimum_airmass(self, a):
         if a is not None:
             raise ValueError('Dark almanac does not require a minimum_airmass'
-                             ' value')
+                             ' value - used a default value of 2')
 
     # Create a new class attribute, dark_time, which simply aliases
     # airmass
@@ -455,6 +455,7 @@ class DarkAlmanac(Almanac):
                                           observer=observer,
                                           minimum_airmass=None,
                                           resolution=resolution, populate=False)
+        self._minimum_airmass = 2.
 
         logging.debug('Looking for existing dark almanac file')
         # See if an almanac with these properties already exists in the PWD
