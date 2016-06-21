@@ -414,8 +414,7 @@ class DarkAlmanac(Almanac):
     # However, the hidden value _airmass will still be used
     @property
     def airmass(self):
-        raise AttributeError('Dark almanacs do not have an airmass catalogue -'
-                             ' use dark_time instead')
+        return self._airmass
 
     @airmass.setter
     def airmass(self, a):
