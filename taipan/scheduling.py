@@ -182,7 +182,7 @@ class Almanac(object):
         r = float(r)
         if r <= 0:
             raise ValueError('Resolution must be > 0 mins')
-        if r < float(ALMANAC_RESOLUTION_MAX):
+        if r > float(ALMANAC_RESOLUTION_MAX):
             raise ValueError('Resolution must be < %d mins' %
                              (ALMANAC_RESOLUTION_MAX, ))
 
