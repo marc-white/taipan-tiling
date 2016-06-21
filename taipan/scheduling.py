@@ -47,7 +47,7 @@ ALMANAC_RESOLUTION_MAX = 60. * 4.
 # ______________________________________________________________________________
 
 
-class Almanac:
+class Almanac(object):
     """
     Object which stores observability information for a specific point on the
     sky.
