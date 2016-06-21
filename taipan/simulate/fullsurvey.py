@@ -171,13 +171,13 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end,
                                   resolution=15.)
     logging.info('Constructing field almanacs...')
-    almanacs = {field: ts.Almanac(field.ra, field.dec, date_start,
-                                  end_date=date_end, resolution=15.,
-                                  minimum_airmass=2)
+    almanacs = {field.id: ts.Almanac(field.ra, field.dec, date_start,
+                                     end_date=date_end, resolution=15.,
+                                     minimum_airmass=2)
                 for field in fields}
 
     logging.info('Saving almanacs to disc...')
-    for almanac in almanacs:
+    for almanac in almanacs.itervalues():
         almanac.save()
     dark_almanac.save()
 
