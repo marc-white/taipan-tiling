@@ -235,7 +235,7 @@ class Almanac(object):
         if end_date:
             self.end_date = end_date
         else:
-            self.compute_end_date(self, observing_period)
+            self.compute_end_date(observing_period)
         self.airmass = {}
         self.observer = observer
         self.minimum_airmass = minimum_airmass
