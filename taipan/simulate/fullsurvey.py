@@ -167,14 +167,14 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
     fields = rCexec(cursor)
     # Construct the almanacs required
+    logging.info('Constructing dark almanac...')
+    dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end,
+                                  resolution=15.)
     logging.info('Constructing field almanacs...')
     almanacs = {field: ts.Almanac(field.ra, field.dec, date_start,
                                   end_date=date_end, resolution=15.,
                                   minimum_airmass=2)
                 for field in fields}
-    logging.info('Constructing dark almanac...')
-    dark_almanac = ts.DarkAlamnac(date_start, end_date=date_end,
-                                  resolution=15.)
 
     for almanac in almanacs:
         almanac.save()

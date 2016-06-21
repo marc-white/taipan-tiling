@@ -364,7 +364,7 @@ class Almanac:
         return
 
 
-class DarkAlamnac(Almanac):
+class DarkAlmanac(Almanac):
     """
     Subclass of Almanac, which holds information on what times are 'dark'
     Holds no RA, Dec information
@@ -445,7 +445,7 @@ class DarkAlamnac(Almanac):
         # 'super' the Almanac __init__ method, but do NOT attempt to
         # populate the DarkAlmanac from this method (uses a different
         # method)
-        super(Almanac, self).__init__(0., 0., start_date, end_date=end_date,
+        super(DarkAlmanac, self).__init__(0., 0., start_date, end_date=end_date,
                                       observing_period=observing_period,
                                       observer=observer,
                                       minimum_airmass=None,
