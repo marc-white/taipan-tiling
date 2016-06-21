@@ -74,7 +74,8 @@ def sim_prepare_db(cursor):
     return
 
 
-def sim_do_night(cursor, date, date_start, date_end):
+def sim_do_night(cursor, date, date_start, date_end,
+                 almanac_list=None, dark_almanac_list=None):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonight
@@ -93,6 +94,15 @@ def sim_do_night(cursor, date, date_start, date_end):
         The dates the observing run starts and ends on. These are required
         in order to compute the amount of time a certain field will remain
         observable.
+    almanac_list:
+        List of taipan.scheduling.Almanac objects used for determining
+        visibility. Needs to be one per field. If sim_do_night does not
+        find an almanac covering the required field and date, one will
+        be generated (at added computational cost). Optional.
+    dark_almanac_list:
+        As for almanac_list, but holds the dark almanacs, which simply
+        specify dark or grey time on a per-datetime basis. Optional,
+        defaults to None (so the necessary DarkAlmanacs will be created).
 
     Returns
     -------
@@ -150,7 +160,19 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     # read_in_observed_tiles()
     # generate_outputs()
 
-    sim_prepare_db(cursor)
+    # TODO: Add check to skip this step if tables already exist
+    # Currently dummied out with an is False
+    if False:
+        sim_prepare_db(cursor)
+
+    fields = rCexec(cursor)
+    # Construct the almanacs required
+    almanacs = {field: ts.Almanac(field.ra, field.dec, date_start,
+                                  end_date=date_end, resolution=15.,
+                                  minimum_airmass=2)
+                for field in fields}
+    dark_almanac = ts.DarkAlamnac(date_start, end_date=date_end,
+                                  resolution=15.)
 
 
 if __name__ == '__main__':

@@ -240,6 +240,12 @@ class Almanac:
         self.minimum_airmass = minimum_airmass
         self.resolution = resolution
 
+        # See if an almanac with these properties already exists in the PWD
+        load_success = self.load()
+        if not load_success:
+            # Couldn't find an almanac to load, so we need to populate this one
+            self.calculate_airmass()
+
         return
 
     # Save & read from disk
@@ -283,7 +289,7 @@ class Almanac:
         return True
 
     # Computation functions
-    def hours_observable_bruteforce(self, full_output=False):
+    def generate_almanac_bruteforce(self, full_output=False):
         # Define almanac-dependent horizons
         observable = np.arcsin(1. / self.minimum_airmass)
 
@@ -293,12 +299,12 @@ class Almanac:
         target._dec = np.radians(self.dec)  # radians everywhere
 
         # Calculate the time grid
-        if self.airmass is None:
+        if self.airmass is None or len(self.airmass) == 0:
             self.observer.date = self.start_date
-            observing_period = (self.end_date -
-                                self.start_date).total_seconds() / \
-                               SECONDS_PER_DAY
-            dates_j2000 = (observer.date +
+            observing_period = (
+                self.end_date - self.start_date
+                               ).total_seconds() / SECONDS_PER_DAY
+            dates_j2000 = (self.observer.date +
                            np.arange(0, observing_period,
                                      self.resolution / 1440.))
         else:
@@ -307,7 +313,7 @@ class Almanac:
         # Perform the computation
         time_total = 0.
         sol_alt, lun_alt, target_alt, dark_time = [], [], [], []
-        for d in dates_j2000.ravel():
+        for d in dates_j2000:
             self.observer.date = d
             SUN.compute(self.observer)
             MOON.compute(self.observer)
@@ -326,16 +332,16 @@ class Almanac:
 
         if full_output:
             # convert results to numpy arrays
-            sol_alt = np.array(sol_alt).reshape(dates_j2000.shape)
-            lun_alt = np.array(lun_alt).reshape(dates_j2000.shape)
-            target_alt = np.array(target_alt).reshape(dates_j2000.shape)
-            dark_time = np.array(dark_time).reshape(dates_j2000.shape)
+            sol_alt = np.array(sol_alt)
+            lun_alt = np.array(lun_alt)
+            target_alt = np.array(target_alt)
+            dark_time = np.array(dark_time)
             return dates_j2000, sol_alt, lun_alt, target_alt, dark_time
         else:
             return time_total / 60.
 
     def calculate_airmass(self):
-        dates, sun, moon, target, dark_time = self.hours_observable_bruteforce(
+        dates, sun, moon, target, dark_time = self.generate_almanac_bruteforce(
             full_output=True)
 
         airmass_values = np.clip(np.where(target > np.radians(10.),
@@ -357,17 +363,29 @@ class DarkAlamnac(Almanac):
     """
 
     # Setters and getters
+    @property
+    def ra(self):
+        return self._ra
+
     @ra.setter
     def ra(self, r):
         r = float(r)
         if abs(r - 0.) > 1e-5:
             raise ValueError('Dark almanac must have RA = 0')
 
+    @property
+    def dec(self):
+        return self._dec
+
     @dec.setter
     def dec(self, r):
         r = float(r)
         if abs(r - 0.) > 1e-5:
             raise ValueError('Dark almanac must have DEC = 0')
+
+    @property
+    def minimum_airmass(self):
+        return self._minimum_airmass
 
     @minimum_airmass.setter
     def minimum_airmass(self, a):
@@ -427,7 +445,7 @@ class DarkAlamnac(Almanac):
         Perform the necessary calculations to populate this almanac
         """
         dates, sun, moon, target, is_dark_time = \
-            self.hours_observable_bruteforce(full_output=True)
+            self.generate_almanac_bruteforce(full_output=True)
 
         times_per_day = 1440. / self.resolution
         if abs(times_per_day - int(times_per_day)) > 1e-5:
