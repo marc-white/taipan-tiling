@@ -377,13 +377,14 @@ class DarkAlmanac(Almanac):
     # Setters and getters
     @property
     def ra(self):
-        return self._ra
+        return 0.
 
     @ra.setter
     def ra(self, r):
         r = float(r)
         if abs(r - 0.) > 1e-5:
             raise ValueError('Dark almanac must have RA = 0')
+        self._ra = 0.
 
     @property
     def dec(self):
@@ -394,6 +395,7 @@ class DarkAlmanac(Almanac):
         r = float(r)
         if abs(r - 0.) > 1e-5:
             raise ValueError('Dark almanac must have DEC = 0')
+        self._dec = 0.
 
     @property
     def minimum_airmass(self):
