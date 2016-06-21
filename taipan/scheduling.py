@@ -413,8 +413,9 @@ class DarkAlmanac(Almanac):
 
     @airmass.setter
     def airmass(self, a):
-        raise AttributeError('Dark almanacs do not have an airmass catalogue -'
-                             ' use dark_time instead')
+        if a is not None:
+            raise AttributeError('Dark almanacs do not have an airmass catalogue -'
+                                 ' use dark_time instead')
 
     @property
     def dark_time(self):
