@@ -298,6 +298,9 @@ class Almanac(object):
         observable = np.arcsin(1. / self.minimum_airmass)
 
         # initialise ephem fixed body object for pointing
+        logging.debug('Creating ephem FixedBody at %3.1f, %2.1f' % (
+            self.ra, self.dec,
+        ))
         target = ephem.FixedBody()
         target._ra = np.radians(self.ra)  # radians everywhere
         target._dec = np.radians(self.dec)  # radians everywhere
