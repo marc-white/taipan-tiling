@@ -259,7 +259,7 @@ class Almanac(object):
             raise ValueError('filepath must end with /')
         if filename is None:
             filename = self.generate_file_name()
-        with open('%s%s' % (filepath, filename, )) as fileobj:
+        with open('%s%s' % (filepath, filename, ), 'w') as fileobj:
             pickle.dump(self, fileobj)
         return
 
