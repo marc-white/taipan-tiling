@@ -260,7 +260,7 @@ class Almanac(object):
         if filename is None:
             filename = self.generate_file_name()
         with open('%s%s' % (filepath, filename, ), 'w') as fileobj:
-            pickle.dump(self, fileobj)
+            pickle.dump(self, fileobj, pickle.HIGHEST_PROTOCOL)
         return
 
     def load(self, filepath='./'):
