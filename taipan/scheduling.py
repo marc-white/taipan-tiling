@@ -288,7 +288,7 @@ class Almanac(object):
         self.observer = file_almanac.observer
         self.resolution = file_almanac.resolution
         self.airmass = file_almanac.airmass
-        self.minimum_airmass = file_almanac.airmass
+        self.minimum_airmass = file_almanac.minimum_airmass
 
         return True
 
