@@ -403,9 +403,7 @@ class DarkAlmanac(Almanac):
 
     @minimum_airmass.setter
     def minimum_airmass(self, a):
-        if a is not None:
-            raise ValueError('Dark almanac does not require a minimum_airmass'
-                             ' value - used a default value of 2')
+        self._airmass = 2.
 
     # Create a new class attribute, dark_time, which simply aliases
     # airmass
