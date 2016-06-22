@@ -278,8 +278,12 @@ class Almanac(object):
         if self.generate_file_name() not in files_present:
             return False
 
-        with open('%s%s' % (filepath, self.generate_file_name(), )) as fileobj:
-            file_almanac = pickle.load(fileobj)
+        try:
+            with open('%s%s' % (filepath,
+                                self.generate_file_name(), )) as fileobj:
+                file_almanac = pickle.load(fileobj)
+        except EOFError:
+            return False
 
         self.ra = file_almanac.ra
         self.dec = file_almanac.dec
