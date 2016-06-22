@@ -403,7 +403,7 @@ class DarkAlmanac(Almanac):
 
     @minimum_airmass.setter
     def minimum_airmass(self, a):
-        self._airmass = 2.
+        self._minimum_airmass = 2.
 
     # Create a new class attribute, dark_time, which simply aliases
     # airmass
