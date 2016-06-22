@@ -111,7 +111,7 @@ class Almanac(object):
             raise ValueError("start_date must be an instance of "
                              "datetime.datetime.date")
         if self.end_date is not None:
-            if d >= self.end_date:
+            if d > self.end_date:
                 raise ValueError("Requested start_date is after the existing "
                                  "end_date for this almanac")
         self._start_date = d
@@ -129,7 +129,7 @@ class Almanac(object):
             raise ValueError("end_date must be an instance of "
                              "datetime.datetime.date")
         if self.start_date is not None:
-            if d >= self.start_date:
+            if d < self.start_date:
                 raise ValueError("Requested end_date is after the existing "
                                  "start_date for this almanac")
         self._end_date = d
