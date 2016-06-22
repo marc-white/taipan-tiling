@@ -176,10 +176,13 @@ def execute(cursor, date_start, date_end, output_loc='.'):
                                            end_date=date_end, resolution=15.,
                                            minimum_airmass=2)
                 for field in fields}
-
+    # Work out which of the field almanacs already exist on disk
+    files_on_disk = os.listdir()
+    almanacs_existing = {k: v.generate_file_name() in files_on_disk
+                         for (k, v) in almanacs.iteritems()}
     logging.info('Saving almanacs to disc...')
-    for almanac in almanacs.itervalues():
-        almanac.save()
+    for k in [k for (k, v) in almanacs_existing.iteritems() if v]:
+        almanacs[k].save()
 
     return almanacs, dark_almanac
 
