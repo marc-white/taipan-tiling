@@ -371,6 +371,39 @@ class Almanac(object):
 
         return
 
+    def hours_observable(self, date_from, date_to):
+        """
+        Calculate how many hours this field is observable for between two
+        datetimes.
+        Parameters
+        ----------
+        date_from, date_to:
+            The datetimes between which we should calculate the number of
+            observable hours remaining. These datetimes must be between the
+            start and end dates of the almanac, or an error will be returned.
+
+        Returns
+        -------
+        hours_obs:
+            The number of observable hours for this field between datetime_from
+            and datetime_to.
+
+        """
+        # Input checking
+        if date_to < date_from:
+            raise ValueError('date_from must occur before date_to')
+        if date_from < self.start_date:
+            raise ValueError('date_from is before start_date for this '
+                             'Almanac!')
+        if date_to > self.end_date:
+            raise ValueError('date_from is before start_date for this '
+                             'Almanac!')
+
+        # Initialise pyephem object for performing calculations
+        target = ephem.FixedBody()
+        target._ra = np.radianns(self.ra)
+        target_dec = np.radians(self.dec)
+
 
 class DarkAlmanac(Almanac):
     """

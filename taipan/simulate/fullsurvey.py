@@ -19,6 +19,7 @@ from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
 from src.resources.v0_0_1.readout.readStandards import execute as rSexec
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
+from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
@@ -95,12 +96,12 @@ def sim_do_night(cursor, date, date_start, date_end,
         The dates the observing run starts and ends on. These are required
         in order to compute the amount of time a certain field will remain
         observable.
-    almanac_list:
+    almanac_dict:
         List of taipan.scheduling.Almanac objects used for determining
         visibility. Needs to be one per field. If sim_do_night does not
         find an almanac covering the required field and date, one will
         be generated (at added computational cost). Optional.
-    dark_almanac_list:
+    dark_almanac:
         As for almanac_list, but holds the dark almanacs, which simply
         specify dark or grey time on a per-datetime basis. Optional,
         defaults to None (so the necessary DarkAlmanacs will be created).
@@ -114,6 +115,28 @@ def sim_do_night(cursor, date, date_start, date_end,
     # Date needs to be in the range of date_start and date_end
     if date < date_start or date > date_end:
         raise ValueError('date must be in the range [date_start, date_end]')
+
+    # Seed an alamnac dictionary if not passed
+    if almanac_dict is None:
+        almanac_dict = {}
+
+    # Needs to do the following:
+    # Read in the tiles that are awaiting observation, along with their scores
+    scores_array = rTSexec(cursor, metrics=['cw_sum'])
+
+    # Make sure we have an almanac for every field in the scores_array
+    # If we don't, we'll need to make one
+    # Note that, because of the way Python's scoping is set up, this will
+    # permanently add the almanac to the dictionary
+    almanacs_existing = almanac_dict.keys()
+    for row in scores_array:
+        if row['field_id'] not in almanacs_existing:
+            almanac_dict[row['field_id']] = ts.Almanac(row['ra'], row['dec'],
+                                                       date_start, date_end)
+
+    # Using almanacs, compute which tiles to observe tonight
+    # 'Observe' these tiles by updating the relevant database fields
+    # Re-tile any affected areas and write new tiles back to DB
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
