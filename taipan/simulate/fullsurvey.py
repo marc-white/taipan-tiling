@@ -13,6 +13,7 @@ import numpy as np
 import atpy
 import ephem
 import random
+import os
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
@@ -75,7 +76,7 @@ def sim_prepare_db(cursor):
 
 
 def sim_do_night(cursor, date, date_start, date_end,
-                 almanac_list=None, dark_almanac_list=None):
+                 almanac_dict=None, dark_almanac=None):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonight
@@ -109,7 +110,10 @@ def sim_do_night(cursor, date, date_start, date_end,
     Nil. All actions are internal or apply to the database.
 
     """
-    pass
+    # Do some input checking
+    # Date needs to be in the range of date_start and date_end
+    if date < date_start or date > date_end:
+        raise ValueError('date must be in the range [date_start, date_end]')
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
