@@ -174,15 +174,12 @@ def sim_do_night(cursor, date, date_start, date_end,
     # regenerate it
     if dark_almanac is None or (dark_almanac.start_date > date or
                                 dark_almanac.end_date < date):
-        dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)1
-
-
+        dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)
 
     # Compute sunrise and sunset for the night
     sunset, sunrise = ts.get_ephem_set_rise(date)
 
     # Compute how many observable hours are remaining in each of the fields
-
 
     # 'Observe' these tiles by updating the relevant database fields
     # Re-tile any affected areas and write new tiles back to DB
