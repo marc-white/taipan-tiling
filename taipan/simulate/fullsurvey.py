@@ -77,7 +77,8 @@ def sim_prepare_db(cursor):
 
 
 def sim_do_night(cursor, date, date_start, date_end,
-                 almanac_dict=None, dark_almanac=None):
+                 almanac_dict=None, dark_almanac=None,
+                 save_new_almanacs=True):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonight
@@ -109,6 +110,9 @@ def sim_do_night(cursor, date, date_start, date_end,
         As for almanac_list, but holds the dark almanacs, which simply
         specify dark or grey time on a per-datetime basis. Optional,
         defaults to None (so the necessary DarkAlmanac will be created).
+    save_new_almanacs:
+        Boolean value, denoting whether to save any new almanacs that are
+        created by sim_do_night. Defaults to True.
 
     Returns
     -------
@@ -152,6 +156,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         if row['field_id'] not in almanacs_existing:
             almanac_dict[row['field_id']] = [ts.Almanac(row['ra'], row['dec'],
                                                         date_start, date_end), ]
+            if save_new_almanacs:
+                almanac_dict[row['field_id']][0].save()
             almanacs_existing.append(row['field_id'])
         # Now, make sure that the almanacs actually cover the correct date range
         # If not, replace any existing almanacs with one super Almanac for the
@@ -167,6 +173,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                 almanac_dict[row['field_id']] = [
                     ts.Almanac(row['ra'], row['dec'],
                                date_start, date_end), ]
+                if save_new_almanacs:
+                    almanac_dict[row['field_id']][0].save()
                 almanacs_relevant[
                     row['field_id']] = almanac_dict[row['field_id']]
 
