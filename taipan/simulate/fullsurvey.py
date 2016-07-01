@@ -14,6 +14,7 @@ import atpy
 import ephem
 import random
 import os
+import datetime
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
@@ -119,6 +120,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     Nil. All actions are internal or apply to the database.
 
     """
+    logging.info('Doing simulated observing for %s' % date.strftime('%y-%m-%d'))
     # Do some input checking
     # Date needs to be in the range of date_start and date_end
     if date < date_start or date > date_end:
@@ -151,6 +153,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     # If we don't, we'll need to make one
     # Note that, because of the way Python's scoping is set up, this will
     # permanently add the almanac to the input dictionary
+    logging.debug('Checking all necessary almanacs are present')
     almanacs_existing = almanac_dict.keys()
     for row in scores_array:
         if row['field_id'] not in almanacs_existing:
@@ -186,13 +189,22 @@ def sim_do_night(cursor, date, date_start, date_end,
         if save_new_almanacs:
             dark_almanac.save()
 
-    # Compute sunrise and sunset for the night
-    sunset, sunrise = ts.get_ephem_set_rise(date)
+    logging.debug('Finding first block of dark time for this evening')
+    # Compute the times for the first block of dark time tonight
+    midday = datetime.combine(date, datetime.time(12, 0, 0))
+    dark_start, dark_end = dark_almanac.next_dark_period(midday,
+                                                         limiting_dt=midday +
+                                                         datetime.timedelta(1))
 
     # Compute how many observable hours are remaining in each of the fields
 
-    # 'Observe' these tiles by updating the relevant database fields
-    # Re-tile any affected areas and write new tiles back to DB
+    # 'Observe' fields using the following process:
+    # - Determine the next block of dark time
+    # - Go to that block
+    # - Observe the highest-priority tile that can be observed, and continue
+    # until the dark time is exhausted
+    # - Go to the next block of dark time and repeat
+    # - Continue until the end of the night
 
 
 

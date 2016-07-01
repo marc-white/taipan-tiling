@@ -441,7 +441,10 @@ class Almanac(object):
 
         return
 
-    def hours_observable(self, datetime_from, datetime_to):
+    def hours_observable(self, datetime_from, datetime_to=None,
+                         exclude_grey_time=True,
+                         exclude_dark_time=False,
+                         dark_almanac=None):
         """
         Calculate how many hours this field is observable for between two
         datetimes.
@@ -451,6 +454,22 @@ class Almanac(object):
             The datetimes between which we should calculate the number of
             observable hours remaining. These datetimes must be between the
             start and end dates of the almanac, or an error will be returned.
+            datetime_to will default to None, such that the remainder of the
+            almanac will be used.
+        exclude_grey_time, exclude_dark_time:
+            Boolean value denoting whether to exclude grey time or dark time
+            from the calculation. Defaults to exclude_grey_time=True,
+            exclude_dark_time=False (so only dark time will be counted as
+            'observable'.) The legal combinations are:
+            False, False (all night time is counted)
+            False, True (grey time only)
+            True, False (dark time only)
+            Attempting to set both value to True will raise a ValueError, as
+            this would result in no available observing time.
+        dark_almanac:
+            An instance of DarkAlmanac used to compute whether time is grey or
+            dark. Defaults to None, at which point a DarkAlmanac will be
+            constructed (if required).
 
         Returns
         -------
@@ -460,35 +479,29 @@ class Almanac(object):
 
         """
         # Input checking
+        if exclude_grey_time and exclude_dark_time:
+            raise ValueError('Cannot set both exclude_grey_time and '
+                             'exclude_dark_time to True - this results in no '
+                             'observing time!')
         if datetime_to < datetime_from:
             raise ValueError('datetime_from must occur before datetime_to')
         if datetime_from.date() < self.start_date:
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
-        if datetime_to.date() > self.end_date:
+        if datetime_to is not None and datetime_to.date() > self.end_date:
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
+        if dark_almanac is not None and not isinstance(dark_almanac,
+                                                       DarkAlmanac):
+            raise ValueError('dark_almanac must be None, or an instance of '
+                             'DarkAlmanac')
 
-        # Initialise pyephem object for performing calculations
-        target = ephem.FixedBody()
-        target._ra = np.radianns(self.ra)
-        target._dec = np.radians(self.dec)
+        # There are three (or four) things that need to be checked to calculate
+        # hours observable:
+        # - Is the sun currently up/down?
+        # - Is the target airmass below the specified threshold?
+        # - Is it dark/grey time? (optional, as required)?
 
-        # Define angle corresponding to min airmass and twilight_horizon
-        observable = np.arcsin(1. / self.minimum_airmass)
-        zenith = np.abs(np.abs(self.observer.lat) + np.radians(self.dec - 90.))
-        observable = np.clip(observable, 0., zenith - np.radians(.1))
-
-        # Define routine helper functions
-        def next_rise(obs):
-            obs.horizon = observable
-            target.compute(obs)
-            return obs.next_rising(target)
-
-        def next_set(obs):
-            obs.horizon = observable
-            target.compute(obs)
-            return obs.next_setting(target)
 
 
 class DarkAlmanac(Almanac):
@@ -496,6 +509,8 @@ class DarkAlmanac(Almanac):
     Subclass of Almanac, which holds information on what times are 'dark'
     Holds no RA, Dec information
     """
+
+    self._sun_alt = None
 
     # Setters and getters
     @property
@@ -545,6 +560,20 @@ class DarkAlmanac(Almanac):
             raise ValueError('dark_time must be a dictionary of datetimes '
                              'and corresponding Boolean values')
         self._airmass = d
+
+    @property
+    def sun_alt(self):
+        """
+        Altitude of Sun at given time (radians)
+        """
+        return self._sun_alt
+
+    @sun_alt.setter
+    def sun_alt(self, d):
+        if not isinstance(d, dict):
+            raise ValueError('sun_alt must be a dictionary of datetimes '
+                             'and corresponding Boolean values')
+        self._sun_alt = d
 
     # Class functions
     def generate_file_name(self):
@@ -599,18 +628,23 @@ class DarkAlmanac(Almanac):
         logging.debug('Populating dark time dict')
         for i in range(len(dates)):
             self.dark_time[dates[i]] = is_dark_time[i]
+            self.sun_alt[dates[i]] = sun[i]
 
         logging.debug('Dark almanac created!')
 
         return
 
-    def next_dark_period(self, dt, tz=UKST_TELESCOPE):
+    def next_dark_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
         """
         Determine when the next period of dark time is
         Parameters
         ----------
         dt:
             Datetime from which to begin searching.
+        limiting_dt:
+            Datetime beyond which should not be investigated. Useful for, e.g.
+            getting the dark time for a single night. Defaults to None, at which
+            point the entire DarkAlmanac will be searched.
         tz:
             The timezone of the naive datetime object passed as dt. Defaults
             to UKST_TELESCOPE.
@@ -634,14 +668,21 @@ class DarkAlmanac(Almanac):
         # The datetime needs to be pushed into UT
         dt = UKST_TIMEZONE.localize(dt).astimezone(pytz.utc)
         ephem_dt = ephem.Date(dt)
+        if limiting_dt is None:
+            ephem_limiting_dt = sorted(self.dark_time)[-1] + 1.
+        else:
+            limiting_dt = UKST_TIMEZONE.localize(
+                limiting_dt).astimezone(pytz.utc)
+            ephem_limiting_dt = ephem.Date(limiting_dt)
         try:
             dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
-                          t > ephem_dt and b).next()
+                          ephem_dt <= t <= ephem_limiting_dt and b).next()
             try:
                 dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
-                            t > dark_start and not b).next()
+                            dark_start < t <= ephem_limiting_dt and
+                            not b).next()
             except KeyError:
-                # No end time specified, so use last time in the almanac
+                # No end time found, so use last time in the almanac
                 dark_end = sorted(self.dark_time)[-1]
         except KeyError:
             # No dark time left in this almanac; return None to both parameters
