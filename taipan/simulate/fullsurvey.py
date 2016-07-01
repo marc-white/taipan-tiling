@@ -183,6 +183,8 @@ def sim_do_night(cursor, date, date_start, date_end,
     if dark_almanac is None or (dark_almanac.start_date > date or
                                 dark_almanac.end_date < date):
         dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)
+        if save_new_almanacs:
+            dark_almanac.save()
 
     # Compute sunrise and sunset for the night
     sunset, sunrise = ts.get_ephem_set_rise(date)
