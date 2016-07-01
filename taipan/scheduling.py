@@ -1,5 +1,6 @@
 import numpy as np
 import datetime
+import pytz
 from collections import OrderedDict
 
 import os
@@ -7,6 +8,7 @@ import sys
 import time
 import logging
 import pickle
+import copy
 
 import ephem
 
@@ -30,7 +32,9 @@ MOON = ephem.Moon()
 UKST_LATITUDE = -31.272231
 UKST_LONGITUDE = +149.071233 
 UKST_ELEVATION = 1165  # metres
+UKST_TIMEZONE = pytz.timezone('Australia/Sydney')
 
+# Create a standard ephem Observer object for UKST
 UKST_TELESCOPE = ephem.Observer()
 UKST_TELESCOPE.lat = np.radians(UKST_LATITUDE)   # radians everywhere
 UKST_TELESCOPE.lon = np.radians(UKST_LONGITUDE)  # radians everywhere
@@ -41,6 +45,61 @@ SECONDS_PER_DAY = 86400.
 
 ALMANAC_RESOLUTION_MAX = 60. * 4.
 
+# Constant for converting from ephem times to MJD
+EPHEM_TO_MJD = 15019.5
+
+
+# ______________________________________________________________________________
+# HELPER FUNCTIONS
+# ______________________________________________________________________________
+
+def get_utc_datetime(dt, tz=UKST_TIMEZONE):
+    """
+    Compute a UTC datetime from a naive datetime (dt) in a given timezone (tz)
+    Parameters
+    ----------
+    dt:
+        Naive datetime to be converted to UTC.
+    tz:
+        Timezone that the naive datetime is in. Defaults to UKST_TIMEZONE.
+
+    Returns
+    -------
+    dt_utc:
+        A timezone-aware datetime, with tz=pytz.utc.
+    """
+
+    dt_utc = tz.localize(dt).astimezone(pytz.utc)
+    return dt_utc
+
+
+def get_ephem_set_rise(date, observer=UKST_TELESCOPE):
+    """
+    Determine the sunrise and sunset for the given date
+    Parameters
+    ----------
+    date:
+        The date of the observing night. Note this is the date the night starts
+        on. Should be a Python datetime.date object.
+    observer:
+        An ephem.Observer instance holding information on the observing
+        location. Defaults to UKST_TELESCOPE.
+
+    Returns
+    -------
+    sunrise, sunset:
+        The time of sunset on the given night, and the following sunrise. Note
+        that the values returned are in the date standard of the ephem module -
+        to convert to MJD, add EPHEM_TO_MJD
+    """
+    # Set the observer date to midday before observing starts
+    observer.date = get_utc_datetime(datetime.datetime.combine(
+        date, datetime.time(12, 0, 0)))
+    sunset = next_sunset(observer)
+    # Move the date forward to the sunset time, and ask for the next sunrise
+    observer.date = sunset
+    sunrise = next_sunrise(observer)
+    return sunset, sunrise
 
 # ______________________________________________________________________________
 # CLASS DEFINITIONS
@@ -223,7 +282,7 @@ class Almanac(object):
 
     # Initialization
     def __init__(self, ra, dec, start_date, end_date=None,
-                 observing_period=None, observer=UKST_TELESCOPE,
+                 observing_period=None, observer=copy.copy(UKST_TELESCOPE),
                  minimum_airmass=2.0, resolution=15.,
                  populate=True):
         if end_date is None and observing_period is None:
@@ -311,9 +370,19 @@ class Almanac(object):
 
         # Calculate the time grid
         if self.airmass is None or len(self.airmass) == 0:
-            self.observer.date = self.start_date
+            # Set the observer start to the midday before the observations
+            # should start
+            start_dt = self.observer.date = get_utc_datetime(
+                datetime.datetime.combine(self.start_date,
+                                          datetime.time(12,0,0)))
+            self.observer.date = start_dt
+            # Similarly, the end date time is the midday after observing
+            # should finish
+            end_dt = get_utc_datetime(
+                datetime.datetime.combine(self.end_date + datetime.timedelta(1),
+                                          datetime.time(12, 0, 0)))
             observing_period = (
-                self.end_date - self.start_date
+                end_dt - start_dt
                                ).total_seconds() / SECONDS_PER_DAY
             dates_j2000 = (self.observer.date +
                            np.arange(0, observing_period,
@@ -325,6 +394,7 @@ class Almanac(object):
         time_total = 0.
         sol_alt, lun_alt, target_alt, dark_time = [], [], [], []
         for d in dates_j2000:
+            # Set the start time to midday before observing begins
             self.observer.date = d
             SUN.compute(self.observer)
             MOON.compute(self.observer)
@@ -371,13 +441,13 @@ class Almanac(object):
 
         return
 
-    def hours_observable(self, date_from, date_to):
+    def hours_observable(self, datetime_from, datetime_to):
         """
         Calculate how many hours this field is observable for between two
         datetimes.
         Parameters
         ----------
-        date_from, date_to:
+        datetime_from, datetime_to:
             The datetimes between which we should calculate the number of
             observable hours remaining. These datetimes must be between the
             start and end dates of the almanac, or an error will be returned.
@@ -390,19 +460,35 @@ class Almanac(object):
 
         """
         # Input checking
-        if date_to < date_from:
-            raise ValueError('date_from must occur before date_to')
-        if date_from < self.start_date:
-            raise ValueError('date_from is before start_date for this '
+        if datetime_to < datetime_from:
+            raise ValueError('datetime_from must occur before datetime_to')
+        if datetime_from.date() < self.start_date:
+            raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
-        if date_to > self.end_date:
-            raise ValueError('date_from is before start_date for this '
+        if datetime_to.date() > self.end_date:
+            raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
 
         # Initialise pyephem object for performing calculations
         target = ephem.FixedBody()
         target._ra = np.radianns(self.ra)
-        target_dec = np.radians(self.dec)
+        target._dec = np.radians(self.dec)
+
+        # Define angle corresponding to min airmass and twilight_horizon
+        observable = np.arcsin(1. / self.minimum_airmass)
+        zenith = np.abs(np.abs(self.observer.lat) + np.radians(self.dec - 90.))
+        observable = np.clip(observable, 0., zenith - np.radians(.1))
+
+        # Define routine helper functions
+        def next_rise(obs):
+            obs.horizon = observable
+            target.compute(obs)
+            return obs.next_rising(target)
+
+        def next_set(obs):
+            obs.horizon = observable
+            target.compute(obs)
+            return obs.next_setting(target)
 
 
 class DarkAlmanac(Almanac):

@@ -97,14 +97,18 @@ def sim_do_night(cursor, date, date_start, date_end,
         in order to compute the amount of time a certain field will remain
         observable.
     almanac_dict:
-        List of taipan.scheduling.Almanac objects used for determining
-        visibility. Needs to be one per field. If sim_do_night does not
-        find an almanac covering the required field and date, one will
-        be generated (at added computational cost). Optional.
+        Dictionary of taipan.scheduling.Almanac objects used for computing
+        scheduling. Should be a dictionary with field IDs as keys, and values
+        being either a single Almanac object, or a list of Almanac objects,
+        covering the date in question. sim_do_night will calculate new/updated
+        almanacs from date_start to date_end if almanacs are not passed for a
+        particular field and/or date range. Defaults to None, at which point
+        almanacs will be constructed for all fields over the specified date
+        range.
     dark_almanac:
         As for almanac_list, but holds the dark almanacs, which simply
         specify dark or grey time on a per-datetime basis. Optional,
-        defaults to None (so the necessary DarkAlmanacs will be created).
+        defaults to None (so the necessary DarkAlmanac will be created).
 
     Returns
     -------
@@ -120,23 +124,69 @@ def sim_do_night(cursor, date, date_start, date_end,
     if almanac_dict is None:
         almanac_dict = {}
 
+    # Nest all the almanac_dict values inside a list for consistency.
+    for k, v in almanac_dict.iteritems():
+        if not isinstance(v, list):
+            almanac_dict[k] = [v]
+            # Check that all elements of input list are instances of Almanac
+            if not np.all([isinstance(a, ts.Almanac) for a in v]):
+                raise ValueError('The values of almanac_dict must contain '
+                                 'single Almanacs of lists of Almanacs')
+
+    if dark_almanac is not None:
+        if not isinstance(dark_almanac, ts.DarkAlmanac):
+            raise ValueError('dark_almanac must be None, or an instance of '
+                             'DarkAlmanac')
+
     # Needs to do the following:
     # Read in the tiles that are awaiting observation, along with their scores
     scores_array = rTSexec(cursor, metrics=['cw_sum'])
 
-    # Make sure we have an almanac for every field in the scores_array
+    # Make sure we have an almanac for every field in the scores_array for the
+    # correct date
     # If we don't, we'll need to make one
     # Note that, because of the way Python's scoping is set up, this will
-    # permanently add the almanac to the dictionary
+    # permanently add the almanac to the input dictionary
     almanacs_existing = almanac_dict.keys()
     for row in scores_array:
         if row['field_id'] not in almanacs_existing:
-            almanac_dict[row['field_id']] = ts.Almanac(row['ra'], row['dec'],
-                                                       date_start, date_end)
+            almanac_dict[row['field_id']] = [ts.Almanac(row['ra'], row['dec'],
+                                                        date_start, date_end), ]
+            almanacs_existing.append(row['field_id'])
+        # Now, make sure that the almanacs actually cover the correct date range
+        # If not, replace any existing almanacs with one super Almanac for the
+        # entire range requested
+        almanacs_relevant = {k: v for k, v in almanac_dict.iteritems()}
+        for k in almanacs_relevant.iterkeys():
+            try:
+                almanacs_relevant[k] = [a for a in almanacs_relevant[k] if
+                                        a.start_date <= date <= a.end_date][0]
+            except KeyError:
+                # This catches when no almanacs satisfy the condition in the
+                # list constructor above
+                almanac_dict[row['field_id']] = [
+                    ts.Almanac(row['ra'], row['dec'],
+                               date_start, date_end), ]
+                almanacs_relevant[
+                    row['field_id']] = almanac_dict[row['field_id']]
 
-    # Using almanacs, compute which tiles to observe tonight
+    # Check that the dark almanac spans the relevant dates; if not,
+    # regenerate it
+    if dark_almanac is None or (dark_almanac.start_date > date or
+                                dark_almanac.end_date < date):
+        dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)1
+
+
+
+    # Compute sunrise and sunset for the night
+    sunset, sunrise = ts.get_ephem_set_rise(date)
+
+    # Compute how many observable hours are remaining in each of the fields
+
+
     # 'Observe' these tiles by updating the relevant database fields
     # Re-tile any affected areas and write new tiles back to DB
+
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
@@ -211,7 +261,7 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     for k in [k for (k, v) in almanacs_existing.iteritems() if v]:
         almanacs[k].save()
 
-    return almanacs, dark_almanac
+    return
 
 
 if __name__ == '__main__':
