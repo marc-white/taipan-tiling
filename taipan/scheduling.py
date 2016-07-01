@@ -636,10 +636,10 @@ class DarkAlmanac(Almanac):
         ephem_dt = ephem.Date(dt)
         try:
             dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
-                          t > ephem_dt and b)[0]
+                          t > ephem_dt and b).next()
             try:
                 dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
-                            t > dark_start and not b)[0]
+                            t > dark_start and not b).next()
             except KeyError:
                 # No end time specified, so use last time in the almanac
                 dark_end = sorted(self.dark_time)[-1]
