@@ -133,7 +133,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         if not isinstance(v, list):
             almanac_dict[k] = [v]
             # Check that all elements of input list are instances of Almanac
-            if not np.all([isinstance(a, ts.Almanac) for a in v]):
+            if not np.all([isinstance(a, ts.Almanac) for a in almanac_dict[k]]):
                 raise ValueError('The values of almanac_dict must contain '
                                  'single Almanacs of lists of Almanacs')
 
