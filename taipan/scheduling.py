@@ -530,20 +530,7 @@ class DarkAlmanac(Almanac):
 
     # Create a new class attribute, dark_time, which simply aliases
     # airmass
-    # Furthermore, we'll override the Almanac getter & setter for airmass
-    # so that it doesn't appear as a valid class attribute
     # However, the hidden value _airmass will still be used
-    @property
-    def airmass(self):
-        return {}
-
-    @airmass.setter
-    def airmass(self, a):
-        # Fail silent
-        return
-        # if a is not None or a != {}:
-        #     raise AttributeError('Dark almanacs do not have an airmass '
-        #                          'catalogue - use dark_time instead')
 
     @property
     def dark_time(self):
