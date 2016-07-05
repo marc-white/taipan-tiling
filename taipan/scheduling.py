@@ -635,7 +635,7 @@ class DarkAlmanac(Almanac):
 
         return
 
-    def compute_period_ephem_dts(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+    def compute_period_ephem_dts(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Internal helper function.
         Calculate the start (and if needed, end) pyehpem dt for computing a
