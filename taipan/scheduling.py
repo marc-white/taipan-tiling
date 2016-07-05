@@ -503,14 +503,13 @@ class Almanac(object):
         # - Is it dark/grey time? (optional, as required)?
 
 
-
 class DarkAlmanac(Almanac):
     """
     Subclass of Almanac, which holds information on what times are 'dark'
     Holds no RA, Dec information
     """
 
-    self._sun_alt = None
+    _sun_alt = None
 
     # Setters and getters
     @property
