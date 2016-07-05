@@ -496,7 +496,7 @@ class Almanac(object):
             raise ValueError('dark_almanac must be None, or an instance of '
                              'DarkAlmanac')
 
-        # There are three (or four) things that need to be checked to calculate
+        # There are two (or three) things that need to be checked to calculate
         # hours observable:
         # - Is the sun currently up/down?
         # - Is the target airmass below the specified threshold?
@@ -623,8 +623,10 @@ class DarkAlmanac(Almanac):
 
         if self.dark_time is None:
             self.dark_time = {}
+        if self.sun_alt is None:
+            self.sun_alt = {}
 
-        logging.debug('Populating dark time dict')
+        logging.debug('Populating dark time dicts')
         for i in range(len(dates)):
             self.dark_time[dates[i]] = is_dark_time[i]
             self.sun_alt[dates[i]] = sun[i]
@@ -632,6 +634,65 @@ class DarkAlmanac(Almanac):
         logging.debug('Dark almanac created!')
 
         return
+
+    def compute_period_ephem_dts(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+        """
+        Internal helper function.
+        Calculate the start (and if needed, end) pyehpem dt for computing a
+        night/grey/dark period.
+        dt:
+            Datetime from which to begin searching.
+        limiting_dt:
+            Datetime beyond which should not be investigated. Useful for, e.g.
+            getting the dark time for a single night. Defaults to None, at which
+            point the entire DarkAlmanac will be searched.
+        tz:
+            The timezone of the naive datetime object passed as dt. Defaults
+            to UKST_TELESCOPE.
+
+        Returns
+        -------
+        ephem_dt, ephem_limiting_dt:
+            The start and end dts of the interval in question, expressed in the
+            pyephem datetime convention.
+        """
+        # Input checking
+        if not isinstance(dt, datetime.datetime):
+            raise ValueError('dt must be an instance of datetime.datetime')
+        if dt.date() < self.start_date or dt.date() > self.end_date:
+            raise ValueError('dt must be between start_date and end_date for '
+                             'this DarkAlmanac')
+
+        # The datetime needs to be pushed into UT
+        dt = tz.localize(dt).astimezone(pytz.utc)
+        ephem_dt = ephem.Date(dt)
+        if limiting_dt is None:
+            ephem_limiting_dt = sorted(self.dark_time)[-1] + 1.
+        else:
+            limiting_dt = UKST_TIMEZONE.localize(
+                limiting_dt).astimezone(pytz.utc)
+            ephem_limiting_dt = ephem.Date(limiting_dt)
+
+        return ephem_dt, ephem_limiting_dt
+
+    def next_night_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+        """
+        Determine when the next night (i.e. Sun down) period is.
+        Parameters
+        ----------
+        dt
+        limiting_dt
+        tz
+
+        Returns
+        -------
+
+        """
+        # All necessary input checking is done by compute_period_ephem_dts
+        ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
+                                                                    limiting_dt=
+                                                                    limiting_dt,
+                                                                    tz=tz)
 
     def next_dark_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
         """
@@ -657,22 +718,12 @@ class DarkAlmanac(Almanac):
             are returned using the pyephem date syntax; use EPHEM_TO_MJD to
             convert to MJD.
         """
-        # Input checking
-        if not isinstance(dt, datetime.datetime):
-            raise ValueError('dt must be an instance of datetime.datetime')
-        if dt.date() < self.start_date or dt.date() > self.end_date:
-            raise ValueError('dt must be between start_date and end_date for '
-                             'this DarkAlmanac')
+        # All necessary input checking is done by compute_period_ephem_dts
+        ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
+                                                                    limiting_dt=
+                                                                    limiting_dt,
+                                                                    tz=tz)
 
-        # The datetime needs to be pushed into UT
-        dt = UKST_TIMEZONE.localize(dt).astimezone(pytz.utc)
-        ephem_dt = ephem.Date(dt)
-        if limiting_dt is None:
-            ephem_limiting_dt = sorted(self.dark_time)[-1] + 1.
-        else:
-            limiting_dt = UKST_TIMEZONE.localize(
-                limiting_dt).astimezone(pytz.utc)
-            ephem_limiting_dt = ephem.Date(limiting_dt)
         try:
             dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
                           ephem_dt <= t <= ephem_limiting_dt and b).next()
@@ -690,6 +741,46 @@ class DarkAlmanac(Almanac):
         return dark_start, dark_end
 
 
+    def next_grey_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+        """
+        Determine when the next period of dark time is
+        Parameters
+        ----------
+        dt:
+            Datetime from which to begin searching.
+        limiting_dt:
+            Datetime beyond which should not be investigated. Useful for, e.g.
+            getting the dark time for a single night. Defaults to None, at which
+            point the entire DarkAlmanac will be searched.
+        tz:
+            The timezone of the naive datetime object passed as dt. Defaults
+            to UKST_TELESCOPE.
+
+        Returns
+        -------
+        grey_start, grey_end:
+            The datetimes at which the next block of dark time starts and ends.
+            If dt is in a dark time period, dark_start should be approximately
+            dt (modulo the resolution of the DarkAlmanac). Note that values
+            are returned using the pyephem date syntax; use EPHEM_TO_MJD to
+            convert to MJD.
+        """
+        # All necessary input checking is done by compute_period_ephem_dts
+        ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
+                                                                    limiting_dt=
+                                                                    limiting_dt,
+                                                                    tz=tz)
+
+        # This is slightly more complex that just looking at the dark
+        # time calculation - we need to check that:
+        # 1) The Sun is below the twilight horizon
+        # 2) It is *not* dark time
+        # We do this by:
+        # - Getting the next sun-down window
+        # - Getting any dark period during that window
+        # - Looking for either a grey period before or after the dark period
+
+        # Get the next Sun-down period
 
 # ______________________________________________________________________________
 
