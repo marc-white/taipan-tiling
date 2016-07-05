@@ -191,7 +191,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     logging.debug('Finding first block of dark time for this evening')
     # Compute the times for the first block of dark time tonight
-    midday = datetime.combine(date, datetime.time(12, 0, 0))
+    midday = datetime.datetime.combine(date, datetime.time(12, 0, 0))
     dark_start, dark_end = dark_almanac.next_dark_period(midday,
                                                          limiting_dt=midday +
                                                          datetime.timedelta(1))
