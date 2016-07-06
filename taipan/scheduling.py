@@ -498,7 +498,7 @@ class Almanac(object):
         if datetime_from.date() < self.start_date:
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
-        if datetime_to.date() > self.end_date:
+        if datetime_to.date() > self.end_date + datetime.timedelta(1):
             raise ValueError('datetime_to is after end_date for this '
                              'Almanac!')
 
