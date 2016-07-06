@@ -694,7 +694,7 @@ class DarkAlmanac(Almanac):
                                                                     limiting_dt,
                                                                     tz=tz)
 
-    def next_dark_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+    def next_dark_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Determine when the next period of dark time is
         Parameters
@@ -740,8 +740,7 @@ class DarkAlmanac(Almanac):
 
         return dark_start, dark_end
 
-
-    def next_grey_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+    def next_grey_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Determine when the next period of dark time is
         Parameters
