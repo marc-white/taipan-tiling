@@ -862,6 +862,14 @@ class DarkAlmanac(Almanac):
         elif dark_end == night_end and dark_start > night_start:
             # The (next) grey period must be at the start of the night
             grey_start, grey_end = night_start, dark_start
+        else:
+            # If this point has been reached, none of the night is grey time
+            # Therefore, we need to start searching the next night
+            # Basically, we get the function to call itself with dt one day
+            # later until it hits a solution, or returns None
+            return self.next_grey_period(dt + datetime.timedelta(1),
+                                         limiting_dt=limiting_dt,
+                                         tz=tz)
 
         return grey_start, grey_end
 
