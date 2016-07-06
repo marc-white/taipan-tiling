@@ -496,14 +496,14 @@ class Almanac(object):
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
         if datetime_to.date() > self.end_date:
-            raise ValueError('datetime_from is before start_date for this '
+            raise ValueError('datetime_to is after end_date for this '
                              'Almanac!')
 
         ephem_dt = ephem.Date(tz.localize(datetime_from).astimezone(pytz.utc))
         ephem_limiting_dt = ephem.Date(tz.localize(
             datetime_to).astimezone(pytz.utc))
 
-        # Determine obs_start and obs_end:
+        # Determine obs_start and obs_end
         try:
             obs_start = (t for t, b in sorted(self.airmass.iteritems()) if
                          ephem_dt <= t <= ephem_limiting_dt and
