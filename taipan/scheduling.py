@@ -47,6 +47,7 @@ ALMANAC_RESOLUTION_MAX = 60. * 4.
 
 # Constant for converting from ephem times to MJD
 EPHEM_TO_MJD = 15019.5
+EPHEM_DT_STRFMT = '%Y/%m/%d %H:%M:%S'
 
 
 # ______________________________________________________________________________
@@ -100,6 +101,28 @@ def get_ephem_set_rise(date, observer=UKST_TELESCOPE):
     observer.date = sunset
     sunrise = next_sunrise(observer)
     return sunset, sunrise
+
+
+def ephem_to_dt(ephem_dt, fmt=EPHEM_DT_STRFMT):
+    """
+    Convert a pyephem dt to a Python datetime object. Note that the output
+    datetime.datetime will be in UTC, NOT local.
+    Parameters
+    ----------
+    ephem_dt:
+        The pyephem dt to convert. Float
+    fmt:
+        Optional, the strptime format for converting to datetime. Defaults to
+        EPHEM_DT_STRFMT.
+
+    Returns
+    -------
+    dt:
+        A Python datetime.datetime instance. It will be timezone-naive, but the
+        value will correspond to UTC.
+    """
+    dt = datetime.datetime.strptime(str(ephem.Date(ephem_dt)), format=fmt)
+    return dt
 
 # ______________________________________________________________________________
 # CLASS DEFINITIONS
@@ -677,22 +700,51 @@ class DarkAlmanac(Almanac):
 
     def next_night_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
         """
-        Determine when the next night (i.e. Sun down) period is.
+        Determine when the next period of night time is
         Parameters
         ----------
-        dt
-        limiting_dt
-        tz
+        dt:
+            Datetime from which to begin searching.
+        limiting_dt:
+            Datetime beyond which should not be investigated. Useful for, e.g.
+            getting the dark time for a single night. Defaults to None, at which
+            point the entire DarkAlmanac will be searched.
+        tz:
+            The timezone of the naive datetime object passed as dt. Defaults
+            to UKST_TELESCOPE.
 
         Returns
         -------
-
+        night_start, night_end:
+            The datetimes at which the next block of night time starts and ends.
+            If dt is in a night time period, dark_start should be approximately
+            dt (modulo the resolution of the DarkAlmanac). Note that values
+            are returned using the pyephem date syntax; use EPHEM_TO_MJD to
+            convert to MJD.
         """
         # All necessary input checking is done by compute_period_ephem_dts
         ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
                                                                     limiting_dt=
                                                                     limiting_dt,
                                                                     tz=tz)
+
+        # Search for the next time slot when the Sun is below SOLAR_HORIZON
+        try:
+            night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
+                           ephem_dt <= t <= ephem_limiting_dt and
+                           b < SOLAR_HORIZON)
+            try:
+                night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
+                             night_start < t <= ephem_limiting_dt and
+                             b >= SOLAR_HORIZON)
+            except KeyError:
+                # No end time found, so use the last time in the almanac
+                night_end = sorted(self.sun_alt.iterkeys())[-1]
+        except KeyError:
+            # No nights left in this DarkAlmanac, so return None for both
+            night_start, night_end = None, None
+
+        return night_start, night_end
 
     def next_dark_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
@@ -733,7 +785,7 @@ class DarkAlmanac(Almanac):
                             not b).next()
             except KeyError:
                 # No end time found, so use last time in the almanac
-                dark_end = sorted(self.dark_time)[-1]
+                dark_end = sorted(self.dark_time.iterkeys())[-1]
         except KeyError:
             # No dark time left in this almanac; return None to both parameters
             dark_start, dark_end = None, None
@@ -742,7 +794,7 @@ class DarkAlmanac(Almanac):
 
     def next_grey_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
-        Determine when the next period of dark time is
+        Determine when the next period of grey time is
         Parameters
         ----------
         dt:
@@ -758,11 +810,11 @@ class DarkAlmanac(Almanac):
         Returns
         -------
         grey_start, grey_end:
-            The datetimes at which the next block of dark time starts and ends.
-            If dt is in a dark time period, dark_start should be approximately
+            The datetimes at which the next block of grey time starts and ends.
+            If dt is in a grey time period, dark_start should be approximately
             dt (modulo the resolution of the DarkAlmanac). Note that values
             are returned using the pyephem date syntax; use EPHEM_TO_MJD to
-            convert to MJD.
+            convert to MJD, or ephem_to_td to convert to a UTC datetime.
         """
         # All necessary input checking is done by compute_period_ephem_dts
         ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
@@ -780,6 +832,38 @@ class DarkAlmanac(Almanac):
         # - Looking for either a grey period before or after the dark period
 
         # Get the next Sun-down period
+        night_start, night_end = self.next_night_period(self, dt,
+                                                        limiting_dt=limiting_dt,
+                                                        tz=tz)
+        if night_start is None:
+            # No grey time available
+            return None, None
+
+        # Determine the next dark period
+        dark_start, dark_end = self.next_dark_period(self, dt,
+                                                     limiting_dt=limiting_dt,
+                                                     tz=tz)
+
+        if dark_start is None or dark_start > night_end:
+            # There is no dark time left (or no dark time in the next night),
+            # so the next night period must be all grey time
+            grey_start, grey_end = night_start, night_end
+        elif dark_start == night_start and dark_end < night_end:
+            # The grey period must start when the dark ends
+            # Make sure there isn't another dark period before night_end
+            dark_start_next, dark_end_next = self.next_dark_period(
+                ephem_to_dt(dark_end), limiting_dt=ephem_to_dt(night_end),
+                tz=pytz.utc
+            )
+            if dark_start_next is None:
+                grey_start, grey_end = dark_end, night_end
+            else:
+                grey_start, grey_end = dark_end, dark_start_next
+        elif dark_end == night_end and dark_start > night_start:
+            # The (next) grey period must be at the start of the night
+            grey_start, grey_end = night_start, dark_start
+
+        return grey_start, grey_end
 
 # ______________________________________________________________________________
 
