@@ -486,6 +486,7 @@ class Almanac(object):
             The start and end times when this field is observable. Note that
             datetimes are returned in pyephem format.
         """
+        logging.debug('Using next_observable_period')
         # Input checking
         if datetime_to is None:
             datetime_to = ephem_to_dt(sorted(self.airmass.iterkeys())[-1])
@@ -558,6 +559,7 @@ class Almanac(object):
             and datetime_to.
 
         """
+        logging.debug('Running hours_observable')
         # Input checking
         if exclude_grey_time and exclude_dark_time:
             raise ValueError('Cannot set both exclude_grey_time and '
@@ -788,6 +790,7 @@ class DarkAlmanac(Almanac):
             The start and end dts of the interval in question, expressed in the
             pyephem datetime convention.
         """
+        logging.debug('Using compute_period_ephem_dts')
         # Input checking
         if not isinstance(dt, datetime.datetime):
             raise ValueError('dt must be an instance of datetime.datetime')
@@ -831,6 +834,7 @@ class DarkAlmanac(Almanac):
             are returned using the pyephem date syntax; use EPHEM_TO_MJD to
             convert to MJD.
         """
+        logging.debug('Using next_night_period')
         # All necessary input checking is done by compute_period_ephem_dts
         ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
                                                                     limiting_dt=
@@ -879,6 +883,7 @@ class DarkAlmanac(Almanac):
             are returned using the pyephem date syntax; use EPHEM_TO_MJD to
             convert to MJD.
         """
+        logging.debug('Using next_dark_period')
         # All necessary input checking is done by compute_period_ephem_dts
         ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
                                                                     limiting_dt=
@@ -925,6 +930,7 @@ class DarkAlmanac(Almanac):
             are returned using the pyephem date syntax; use EPHEM_TO_MJD to
             convert to MJD, or ephem_to_td to convert to a UTC datetime.
         """
+        logging.debug('Using next_grey_period')
         # All necessary input checking is done by compute_period_ephem_dts
         ephem_dt, ephem_limiting_dt = self.compute_period_ephem_dts(dt,
                                                                     limiting_dt=
