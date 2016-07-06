@@ -391,6 +391,8 @@ class Almanac(object):
         target._ra = np.radians(self.ra)  # radians everywhere
         target._dec = np.radians(self.dec)  # radians everywhere
         target._epoch = ephem.J2000
+        logging.debug('ephem FixedBody generated (%1.2f, %1.2f, %s)' %
+                      (target._ra, target._dec, target._epoch))
 
         # Calculate the time grid
         if self.airmass is None or len(self.airmass) == 0:
