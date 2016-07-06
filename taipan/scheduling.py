@@ -464,10 +464,67 @@ class Almanac(object):
 
         return
 
+    def next_observable_period(self, datetime_from, datetime_to=None,
+                               tz=UKST_TIMEZONE):
+        """
+        Determine the next period when this field is observable, based on
+        airmass only (i.e. doesn't consider daylight/night, dark/grey time,
+        etc.).
+
+        Parameters
+        ----------
+        datetime_from:
+            Datetime which to consider from. Must be within the bounds of the
+            Almanac.
+        datetime_to:
+            Datetime which to consider to. Defaults to None, in which case the
+            entire Almanac is checked from datetime_from.
+
+        Returns
+        -------
+        obs_start, obs_end:
+            The start and end times when this field is observable. Note that
+            datetimes are returned in pyephem format.
+        """
+        # Input checking
+        if datetime_to is None:
+            datetime_to = ephem_to_dt(sorted(self.airmass.iterkeys())[-1])
+        if datetime_to < datetime_from:
+            raise ValueError('datetime_from must occur before datetime_to')
+        if datetime_from.date() < self.start_date:
+            raise ValueError('datetime_from is before start_date for this '
+                             'Almanac!')
+        if datetime_to.date() > self.end_date:
+            raise ValueError('datetime_from is before start_date for this '
+                             'Almanac!')
+
+        ephem_dt = ephem.Date(tz.localize(datetime_from).astimezone(pytz.utc))
+        ephem_limiting_dt = ephem.Date(tz.localize(
+            datetime_to).astimezone(pytz.utc))
+
+        # Determine obs_start and obs_end:
+        try:
+            obs_start = (t for t, b in sorted(self.airmass.iteritems()) if
+                         ephem_dt <= t <= ephem_limiting_dt and
+                         b <= self.minimum_airmass).next()
+            try:
+                obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
+                           obs_start < t <= ephem_limiting_dt and
+                           b > self.minimum_airmass).next()
+            except KeyError:
+                # No end time found, so use the last time in the almanac
+                obs_end = sorted(self.airmass.iterkeys())[-1]
+        except KeyError:
+            # No nights left in this DarkAlmanac, so return None for both
+            obs_start, obs_end = None, None
+
+        return obs_start, obs_end
+
     def hours_observable(self, datetime_from, datetime_to=None,
                          exclude_grey_time=True,
                          exclude_dark_time=False,
-                         dark_almanac=None):
+                         dark_almanac=None,
+                         tz=UKST_TIMEZONE):
         """
         Calculate how many hours this field is observable for between two
         datetimes.
@@ -506,12 +563,14 @@ class Almanac(object):
             raise ValueError('Cannot set both exclude_grey_time and '
                              'exclude_dark_time to True - this results in no '
                              'observing time!')
+        if datetime_to is None:
+            datetime_to = ephem_to_dt(sorted(self.airmass.iterkeys())[-1])
         if datetime_to < datetime_from:
             raise ValueError('datetime_from must occur before datetime_to')
         if datetime_from.date() < self.start_date:
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
-        if datetime_to is not None and datetime_to.date() > self.end_date:
+        if datetime_to.date() > self.end_date:
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
         if dark_almanac is not None and not isinstance(dark_almanac,
@@ -519,11 +578,61 @@ class Almanac(object):
             raise ValueError('dark_almanac must be None, or an instance of '
                              'DarkAlmanac')
 
-        # There are two (or three) things that need to be checked to calculate
+        if dark_almanac is None:
+            dark_almanac = DarkAlmanac(datetime_from.date(),
+                                       end_date=datetime_to.date(),
+                                       observer=self.observer,
+                                       resolution=self.resolution,
+                                       populate=True)
+
+        # There are two things that need to be checked to calculate
         # hours observable:
-        # - Is the sun currently up/down?
         # - Is the target airmass below the specified threshold?
-        # - Is it dark/grey time? (optional, as required)?
+        # - Is it night/dark/grey time?
+        # How we will do this is:
+        # - Look at the airmass almanac, and find the intervals airmass is above
+        # the threshold
+        # - Loop over these intervals using one of the next_*_period functions,
+        # as appropriate, until we exhaust the interval, keeping count of the
+        # amount of time remaining
+
+        if exclude_dark_time:
+            period_function = dark_almanac.next_grey_period
+        elif exclude_grey_time:
+            period_function = dark_almanac.next_dark_period
+        else:
+            period_function = dark_almanac.next_night_period
+
+        hours_obs = 0.
+        dt_up_to = datetime_from
+        while dt_up_to < datetime_to:
+            next_chance_start, next_chance_end = self.next_observable_period(
+                dt_up_to, datetime_to=datetime_to, tz=tz
+            )
+            if next_chance_start is None:
+                # No further opportunities - break out
+                break
+            next_chance_start, next_chance_end = map(ephem_to_dt,
+                                                     (next_chance_start,
+                                                      next_chance_end))
+
+            # Go through this 'chance' window, looking for when the relevant
+            # period function is satisfied
+            while next_chance_start < next_chance_end:
+                next_per_start, next_per_end = period_function(
+                    next_chance_start, limiting_dt=next_chance_end, tz=tz)
+                if next_per_start is None:
+                    # No further opportunities - break out
+                    break
+
+                hours_obs += (next_per_end - next_per_start) * 24.  # hours
+                # Update next chance start
+                next_chance_start = next_per_end
+
+            # Update dt_up_to
+            dt_up_to = next_chance_end
+
+        return hours_obs
 
 
 class DarkAlmanac(Almanac):
