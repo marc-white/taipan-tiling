@@ -698,7 +698,7 @@ class DarkAlmanac(Almanac):
 
         return ephem_dt, ephem_limiting_dt
 
-    def next_night_period(self, dt, limiting_dt=None, tz=UKST_TELESCOPE):
+    def next_night_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Determine when the next period of night time is
         Parameters
