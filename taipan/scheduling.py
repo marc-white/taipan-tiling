@@ -511,10 +511,10 @@ class Almanac(object):
                 obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
                            obs_start < t <= ephem_limiting_dt and
                            b > self.minimum_airmass).next()
-            except KeyError:
+            except StopIteration:
                 # No end time found, so use the last time in the almanac
                 obs_end = sorted(self.airmass.iterkeys())[-1]
-        except KeyError:
+        except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
 
@@ -846,10 +846,10 @@ class DarkAlmanac(Almanac):
                 night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
                              night_start < t <= ephem_limiting_dt and
                              b >= SOLAR_HORIZON).next()
-            except KeyError:
+            except StopIteration:
                 # No end time found, so use the last time in the almanac
                 night_end = sorted(self.sun_alt.iterkeys())[-1]
-        except KeyError:
+        except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
             night_start, night_end = None, None
 
@@ -892,10 +892,10 @@ class DarkAlmanac(Almanac):
                 dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
                             dark_start < t <= ephem_limiting_dt and
                             not b).next()
-            except KeyError:
+            except StopIteration:
                 # No end time found, so use last time in the almanac
                 dark_end = sorted(self.dark_time.iterkeys())[-1]
-        except KeyError:
+        except StopIteration:
             # No dark time left in this almanac; return None to both parameters
             dark_start, dark_end = None, None
 
