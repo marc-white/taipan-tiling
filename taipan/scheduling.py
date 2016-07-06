@@ -732,11 +732,11 @@ class DarkAlmanac(Almanac):
         try:
             night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
                            ephem_dt <= t <= ephem_limiting_dt and
-                           b < SOLAR_HORIZON)
+                           b < SOLAR_HORIZON).next()
             try:
                 night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
                              night_start < t <= ephem_limiting_dt and
-                             b >= SOLAR_HORIZON)
+                             b >= SOLAR_HORIZON).next()
             except KeyError:
                 # No end time found, so use the last time in the almanac
                 night_end = sorted(self.sun_alt.iterkeys())[-1]
