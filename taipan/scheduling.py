@@ -505,6 +505,8 @@ class Almanac(object):
         ephem_dt = ephem.Date(tz.localize(datetime_from).astimezone(pytz.utc))
         ephem_limiting_dt = ephem.Date(tz.localize(
             datetime_to).astimezone(pytz.utc))
+        logging.debug('Looking at airmasses from ephem dts %5.1f to %5.1f' %
+                      (ephem_dt, ephem_limiting_dt))
 
         # Determine obs_start and obs_end
         try:
