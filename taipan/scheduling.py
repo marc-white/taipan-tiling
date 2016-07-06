@@ -832,7 +832,7 @@ class DarkAlmanac(Almanac):
         # - Looking for either a grey period before or after the dark period
 
         # Get the next Sun-down period
-        night_start, night_end = self.next_night_period(self, dt,
+        night_start, night_end = self.next_night_period(dt,
                                                         limiting_dt=limiting_dt,
                                                         tz=tz)
         if night_start is None:
@@ -840,7 +840,7 @@ class DarkAlmanac(Almanac):
             return None, None
 
         # Determine the next dark period
-        dark_start, dark_end = self.next_dark_period(self, dt,
+        dark_start, dark_end = self.next_dark_period(dt,
                                                      limiting_dt=limiting_dt,
                                                      tz=tz)
 
