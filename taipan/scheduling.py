@@ -305,7 +305,7 @@ class Almanac(object):
 
     # Initialization
     def __init__(self, ra, dec, start_date, end_date=None,
-                 observing_period=None, observer=copy.copy(UKST_TELESCOPE),
+                 observing_period=None, observer=UKST_TELESCOPE,
                  minimum_airmass=2.0, resolution=15.,
                  populate=True):
         if end_date is None and observing_period is None:
@@ -420,7 +420,6 @@ class Almanac(object):
         time_total = 0.
         sol_alt, lun_alt, target_alt, dark_time = [], [], [], []
         for d in dates_j2000:
-            # Set the start time to midday before observing begins
             self.observer.date = d
             SUN.compute(self.observer)
             MOON.compute(self.observer)
@@ -432,6 +431,8 @@ class Almanac(object):
                 sol_alt.append(SUN.alt)
                 lun_alt.append(MOON.alt)
                 target_alt.append(target.alt)
+                # logging.debug('Computed target alt at %5.2f: %1.3f (%2.2f)' %
+                #               (d, target.alt, np.degrees(target.alt)))
                 dark_time.append(can_observe)
             else:
                 if can_observe and (target.alt > observable):
@@ -455,7 +456,8 @@ class Almanac(object):
                        ))
         dates, sun, moon, target, dark_time = self.generate_almanac_bruteforce(
             full_output=True)
-        logging.debug('Min and max airmass from generate_almanac_bruteforce: '
+        logging.debug('Min and max target_alt from generate_almanac_'
+                      'bruteforce: '
                       '%1.3f, %1.3f' % (min(target), max(target)))
 
         airmass_values = np.clip(np.where(target > np.radians(10.),
