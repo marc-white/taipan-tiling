@@ -455,6 +455,8 @@ class Almanac(object):
                        ))
         dates, sun, moon, target, dark_time = self.generate_almanac_bruteforce(
             full_output=True)
+        logging.debug('Min and max airmass from generate_almanac_bruteforce: '
+                      '%1.3f, %1.3f' % (min(target), max(target)))
 
         airmass_values = np.clip(np.where(target > np.radians(10.),
                                           1./np.sin(target), 99.), 0., 9.)
