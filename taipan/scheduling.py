@@ -522,16 +522,16 @@ class Almanac(object):
             obs_start = (t for t, b in sorted(self.airmass.iteritems()) if
                          ephem_dt <= t <= ephem_limiting_dt and
                          b <= self.minimum_airmass).next()
-            try:
-                obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
-                           obs_start < t <= ephem_limiting_dt and
-                           b > self.minimum_airmass).next()
-            except StopIteration:
-                # No end time found, so use the last time in the almanac
-                obs_end = sorted(self.airmass.iterkeys())[-1]
         except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
+        try:
+            obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
+                       obs_start < t <= ephem_limiting_dt and
+                       b > self.minimum_airmass).next()
+        except StopIteration:
+            # No end time found, so use the last time in the almanac
+            obs_end = sorted(self.airmass.iterkeys())[-1]
 
         return obs_start, obs_end
 
@@ -565,6 +565,9 @@ class Almanac(object):
             An instance of DarkAlmanac used to compute whether time is grey or
             dark. Defaults to None, at which point a DarkAlmanac will be
             constructed (if required).
+        tz:
+            The timezone that the (naive) datetime objects are being passed as.
+            Defaults to UKST_TIMEZONE.
 
         Returns
         -------
@@ -580,7 +583,9 @@ class Almanac(object):
                              'exclude_dark_time to True - this results in no '
                              'observing time!')
         if datetime_to is None:
-            datetime_to = ephem_to_dt(sorted(self.airmass.iterkeys())[-1])
+            datetime_to = pytz.utc.localize(ephem_to_dt(sorted(
+                self.airmass.iterkeys())[-1])).astimezone(tz).replace(
+                tzinfo=None)
         if datetime_to < datetime_from:
             raise ValueError('datetime_from must occur before datetime_to')
         if datetime_from.date() < self.start_date:
@@ -596,7 +601,8 @@ class Almanac(object):
 
         if dark_almanac is None:
             dark_almanac = DarkAlmanac(datetime_from.date(),
-                                       end_date=datetime_to.date(),
+                                       end_date=datetime_to.date() -
+                                       datetime.timedelta(1),
                                        observer=self.observer,
                                        resolution=self.resolution,
                                        populate=True)
@@ -622,15 +628,27 @@ class Almanac(object):
         hours_obs = 0.
         dt_up_to = datetime_from
         while dt_up_to < datetime_to:
+            logging.debug('Up to %s; going til %s' %
+                          (dt_up_to.strftime(EPHEM_DT_STRFMT),
+                           datetime_to.strftime(EPHEM_DT_STRFMT), ))
             next_chance_start, next_chance_end = self.next_observable_period(
                 dt_up_to, datetime_to=datetime_to, tz=tz
             )
             if next_chance_start is None:
                 # No further opportunities - break out
                 break
-            next_chance_start, next_chance_end = map(ephem_to_dt,
-                                                     (next_chance_start,
-                                                      next_chance_end))
+            logging.debug('Next ephem chance window: %5.3f to %5.3f' % (
+                next_chance_start, next_chance_end,
+            ))
+            next_chance_start = pytz.utc.localize(
+                ephem_to_dt(next_chance_start)
+            ).astimezone(tz).replace(tzinfo=None)
+            next_chance_end = pytz.utc.localize(
+                ephem_to_dt(next_chance_end)
+            ).astimezone(tz).replace(tzinfo=None)
+            logging.debug('Next local chance window: %s to %s' %
+                          (next_chance_start.strftime(EPHEM_DT_STRFMT),
+                           next_chance_end.strftime(EPHEM_DT_STRFMT), ))
 
             # Go through this 'chance' window, looking for when the relevant
             # period function is satisfied
@@ -640,13 +658,18 @@ class Almanac(object):
                 if next_per_start is None:
                     # No further opportunities - break out
                     break
+                logging.debug('next_per_start: %5.3f, next_per_end: %5.3f' %
+                              (next_per_start, next_per_end,))
 
                 hours_obs += (next_per_end - next_per_start) * 24.  # hours
                 # Update next chance start
-                next_chance_start = next_per_end
+                next_chance_start = pytz.utc.localize(ephem_to_dt(
+                    next_per_end)).astimezone(tz).replace(tzinfo=None)
 
             # Update dt_up_to
-            dt_up_to = next_chance_end
+            dt_up_to = pytz.utc.localize(ephem_to_dt(
+                next_chance_end)).astimezone(tz).replace(tzinfo=None)
+            logging.debug('Now us to %s' % dt_up_to.strftime(EPHEM_DT_STRFMT))
 
         return hours_obs
 
@@ -808,18 +831,19 @@ class DarkAlmanac(Almanac):
         # Input checking
         if not isinstance(dt, datetime.datetime):
             raise ValueError('dt must be an instance of datetime.datetime')
-        if dt.date() < self.start_date or dt.date() > self.end_date:
+        if dt.date() < self.start_date or dt.date() > (self.end_date +
+                                                       datetime.timedelta(1)):
             raise ValueError('dt must be between start_date and end_date for '
                              'this DarkAlmanac')
 
         # The datetime needs to be pushed into UT
-        dt = tz.localize(dt).astimezone(pytz.utc)
+        dt = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
         ephem_dt = ephem.Date(dt)
         if limiting_dt is None:
             ephem_limiting_dt = sorted(self.dark_time)[-1] + 1.
         else:
-            limiting_dt = UKST_TIMEZONE.localize(
-                limiting_dt).astimezone(pytz.utc)
+            limiting_dt = tz.localize(
+                limiting_dt).astimezone(pytz.utc).replace(tzinfo=None)
             ephem_limiting_dt = ephem.Date(limiting_dt)
 
         return ephem_dt, ephem_limiting_dt
@@ -854,22 +878,25 @@ class DarkAlmanac(Almanac):
                                                                     limiting_dt=
                                                                     limiting_dt,
                                                                     tz=tz)
+        logging.debug('Computed ephem dt range: %5.3f to %5.3f' %
+                      (ephem_dt, ephem_limiting_dt, ))
 
         # Search for the next time slot when the Sun is below SOLAR_HORIZON
         try:
             night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
                            ephem_dt <= t <= ephem_limiting_dt and
                            b < SOLAR_HORIZON).next()
-            try:
-                night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
-                             night_start < t <= ephem_limiting_dt and
-                             b >= SOLAR_HORIZON).next()
-            except StopIteration:
-                # No end time found, so use the last time in the almanac
-                night_end = sorted(self.sun_alt.iterkeys())[-1]
         except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
-            night_start, night_end = None, None
+            return None, None
+        try:
+            night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
+                         night_start < t <= ephem_limiting_dt and
+                         b >= SOLAR_HORIZON).next()
+        except StopIteration:
+            # No end time found, so use the limiting time (which is the end of
+            # the almanac if not passed)
+            night_end = ephem_limiting_dt
 
         return night_start, night_end
 
@@ -907,16 +934,17 @@ class DarkAlmanac(Almanac):
         try:
             dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
                           ephem_dt <= t <= ephem_limiting_dt and b).next()
-            try:
-                dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
-                            dark_start < t <= ephem_limiting_dt and
-                            not b).next()
-            except StopIteration:
-                # No end time found, so use last time in the almanac
-                dark_end = sorted(self.dark_time.iterkeys())[-1]
         except StopIteration:
             # No dark time left in this almanac; return None to both parameters
-            dark_start, dark_end = None, None
+            return None, None
+        try:
+            dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
+                        dark_start < t <= ephem_limiting_dt and
+                        not b).next()
+        except StopIteration:
+            # No end time found, so use the limiting time (which is the end of
+            # the almanac if not passed)
+            dark_end = ephem_limiting_dt
 
         return dark_start, dark_end
 
@@ -981,7 +1009,10 @@ class DarkAlmanac(Almanac):
             # The grey period must start when the dark ends
             # Make sure there isn't another dark period before night_end
             dark_start_next, dark_end_next = self.next_dark_period(
-                ephem_to_dt(dark_end), limiting_dt=ephem_to_dt(night_end),
+                pytz.utc.localize(ephem_to_dt(
+                    dark_end)).astimezone(tz).replace(tzinfo=None),
+                limiting_dt=pytz.utc.localize(ephem_to_dt(
+                    night_end)).astimezone(tz).replace(tzinfo=None),
                 tz=pytz.utc
             )
             if dark_start_next is None:
