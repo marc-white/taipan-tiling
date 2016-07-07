@@ -486,6 +486,8 @@ class Almanac(object):
         datetime_to:
             Datetime which to consider to. Defaults to None, in which case the
             entire Almanac is checked from datetime_from.
+        tz:
+            The pytz timezone the observer is in. Defaults to UKST_TIMEZONE.
 
         Returns
         -------
@@ -584,7 +586,7 @@ class Almanac(object):
         if datetime_from.date() < self.start_date:
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
-        if datetime_to.date() > self.end_date:
+        if datetime_to.date() > self.end_date + datetime.timedelta(1):
             raise ValueError('datetime_from is before start_date for this '
                              'Almanac!')
         if dark_almanac is not None and not isinstance(dark_almanac,
