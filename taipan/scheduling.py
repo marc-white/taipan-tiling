@@ -676,12 +676,31 @@ class Almanac(object):
                 if hours_better:
                     # Look at the Almanac over the next period to work out what
                     # proportion of the period is better than datetime_now
+                    logging.debug('Searching for better hours')
+                    logging.debug('Period considered: %5.3f to %5.3f' %
+                                  (next_per_start, next_per_end, ))
+                    half_res_in_days = self.resolution * 60. / SECONDS_PER_DAY
                     better_per = [k for
                                   k, v in sorted(self.airmass.iteritems()) if
-                                  next_per_start <= k < next_per_end and
+                                  (next_per_start -
+                                   half_res_in_days) <
+                                  k < (next_per_end -
+                                       half_res_in_days) and
                                   v <= airmass_now]
+                    whole_per = [k for
+                                 k, v in sorted(self.airmass.iteritems()) if
+                                 (next_per_start -
+                                  half_res_in_days) <
+                                 k < (next_per_end -
+                                      half_res_in_days)]
+                    logging.debug('Period bounds found: %5.3f to %5.3f '
+                                  '(%d units of resolution %2.1f)' %
+                                  (whole_per[0], whole_per[-1], len(whole_per),
+                                   self.resolution))
                     hours_obs += len(better_per) * (self.resolution / 60.)
+                    # factor = float(len(better_per)) / float(len(whole_per))
                 else:
+                    # factor = 1.
                     hours_obs += (next_per_end - next_per_start) * 24.  # hours
                 # Update next chance start
                 next_chance_start = pytz.utc.localize(ephem_to_dt(
