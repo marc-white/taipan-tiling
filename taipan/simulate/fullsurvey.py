@@ -196,6 +196,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                          limiting_dt=midday +
                                                          datetime.timedelta(1))
 
+    return dark_start, dark_end
+
     # Compute how many observable hours are remaining in each of the fields
 
     # 'Observe' fields using the following process:
@@ -205,7 +207,6 @@ def sim_do_night(cursor, date, date_start, date_end,
     # until the dark time is exhausted
     # - Go to the next block of dark time and repeat
     # - Continue until the end of the night
-
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):

@@ -530,8 +530,11 @@ class Almanac(object):
                        obs_start < t <= ephem_limiting_dt and
                        b > self.minimum_airmass).next()
         except StopIteration:
-            # No end time found, so use the last time in the almanac
-            obs_end = sorted(self.airmass.iterkeys())[-1]
+            # No end time found, so use the last time in the almanac,
+            # plus a resolution element
+            obs_end = sorted(self.airmass.iterkeys())[-1] + (self.resolution /
+                                                             (SECONDS_PER_DAY /
+                                                              60.))
 
         return obs_start, obs_end
 
@@ -539,7 +542,8 @@ class Almanac(object):
                          exclude_grey_time=True,
                          exclude_dark_time=False,
                          dark_almanac=None,
-                         tz=UKST_TIMEZONE):
+                         tz=UKST_TIMEZONE,
+                         hours_better=False):
         """
         Calculate how many hours this field is observable for between two
         datetimes.
@@ -568,6 +572,10 @@ class Almanac(object):
         tz:
             The timezone that the (naive) datetime objects are being passed as.
             Defaults to UKST_TIMEZONE.
+        hours_better:
+            Optional Boolean, denoting whether to return only
+            hours_observable which have airmasses superior to the airmass
+            at datetime_now (True) or not (False). Defaults to False.
 
         Returns
         -------
@@ -627,6 +635,10 @@ class Almanac(object):
 
         hours_obs = 0.
         dt_up_to = datetime_from
+        airmass_now = (v for k,v in sorted(self.airmass.iteritems()) if
+                       k >= ephem.Date(tz.localize(
+                           datetime_from).astimezone(pytz.utc))
+                       ).next()
         while dt_up_to < datetime_to:
             logging.debug('Up to %s; going til %s' %
                           (dt_up_to.strftime(EPHEM_DT_STRFMT),
@@ -659,9 +671,18 @@ class Almanac(object):
                     # No further opportunities - break out
                     break
                 logging.debug('next_per_start: %5.3f, next_per_end: %5.3f' %
-                              (next_per_start, next_per_end,))
+                              (next_per_start, next_per_end, ))
 
-                hours_obs += (next_per_end - next_per_start) * 24.  # hours
+                if hours_better:
+                    # Look at the Almanac over the next period to work out what
+                    # proportion of the period is better than datetime_now
+                    better_per = [k for
+                                  k, v in sorted(self.airmass.iteritems()) if
+                                  next_per_start <= k < next_per_end and
+                                  v <= airmass_now]
+                    hours_obs += len(better_per) * (self.resolution / 60.)
+                else:
+                    hours_obs += (next_per_end - next_per_start) * 24.  # hours
                 # Update next chance start
                 next_chance_start = pytz.utc.localize(ephem_to_dt(
                     next_per_end)).astimezone(tz).replace(tzinfo=None)
@@ -669,7 +690,7 @@ class Almanac(object):
             # Update dt_up_to
             dt_up_to = pytz.utc.localize(ephem_to_dt(
                 next_chance_end)).astimezone(tz).replace(tzinfo=None)
-            logging.debug('Now us to %s' % dt_up_to.strftime(EPHEM_DT_STRFMT))
+            logging.debug('Now up to %s' % dt_up_to.strftime(EPHEM_DT_STRFMT))
 
         return hours_obs
 
@@ -840,7 +861,9 @@ class DarkAlmanac(Almanac):
         dt = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
         ephem_dt = ephem.Date(dt)
         if limiting_dt is None:
-            ephem_limiting_dt = sorted(self.dark_time)[-1] + 1.
+            ephem_limiting_dt = sorted(self.dark_time.keys())[-1] + (
+                self.resolution / (SECONDS_PER_DAY / 60.0)
+            )
         else:
             limiting_dt = tz.localize(
                 limiting_dt).astimezone(pytz.utc).replace(tzinfo=None)
@@ -884,14 +907,14 @@ class DarkAlmanac(Almanac):
         # Search for the next time slot when the Sun is below SOLAR_HORIZON
         try:
             night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
-                           ephem_dt <= t <= ephem_limiting_dt and
+                           ephem_dt <= t < ephem_limiting_dt and
                            b < SOLAR_HORIZON).next()
         except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
             return None, None
         try:
             night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
-                         night_start < t <= ephem_limiting_dt and
+                         night_start < t < ephem_limiting_dt and
                          b >= SOLAR_HORIZON).next()
         except StopIteration:
             # No end time found, so use the limiting time (which is the end of
@@ -933,13 +956,13 @@ class DarkAlmanac(Almanac):
 
         try:
             dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
-                          ephem_dt <= t <= ephem_limiting_dt and b).next()
+                          ephem_dt <= t < ephem_limiting_dt and b).next()
         except StopIteration:
             # No dark time left in this almanac; return None to both parameters
             return None, None
         try:
             dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
-                        dark_start < t <= ephem_limiting_dt and
+                        dark_start < t < ephem_limiting_dt and
                         not b).next()
         except StopIteration:
             # No end time found, so use the limiting time (which is the end of
