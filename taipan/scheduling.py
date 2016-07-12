@@ -49,6 +49,11 @@ ALMANAC_RESOLUTION_MAX = 60. * 4.
 EPHEM_TO_MJD = 15019.5
 EPHEM_DT_STRFMT = '%Y/%m/%d %H:%M:%S'
 
+# Observing constants
+SLEW_TIME = 5. * 60.  # seconds
+OBS_TIME = 15. * 60.  # seconds
+POINTING_TIME = (SLEW_TIME + OBS_TIME) / SECONDS_PER_DAY  # days
+
 
 # ______________________________________________________________________________
 # HELPER FUNCTIONS
@@ -123,6 +128,26 @@ def ephem_to_dt(ephem_dt, fmt=EPHEM_DT_STRFMT):
     """
     dt = datetime.datetime.strptime(str(ephem.Date(ephem_dt)), fmt)
     return dt
+
+
+def localize_utc_dt(dt, tz=UKST_TIMEZONE):
+    """
+    Convert a naive datetime (which is assumed to be UTC) to a local datetime
+    Parameters
+    ----------
+    dt:
+        Input datetime. Should be timezone-naive, but intended to represent
+        UTC.
+    tz:
+        The timezone to push the datetime into.
+
+    Returns
+    -------
+    dt_local:
+        A local datetime. Note that dt_local will still be timezone-naive.
+    """
+    dt_local = pytz.utc.localize(dt).astimezone(tz).replace(tzinfo=None)
+    return dt_local
 
 # ______________________________________________________________________________
 # CLASS DEFINITIONS
@@ -379,7 +404,7 @@ class Almanac(object):
         return True
 
     # Computation functions
-    def generate_almanac_bruteforce(self, full_output=False):
+    def generate_almanac_bruteforce(self, full_output=True):
         # Define almanac-dependent horizons
         observable = np.arcsin(1. / self.minimum_airmass)
 
@@ -520,14 +545,14 @@ class Almanac(object):
         # Determine obs_start and obs_end
         try:
             obs_start = (t for t, b in sorted(self.airmass.iteritems()) if
-                         ephem_dt <= t <= ephem_limiting_dt and
+                         ephem_dt <= t < ephem_limiting_dt and
                          b <= self.minimum_airmass).next()
         except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
         try:
             obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
-                       obs_start < t <= ephem_limiting_dt and
+                       obs_start < t < ephem_limiting_dt and
                        b > self.minimum_airmass).next()
         except StopIteration:
             # No end time found, so use the last time in the almanac,
@@ -635,7 +660,7 @@ class Almanac(object):
 
         hours_obs = 0.
         dt_up_to = datetime_from
-        airmass_now = (v for k,v in sorted(self.airmass.iteritems()) if
+        airmass_now = (v for k, v in sorted(self.airmass.iteritems()) if
                        k >= ephem.Date(tz.localize(
                            datetime_from).astimezone(pytz.utc))
                        ).next()
@@ -828,7 +853,7 @@ class DarkAlmanac(Almanac):
 
         times_per_day = 1440. / self.resolution
         if abs(times_per_day - int(times_per_day)) > 1e-5:
-            raise ValueError('Dark almanac resolution muyst divide into a day '
+            raise ValueError('Dark almanac resolution must divide into a day '
                              'with no remainder (i.e. resolution must be a '
                              'divisor of 1440).')
 
