@@ -180,7 +180,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             if save_new_almanacs:
                 almanac_dict[row['field_id']][0].save()
             almanacs_relevant[
-                    row['field_id']] = almanac_dict[row['field_id']]
+                    row['field_id']] = almanac_dict[row['field_id']][0]
 
     # Check that the dark almanac spans the relevant dates; if not,
     # regenerate it
