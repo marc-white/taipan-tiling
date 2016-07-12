@@ -212,7 +212,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             local_time_now - (datetime.timedelta(
                 almanacs_relevant[r['field_id']].resolution *
                 60. / ts.SECONDS_PER_DAY)),
-            datetime_to=dark_end) for r in scores_array}
+            datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
+                         r in scores_array}
         fields_available = [f for f, v in field_periods.itervalues() if
                             v[0] is not None and v[0] < dark_end]
         logging.debug('%d fields available at some point tonight' %
