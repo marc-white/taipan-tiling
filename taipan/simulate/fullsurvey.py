@@ -169,8 +169,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         # entire range requested
         try:
             almanacs_relevant[
-                row['field_id']] = [a for a in almanac_dict[row['field_id']] if
-                                    a.start_date <= date <= a.end_date][0]
+                row['field_id']] = (a for a in almanac_dict[row['field_id']] if
+                                    a.start_date <= date <= a.end_date).next()
         except KeyError:
             # This catches when no almanacs satisfy the condition in the
             # list constructor above
@@ -206,11 +206,12 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                            ts.EPHEM_DT_STRFMT))
 
         # Get the next observing period for all fields being considered
-        field_periods = {r['field_id']: almanac_dict[
+        field_periods = {r['field_id']: almanacs_relevant[
             r['field_id']
         ].next_observable_period(
-            local_time_now - (datetime.timedelta(r['field_id'].resolution *
-                                                 60. / ts.SECONDS_PER_DAY)),
+            local_time_now - (datetime.timedelta(
+                almanacs_relevant[r['field_id']].resolution *
+                60. / ts.SECONDS_PER_DAY)),
             datetime_to=dark_end) for r in scores_array}
         fields_available = [f for f, v in field_periods.itervalues() if
                             v[0] is not None and v[0] < dark_end]
