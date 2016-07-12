@@ -146,7 +146,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     # Needs to do the following:
     # Read in the tiles that are awaiting observation, along with their scores
-    scores_array = rTSexec(cursor, metrics=['cw_sum', 'n_sci_remain'])
+    scores_array = rTSexec(cursor, metrics=['cw_sum', 'n_sci_rem'])
 
     # Make sure we have an almanac for every field in the scores_array for the
     # correct date
