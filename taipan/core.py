@@ -670,7 +670,7 @@ def targets_in_range_tiles(tile_list, target_list,
     """
 
     return targets_in_range_multi(
-        [(t.ra, t.dec) for tile in tile_list],
+        [(t.ra, t.dec) for t in tile_list],
         target_list,
         TILE_RADIUS,
         leafsize=leafsize
