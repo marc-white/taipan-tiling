@@ -229,7 +229,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                          row['field_id'] in fields_available}
         hours_obs = {f: almanacs_relevant[f].hours_observable(
             local_time_now,
-            limiting_time=midday_end,
+            datetime_to=midday_end,
             dark_almanac=dark_almanac,
             hours_better=True
         ) for f, v in fields_scores.iteritems()}
