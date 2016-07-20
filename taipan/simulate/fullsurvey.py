@@ -24,7 +24,7 @@ from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
-import src.resources.v0_0_1.manipulate.makeTargetsRemain as mTR
+import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
 from src.scripts.connection import get_connection
 
@@ -200,6 +200,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                          limiting_dt=midday +
                                                          datetime.timedelta(1))
 
+    fields_observed = []
+
     while dark_start is not None:
         logging.info('Observing over dark period %5.3f to %5.3f' %
                      (dark_start, dark_end, ))
@@ -285,12 +287,13 @@ def sim_do_night(cursor, date, date_start, date_end,
                 continue
 
             # 'Observe' the field
-            logging.info('Observing tile %d (score: %.1f, field %d at %5.3f' %
+            logging.info('Observing tile %d (score: %.1f), field %d at %5.3f' %
                           (0, fields_scores[field_to_obs],
                            field_to_obs, ephem_time_now, ))
             # TODO: 'Observe' pattern
             # Set the field score to 0 so it's not re-observed tonight
             fields_scores[field_to_obs] = 0.
+            fields_observed.append(field_to_obs)
 
             # Increment time_now and move to observe the next field
             ephem_time_now += ts.POINTING_TIME
@@ -304,6 +307,15 @@ def sim_do_night(cursor, date, date_start, date_end,
             local_time_now + datetime.timedelta(
                 seconds=dark_almanac.resolution * 60.),
             limiting_dt=midday + datetime.timedelta(1))
+
+    # We are now done observing for the night. It is time for some
+    # housekeeping
+    # Re-compute the number of different types of science targets remaining
+    # on each field
+    # Note that this is preferable to trying to do the maths separately above,
+    # which could introduce a lot of painful discrepancies
+    mNScT.execute(cursor, fields=fields_observed)
+
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
