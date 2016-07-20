@@ -262,7 +262,13 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
                 ephem_time_now = min([v[0] for v in
-                                      field_periods.itervalues()])
+                                      field_periods.itervalues()
+                                      if v is not None])
+                if ephem_time_now is None:
+                    logging.info('There appears to be no valid observing time '
+                                 'remaining out to the end_date')
+                    return
+
                 logging.debug('No fields up - advancing time to %5.3f' %
                               ephem_time_now)
                 local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
