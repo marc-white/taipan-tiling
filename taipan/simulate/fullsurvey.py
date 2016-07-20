@@ -242,7 +242,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
         # 'Observe' while the remaining time in this dark period is
         # longer than one pointing (slew + obs)
-        logging.debug('Commencing observing...')
+        logging.info('Commencing observing...')
         while ephem_time_now < (dark_end - ts.POINTING_TIME):
             # Select the best ranked field we can see
             try:
@@ -271,14 +271,14 @@ def sim_do_night(cursor, date, date_start, date_end,
                                  'remaining out to the end_date')
                     return
 
-                logging.debug('No fields up - advancing time to %5.3f' %
+                logging.info('No fields up - advancing time to %5.3f' %
                               ephem_time_now)
                 local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
                     ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue
 
             # 'Observe' the field
-            logging.debug('Observing tile %d, field %d at %5.3f' %
+            logging.info('Observing tile %d, field %d at %5.3f' %
                           (0, field_to_obs, ephem_time_now, ))
             # TODO: 'Observe' pattern
 
