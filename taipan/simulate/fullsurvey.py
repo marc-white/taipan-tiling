@@ -245,8 +245,6 @@ def sim_do_night(cursor, date, date_start, date_end,
         logging.debug('Commencing observing...')
         while ephem_time_now < (dark_end - ts.POINTING_TIME):
             # Select the best ranked field we can see
-            logging.debug('Next observing period for each field:')
-            logging.debug(field_periods)
             try:
                 # logging.debug('Next observing period for each field:')
                 # logging.debug(field_periods)
