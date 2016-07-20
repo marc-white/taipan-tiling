@@ -246,8 +246,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Select the best ranked field we can see
             try:
                 field_to_obs = (f for f, v in sorted(fields_scores.iteritems(),
-                                                     key=operator.itemgetter(
-                                                         1)
+                                                     key=lambda x: x[1]
                                                      ).reverse() if
                                 field_periods[f][0] + ts.SLEW_TIME <
                                 ephem_time_now and
