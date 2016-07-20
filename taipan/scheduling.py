@@ -126,7 +126,8 @@ def ephem_to_dt(ephem_dt, fmt=EPHEM_DT_STRFMT):
         A Python datetime.datetime instance. It will be timezone-naive, but the
         value will correspond to UTC.
     """
-    dt = datetime.datetime.strptime(str(ephem.Date(ephem_dt)), fmt)
+    # dt = datetime.datetime.strptime(str(ephem.Date(ephem_dt)), fmt)
+    dt = ephem.Date(ephem_dt).datetime()
     return dt
 
 
