@@ -265,7 +265,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # to the first time when any field becomes available
                 ephem_time_now = min([v[0] for v in
                                       field_periods.itervalues()
-                                      if v is not None])
+                                      if v[0] is not None])
                 if ephem_time_now is None:
                     logging.info('There appears to be no valid observing time '
                                  'remaining out to the end_date')
