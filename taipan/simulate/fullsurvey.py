@@ -256,12 +256,12 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
-                ephem_time_now = min((v[0] for f, v in
-                                      field_periods.iteritems()))
-                local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
-                    ephem_time_now, ts.EPHEM_DT_STRFMT))
+                ephem_time_now = min([v[0] for f, v in
+                                      field_periods.iteritems()])
                 logging.debug('No fields up - advancing time to %5.3f' %
                               ephem_time_now)
+                local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
+                    ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue
 
             # 'Observe' the field
