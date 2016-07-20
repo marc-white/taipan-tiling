@@ -285,8 +285,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                 continue
 
             # 'Observe' the field
-            logging.info('Observing tile %d, field %d at %5.3f' %
-                          (0, field_to_obs, ephem_time_now, ))
+            logging.info('Observing tile %d (score: %.1f, field %d at %5.3f' %
+                          (0, fields_scores[field_to_obs],
+                           field_to_obs, ephem_time_now, ))
             # TODO: 'Observe' pattern
             # Set the field score to 0 so it's not re-observed tonight
             fields_scores[field_to_obs] = 0.
