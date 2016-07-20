@@ -201,8 +201,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                          datetime.timedelta(1))
 
     while dark_start is not None:
-        logging.debug('Observing over dark period %5.3f to %5.3f' %
-                      (dark_start, dark_end, ))
+        logging.info('Observing over dark period %5.3f to %5.3f' %
+                     (dark_start, dark_end, ))
         ephem_time_now = dark_start
         local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
                                                            ts.EPHEM_DT_STRFMT))
