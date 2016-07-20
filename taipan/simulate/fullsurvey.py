@@ -291,6 +291,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                           (0, fields_scores[field_to_obs],
                            field_to_obs, ephem_time_now, ))
             # TODO: 'Observe' pattern
+
+
             # Set the field score to 0 so it's not re-observed tonight
             fields_scores[field_to_obs] = 0.
             fields_observed.append(field_to_obs)
@@ -310,11 +312,17 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     # We are now done observing for the night. It is time for some
     # housekeeping
-    # Re-compute the number of different types of science targets remaining
-    # on each field
-    # Note that this is preferable to trying to do the maths separately above,
-    # which could introduce a lot of painful discrepancies
-    mNScT.execute(cursor, fields=fields_observed)
+    if len(fields_observed) > 0:
+        # Re-compute the number of different types of science targets remaining
+        # on each field
+        # Note that this is preferable to trying to do the maths
+        # separately above, which could introduce a lot of painful discrepancies
+        # Function is fairly quick for a night's worth of fields
+        mNScT.execute(cursor, fields=fields_observed)
+        # Re-tile the affected fields
+        # TODO: Add re-tile code
+        # Should possiblt factor this out into a helper function that can
+        # calculate the affected fields from the observed_fields list
 
 
 
