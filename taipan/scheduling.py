@@ -551,6 +551,7 @@ class Almanac(object):
         except StopIteration:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
+            return obs_start, obs_end
         try:
             obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
                        obs_start < t < ephem_limiting_dt and
