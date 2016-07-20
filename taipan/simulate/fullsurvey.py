@@ -218,6 +218,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                          r in scores_array}
         logging.debug('Next observing period for each field:')
         logging.debug(field_periods)
+        logging.info('Next available field will rise at %5.3f' %
+                     (min([v[0] for v in field_periods if v is not None]), )
+                     )
         fields_available = [f for f, v in field_periods.iteritems() if
                             v[0] is not None and v[0] < dark_end]
         logging.debug('%d fields available at some point tonight' %
