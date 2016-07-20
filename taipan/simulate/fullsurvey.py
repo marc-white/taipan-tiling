@@ -236,6 +236,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Modulate scores by hours remaining
         fields_scores = {f: v[0] * v[1] / hours_obs[f] for
                          f, v in fields_scores.iteritems()}
+        logging.debug('Fields scores: ')
+        logging.debug(fields_scores)
 
         # 'Observe' while the remaining time in this dark period is
         # longer than one pointing (slew + obs)
