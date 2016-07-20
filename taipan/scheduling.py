@@ -565,6 +565,9 @@ class Almanac(object):
         if obs_start is None and obs_end is not None:
             raise RuntimeError("CODE ERROR: next_observable_period should not "
                                "return (None, valid value)")
+        if obs_start is not None and obs_end is None:
+            raise RuntimeError("CODE ERROR: next_observable_period should not "
+                               "return (valid value, None)")
         return obs_start, obs_end
 
     def hours_observable(self, datetime_from, datetime_to=None,
