@@ -216,7 +216,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                 60. / ts.SECONDS_PER_DAY)),
             datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
                          r in scores_array}
-        # logging.debug(field_periods)
+        logging.debug('Next observing period for each field:')
+        logging.debug(field_periods)
         fields_available = [f for f, v in field_periods.iteritems() if
                             v[0] is not None and v[0] < dark_end]
         logging.debug('%d fields available at some point tonight' %
