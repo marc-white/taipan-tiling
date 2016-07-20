@@ -220,7 +220,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         logging.debug(field_periods)
         logging.info('Next available field will rise at %5.3f' %
                      (min([v[0] for v in field_periods.itervalues() if
-                           v is not None]), )
+                           v[0] is not None]), )
                      )
         fields_available = [f for f, v in field_periods.iteritems() if
                             v[0] is not None and v[0] < dark_end]
