@@ -255,7 +255,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             try:
                 # logging.debug('Next observing period for each field:')
                 # logging.debug(field_periods)
-                field_to_obs = (f for f, v in sorted(fields_scores.itervalues(),
+                field_to_obs = (f for f, v in sorted(fields_scores.iteritems(),
                                                      key=lambda x: -1. * x[1]
                                                      ) if
                                 field_periods[f][0] is not None and
