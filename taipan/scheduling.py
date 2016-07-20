@@ -722,10 +722,12 @@ class Almanac(object):
                                       half_res_in_days)]
                     logging.debug('Resl. elements in whole_per: %d' %
                                   len(whole_per))
-                    logging.debug('Period bounds found: %5.3f to %5.3f '
-                                  '(%d units of resolution %2.1f)' %
-                                  (whole_per[0], whole_per[-1], len(whole_per),
-                                   self.resolution))
+                    if len(whole_per) > 0:
+                        logging.debug('Period bounds found: %5.3f to %5.3f '
+                                      '(%d units of resolution %2.1f)' %
+                                      (whole_per[0], whole_per[-1],
+                                       len(whole_per),
+                                       self.resolution))
                     hours_obs += len(better_per) * (self.resolution / 60.)
                     # factor = float(len(better_per)) / float(len(whole_per))
                 else:
