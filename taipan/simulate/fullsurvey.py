@@ -260,7 +260,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                   ) if
                                 field_periods[f][0] is not None and
                                 field_periods[f][1] is not None and
-                                field_periods[f][0] + ts.SLEW_TIME <
+                                field_periods[f][0] - ts.SLEW_TIME <
                                 ephem_time_now and
                                 field_periods[f][1] >
                                 ephem_time_now + ts.POINTING_TIME).next()
