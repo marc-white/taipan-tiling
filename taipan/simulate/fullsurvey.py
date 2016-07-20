@@ -291,7 +291,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         # period is tonight (if there is one)
         logging.debug('Finding next block of dark time for tonight')
         dark_start, dark_end = dark_almanac.next_dark_period(
-            ephem_time_now, limiting_dt=midday + datetime.timedelta(1))
+            local_time_now, limiting_dt=midday + datetime.timedelta(1))
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
