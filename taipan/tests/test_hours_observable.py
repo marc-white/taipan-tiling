@@ -8,7 +8,7 @@ if __name__ == "__main__":
             for day in [1,5,10]:
 
                 start_date = datetime.date(year, month, day)
-                start_datetime = datetime.datetime(year, month, day)
+                start_datetime = datetime.datetime(year, month, day, 12, 0)
                 end_date = datetime.date(year, month, day + 10)
                 ra = 120
                 dec = -60
@@ -18,9 +18,18 @@ if __name__ == "__main__":
 
                 print(start_date, end_date)
                 try:
-                    a0 = np.round(al.hours_observable(start_datetime, exclude_dark_time=False, exclude_grey_time=False, dark_almanac=dal), 5)
-                    a1 = np.round(al.hours_observable(start_datetime, exclude_dark_time=False, exclude_grey_time=True, dark_almanac=dal), 5)
-                    a2 = np.round(al.hours_observable(start_datetime, exclude_dark_time=True, exclude_grey_time=False, dark_almanac=dal), 5)
+                    a0 = np.round(al.hours_observable(start_datetime,
+                                                      exclude_dark_time=False,
+                                                      exclude_grey_time=False,
+                                                      dark_almanac=dal), 5)
+                    a1 = np.round(al.hours_observable(start_datetime,
+                                                      exclude_dark_time=False,
+                                                      exclude_grey_time=True,
+                                                      dark_almanac=dal), 5)
+                    a2 = np.round(al.hours_observable(start_datetime,
+                                                      exclude_dark_time=True,
+                                                      exclude_grey_time=False,
+                                                      dark_almanac=dal), 5)
                 except Exception:
                     print("Date range failed")
                     continue
