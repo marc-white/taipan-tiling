@@ -231,20 +231,23 @@ def sim_do_night(cursor, date, date_start, date_end,
 
         # Rank the available fields
         logging.debug('Computing field scores')
-        fields_scores = {row['field_id']: (row['n_sci_rem'], row['cw_sum']) for
-                         row in scores_array if
-                         row['field_id'] in fields_available}
+        tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['cw_sum']) for
+                        row in scores_array if
+                        row['field_id'] in fields_available}
+        fields_by_tile = {row['tile_pk']: row['field_id'] for
+                          row in scores_array if
+                          row['field_id'] in fields_available}
         hours_obs = {f: almanacs_relevant[f].hours_observable(
             local_time_now,
             datetime_to=midday_end,
             dark_almanac=dark_almanac,
             hours_better=True
-        ) for f, v in fields_scores.iteritems()}
+        ) for f in fields_by_tile.values()}
         # Modulate scores by hours remaining
-        fields_scores = {f: v[0] * v[1] / hours_obs[f] for
-                         f, v in fields_scores.iteritems()}
-        logging.debug('Fields scores: ')
-        logging.debug(fields_scores)
+        tiles_scores = {t: v[0] * v[1] / hours_obs[f] for
+                        t, v in tiles_scores.iteritems()}
+        logging.debug('Tiles scores: ')
+        logging.debug(tiles_scores)
 
         # 'Observe' while the remaining time in this dark period is
         # longer than one pointing (slew + obs)
@@ -257,14 +260,17 @@ def sim_do_night(cursor, date, date_start, date_end,
             try:
                 # logging.debug('Next observing period for each field:')
                 # logging.debug(field_periods)
-                field_to_obs = (f for f, v in sorted(fields_scores.iteritems(),
+                tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
                                                      key=lambda x: -1. * x[1]
                                                      ) if
-                                field_periods[f][0] is not None and
-                                field_periods[f][1] is not None and
-                                field_periods[f][0] - ts.SLEW_TIME <
+                                field_periods[fields_by_tile[t]][0] is not
+                                None and
+                                field_periods[fields_by_tile[t]][1] is not
+                                None and
+                                field_periods[fields_by_tile[t]][0] -
+                                ts.SLEW_TIME <
                                 ephem_time_now and
-                                field_periods[f][1] >
+                                field_periods[fields_by_tile[t]][1] >
                                 ephem_time_now + ts.POINTING_TIME).next()
             except StopIteration:
                 # This triggers if fields will be available later tonight,
@@ -288,14 +294,13 @@ def sim_do_night(cursor, date, date_start, date_end,
 
             # 'Observe' the field
             logging.info('Observing tile %d (score: %.1f), field %d at %5.3f' %
-                          (0, fields_scores[field_to_obs],
-                           field_to_obs, ephem_time_now, ))
+                          (tile_to_obs, tiles_scores[tile_to_obs],
+                           fields_by_tile[tile_to_obs], ephem_time_now, ))
             # TODO: 'Observe' pattern
 
-
-            # Set the field score to 0 so it's not re-observed tonight
-            fields_scores[field_to_obs] = 0.
-            fields_observed.append(field_to_obs)
+            # Set the tile score to 0 so it's not re-observed tonight
+            tiles_scores[tile_to_obs] = 0.
+            fields_observed.append(tile_to_obs)
 
             # Increment time_now and move to observe the next field
             ephem_time_now += ts.POINTING_TIME
@@ -312,7 +317,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     # We are now done observing for the night. It is time for some
     # housekeeping
-    if len(fields_observed) > 0:
+    if len(tiles_observed) > 0:
         # Re-compute the number of different types of science targets remaining
         # on each field
         # Note that this is preferable to trying to do the maths
