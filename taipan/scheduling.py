@@ -523,7 +523,7 @@ class Almanac(object):
         """
         logging.debug('Using next_observable_period')
         # Input checking
-        if datetime_to is None:
+        if datetime_to is None:taip
             datetime_to = pytz.utc.localize(ephem_to_dt(sorted(
                 self.airmass.iterkeys())[-1])).astimezone(tz).replace(
                 tzinfo=None)

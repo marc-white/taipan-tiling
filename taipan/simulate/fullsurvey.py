@@ -200,7 +200,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                          limiting_dt=midday +
                                                          datetime.timedelta(1))
 
-    fields_observed = []
+    tiles_observed = []
 
     while dark_start is not None:
         logging.info('Observing over dark period %5.3f to %5.3f' %
@@ -300,7 +300,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
-            fields_observed.append(tile_to_obs)
+            tiles_observed.append(tile_to_obs)
 
             # Increment time_now and move to observe the next field
             ephem_time_now += ts.POINTING_TIME
@@ -318,15 +318,17 @@ def sim_do_night(cursor, date, date_start, date_end,
     # We are now done observing for the night. It is time for some
     # housekeeping
     if len(tiles_observed) > 0:
+        # Re-tile the affected fields
+        # TODO: Add re-tile code
         # Re-compute the number of different types of science targets remaining
         # on each field
         # Note that this is preferable to trying to do the maths
-        # separately above, which could introduce a lot of painful discrepancies
+        # separately above/during the re-tile, which could introduce a lot of
+        #  painful discrepancies
         # Function is fairly quick for a night's worth of fields
-        mNScT.execute(cursor, fields=fields_observed)
-        # Re-tile the affected fields
-        # TODO: Add re-tile code
-        # Should possiblt factor this out into a helper function that can
+        mNScT.execute(cursor, fields=[fields_by_tile[t] for
+                                      t in tiles_observed])
+        # Should possibly factor this out into a helper function that can
         # calculate the affected fields from the observed_fields list
 
 
