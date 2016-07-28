@@ -834,6 +834,21 @@ class DarkAlmanac(Almanac):
         )
         return filename
 
+    def load(self, filepath='./'):
+        # Supers the original class load, adds in sun_alt calculation
+        logging.debug('super-ing base Almanac load method')
+        super(DarkAlmanac, self).load(filepath=filepath)
+
+        # Re-load and do DarkAlmanac-specific load
+        try:
+            with open('%s%s' % (filepath,
+                                self.generate_file_name(), )) as fileobj:
+                file_almanac = pickle.load(fileobj)
+        except EOFError:
+            return False
+
+        self.sun_alt = file_almanac.sun_alt
+
     # Initialization
     def __init__(self, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
