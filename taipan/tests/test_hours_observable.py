@@ -30,8 +30,8 @@ if __name__ == "__main__":
                                                       exclude_dark_time=True,
                                                       exclude_grey_time=False,
                                                       dark_almanac=dal), 5)
-                except Exception:
-                    print("Date range failed")
+                except Exception as e:
+                    print(e)
                     continue
                 print(a0, a1, a2, a1 + a2)
                 assert a0 == a1 + a2
