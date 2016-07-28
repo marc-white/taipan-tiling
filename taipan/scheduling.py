@@ -667,7 +667,7 @@ class Almanac(object):
             period_function = dark_almanac.next_night_period
 
         hours_obs = 0.
-        dt_up_to = datetime.datetime(datetime_from)
+        dt_up_to = copy.copy(datetime_from)
         airmass_now = (v for k, v in sorted(self.airmass.iteritems()) if
                        k >= ephem.Date(tz.localize(
                            datetime_from).astimezone(pytz.utc))
