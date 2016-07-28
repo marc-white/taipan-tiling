@@ -912,8 +912,12 @@ class DarkAlmanac(Almanac):
             raise ValueError('dt must be an instance of datetime.datetime')
         if dt.date() < self.start_date or dt.date() > (self.end_date +
                                                        datetime.timedelta(1)):
-            raise ValueError('dt must be between start_date and end_date for '
-                             'this DarkAlmanac')
+            raise ValueError('dt (%s) must be between start_date (%s)'
+                             ' and end_date (%s) for '
+                             'this DarkAlmanac' %
+                             (dt.strftime('%Y-%m-%d %H:%M'),
+                              self.start_date.strftime('%Y-%m-%d'),
+                              self.end_date.strftime('%Y-%m-%d')))
 
         # The datetime needs to be pushed into UT
         dt = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
