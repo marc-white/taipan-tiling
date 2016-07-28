@@ -873,10 +873,9 @@ class DarkAlmanac(Almanac):
                              'with no remainder (i.e. resolution must be a '
                              'divisor of 1440).')
 
-        if self.dark_time is None:
-            self.dark_time = {}
-        if self.sun_alt is None:
-            self.sun_alt = {}
+        # Blank or initialise the relevant dicts
+        self.dark_time = {}
+        self.sun_alt = {}
 
         logging.debug('Populating dark time dicts')
         for i in range(len(dates)):
