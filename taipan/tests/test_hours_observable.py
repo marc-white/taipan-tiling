@@ -16,7 +16,7 @@ if __name__ == "__main__":
                 al = Almanac(ra, dec, start_date, end_date=end_date)
                 dal = DarkAlmanac(start_date, end_date=end_date)
 
-                print(start_date, end_date)
+                print(start_date, end_date, start_datetime)
                 try:
                     a0 = np.round(al.hours_observable(start_datetime,
                                                       exclude_dark_time=False,
