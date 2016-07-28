@@ -8,7 +8,7 @@ if __name__ == "__main__":
             for day in [1,5,10]:
 
                 start_date = datetime.date(year, month, day)
-                start_datetime = datetime.datetime(year, month, day, 12, 0)
+                start_datetime = datetime.datetime(year, month, day+1, 12, 0)
                 end_date = datetime.date(year, month, day + 10)
                 ra = 120
                 dec = -60
