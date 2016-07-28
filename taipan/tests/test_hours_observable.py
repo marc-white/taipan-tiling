@@ -21,15 +21,15 @@ if __name__ == "__main__":
                     a0 = np.round(al.hours_observable(start_datetime,
                                                       exclude_dark_time=False,
                                                       exclude_grey_time=False,
-                                                      dark_almanac=dal), 5)
+                                                      dark_almanac=dal), 8)
                     a1 = np.round(al.hours_observable(start_datetime,
                                                       exclude_dark_time=False,
                                                       exclude_grey_time=True,
-                                                      dark_almanac=dal), 5)
+                                                      dark_almanac=dal), 8)
                     a2 = np.round(al.hours_observable(start_datetime,
                                                       exclude_dark_time=True,
                                                       exclude_grey_time=False,
-                                                      dark_almanac=dal), 5)
+                                                      dark_almanac=dal), 8)
                 except RuntimeError:
                     print(e)
                     continue
