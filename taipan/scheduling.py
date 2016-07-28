@@ -849,13 +849,15 @@ class DarkAlmanac(Almanac):
                 return False
 
             self.sun_alt = file_almanac.sun_alt
+        else:
+            return False
 
         return True
 
     # Initialization
     def __init__(self, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
-                 resolution=15., populate=True):
+                 resolution=15., populate=True1):
         # 'super' the Almanac __init__ method, but do NOT attempt to
         # populate the DarkAlmanac from this method (uses a different
         # method)
