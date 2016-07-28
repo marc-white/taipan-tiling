@@ -857,7 +857,7 @@ class DarkAlmanac(Almanac):
     # Initialization
     def __init__(self, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
-                 resolution=15., populate=True1):
+                 resolution=15., populate=True):
         # 'super' the Almanac __init__ method, but do NOT attempt to
         # populate the DarkAlmanac from this method (uses a different
         # method)
