@@ -699,7 +699,7 @@ class Almanac(object):
 
             # Go through this 'chance' window, looking for when the relevant
             # period function is satisfied
-            while next_chance_start < next_chance_end:
+            while next_chance_start < min(next_chance_end, datetime_to):
                 next_per_start, next_per_end = period_function(
                     next_chance_start, limiting_dt=next_chance_end, tz=tz)
                 if next_per_start is None:
