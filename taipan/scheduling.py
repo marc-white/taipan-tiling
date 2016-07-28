@@ -627,6 +627,8 @@ class Almanac(object):
             datetime_to = pytz.utc.localize(ephem_to_dt(sorted(
                 self.airmass.iterkeys())[-1])).astimezone(tz).replace(
                 tzinfo=None)
+            logging.debug('Computed datetime_to: %s' %
+                          datetime_to.strftime('%Y-%m-%d %H:%M'))
         if datetime_to < datetime_from:
             raise ValueError('datetime_from must occur before datetime_to')
         if datetime_from.date() < self.start_date:

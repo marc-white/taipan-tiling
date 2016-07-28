@@ -30,7 +30,7 @@ if __name__ == "__main__":
                                                       exclude_dark_time=True,
                                                       exclude_grey_time=False,
                                                       dark_almanac=dal), 5)
-                except Exception as e:
+                except RuntimeError:
                     print(e)
                     continue
                 print(a0, a1, a2, a1 + a2)
