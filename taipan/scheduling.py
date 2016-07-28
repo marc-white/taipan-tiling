@@ -1114,9 +1114,12 @@ class DarkAlmanac(Almanac):
             # Therefore, we need to start searching the next night
             # Basically, we get the function to call itself with dt one day
             # later until it hits a solution, or returns None
-            return self.next_grey_period(dt + datetime.timedelta(1),
-                                         limiting_dt=limiting_dt,
-                                         tz=tz)
+            if limiting_dt - dt > datetime.timedelta(1)
+                return self.next_grey_period(dt + datetime.timedelta(1),
+                                             limiting_dt=limiting_dt,
+                                             tz=tz)
+            else:
+                return None, None
 
         return grey_start, grey_end
 
