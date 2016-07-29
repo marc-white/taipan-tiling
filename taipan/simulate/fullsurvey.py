@@ -301,9 +301,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                           (tile_to_obs, tiles_scores[tile_to_obs],
                            fields_by_tile[tile_to_obs], ephem_time_now,
                            [x['ra'] for x in scores_array if
-                            x['tile_pk']==tile_to_obs].next(),
+                            x['tile_pk'] == tile_to_obs][0],
                            [x['dec'] for x in scores_array if
-                            x['tile_pk'] == tile_to_obs].next(),
+                            x['tile_pk'] == tile_to_obs][0],
                            ))
             # TODO: 'Observe' pattern
 
