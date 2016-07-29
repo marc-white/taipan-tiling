@@ -244,7 +244,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             hours_better=True
         ) for f in fields_by_tile.values()}
         # Modulate scores by hours remaining
-        tiles_scores = {t: v[0] * v[1] / hours_obs[f] for
+        tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
                         t, v in tiles_scores.iteritems()}
         logging.debug('Tiles scores: ')
         logging.debug(tiles_scores)
@@ -326,11 +326,11 @@ def sim_do_night(cursor, date, date_start, date_end,
         # separately above/during the re-tile, which could introduce a lot of
         #  painful discrepancies
         # Function is fairly quick for a night's worth of fields
-        mNScT.execute(cursor, fields=[fields_by_tile[t] for
-                                      t in tiles_observed])
+        # mNScT.execute(cursor, fields=[fields_by_tile[t] for
+        #                               t in tiles_observed])
         # Should possibly factor this out into a helper function that can
         # calculate the affected fields from the observed_fields list
-
+        pass
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
