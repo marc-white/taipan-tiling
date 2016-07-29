@@ -126,6 +126,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     if date < date_start or date > date_end:
         raise ValueError('date must be in the range [date_start, date_end]')
 
+    logging.info('Starting observing for night %s' %
+                 date.strftime('%Y-%m-%d'))
+
     # Seed an alamnac dictionary if not passed
     if almanac_dict is None:
         almanac_dict = {}
@@ -263,15 +266,15 @@ def sim_do_night(cursor, date, date_start, date_end,
                 tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
                                                      key=lambda x: -1. * x[1]
                                                      ) if
-                                field_periods[fields_by_tile[t]][0] is not
-                                None and
-                                field_periods[fields_by_tile[t]][1] is not
-                                None and
-                                field_periods[fields_by_tile[t]][0] -
-                                ts.SLEW_TIME <
-                                ephem_time_now and
-                                field_periods[fields_by_tile[t]][1] >
-                                ephem_time_now + ts.POINTING_TIME).next()
+                               field_periods[fields_by_tile[t]][0] is not
+                               None and
+                               field_periods[fields_by_tile[t]][1] is not
+                               None and
+                               field_periods[fields_by_tile[t]][0] -
+                               ts.SLEW_TIME <
+                               ephem_time_now and
+                               field_periods[fields_by_tile[t]][1] >
+                               ephem_time_now + ts.POINTING_TIME).next()
             except StopIteration:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
@@ -293,9 +296,15 @@ def sim_do_night(cursor, date, date_start, date_end,
                 continue
 
             # 'Observe' the field
-            logging.info('Observing tile %d (score: %.1f), field %d at %5.3f' %
+            logging.info('Observing tile %d (score: %.1f), field %d at '
+                         'time %5.3f, RA %3.1f, DEC %2.1f' %
                           (tile_to_obs, tiles_scores[tile_to_obs],
-                           fields_by_tile[tile_to_obs], ephem_time_now, ))
+                           fields_by_tile[tile_to_obs], ephem_time_now,
+                           [x['ra'] for x in scores_array if
+                            x['tile_pk']==tile_to_obs].next(),
+                           [x['dec'] for x in scores_array if
+                            x['tile_pk'] == tile_to_obs].next(),
+                           ))
             # TODO: 'Observe' pattern
 
             # Set the tile score to 0 so it's not re-observed tonight
