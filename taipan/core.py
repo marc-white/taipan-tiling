@@ -599,7 +599,7 @@ def targets_in_range(ra, dec, target_list, dist,
         # Do KDTree computation
         # logging.debug('Generating KDTree with leafsize %d' % leafsize)
         cart_targets = np.asarray([t.ucposn for t in target_list])
-        logging.debug(cart_targets)
+        # logging.debug(cart_targets)
         tree = cKDTree(cart_targets, leafsize=leafsize)
         inds = tree.query_ball_point(polar2cart((ra, dec)),
                                      dist_euclidean(dist / 3600.))
