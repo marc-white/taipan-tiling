@@ -576,7 +576,10 @@ def targets_in_range(ra, dec, target_list, dist,
     target_list :
         The list of TaipanTarget objects to consider.
     dist :
-        The distance to test against, in *arcseconds*. 
+        The distance to test against, in *arcseconds*.
+    leafsize :
+        The size of the leaves in the KDTree structure. Defaults to
+        BREAKEVEN_KDTREE.
 
     Returns
     -------
@@ -596,6 +599,7 @@ def targets_in_range(ra, dec, target_list, dist,
         # Do KDTree computation
         # logging.debug('Generating KDTree with leafsize %d' % leafsize)
         cart_targets = np.asarray([t.ucposn for t in target_list])
+        logging.debug(cart_targets)
         tree = cKDTree(cart_targets, leafsize=leafsize)
         inds = tree.query_ball_point(polar2cart((ra, dec)),
                                      dist_euclidean(dist / 3600.))
