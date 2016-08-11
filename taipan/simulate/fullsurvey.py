@@ -21,6 +21,7 @@ from src.resources.v0_0_1.readout.readGuides import execute as rGexec
 from src.resources.v0_0_1.readout.readStandards import execute as rSexec
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
 from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
+from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
@@ -328,7 +329,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     # housekeeping
     if len(tiles_observed) > 0:
         # Re-tile the affected fields
-        # TODO: Add re-tile code
+        # Work out which fields actually need re-tiling
+        fields_to_retile = rCAexec(cursor, tile_list=tiles_observed)
+        # Re-tile those fields to a particular depth - usually 1
         # Re-compute the number of different types of science targets remaining
         # on each field
         # Note that this is preferable to trying to do the maths
