@@ -306,7 +306,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                            [x['dec'] for x in scores_array if
                             x['tile_pk'] == tile_to_obs][0],
                            ))
-            # TODO: 'Observe' pattern
+            # This is the section of code that does the 'observing'
+
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.

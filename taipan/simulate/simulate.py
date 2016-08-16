@@ -1,7 +1,10 @@
 import numpy as np
 
 
-def test_redshift_success(target_types, num_visits):
+def test_redshift_success(target_types, num_visits,
+                          prob_vpec_first=0.2,
+                          prob_vpec_second=0.7,
+                          prob_lowz_each=0.8):
     """
     FOR TEST USE ONLY
 
@@ -20,6 +23,17 @@ def test_redshift_success(target_types, num_visits):
         A corresponding list of the number of times each target has been
         observed already. Note that these values must have been updated for the
         current observation pass *before* test_redshift_success is invoked
+    prob_vpec_first:
+        The probability that a peculiar velocity target will be successfully
+        observed on the first pass. Float, 0.0 to 1.0 inclusive.
+    prob_vpec_second:
+        The probability that a peculiar velocity target will be successfully
+        observed after two passes. Note that this is a *cumulative* probability,
+        such that P(success in 1 || success in 2) = prob_vpec_second. Float,
+        0.0 to 1.0 inclusive.
+    prob_lowz_each:
+        The probability that a low-redshift target will be successfully observed
+        on any pass. Float, 0.0 to 1.0 inclusive.
 
     Returns
     -------
@@ -51,20 +65,29 @@ def test_redshift_success(target_types, num_visits):
         raise RuntimeError('must increment num_visits before calling '
                            'test_success!')
 
+    if prob_vpec_first < 0 or prob_vpec_first > 1:
+        raise ValueError('prob_vpec_first must be in the range [0,1]')
+    if prob_vpec_second < 0 or prob_vpec_second > 1:
+        raise ValueError('prob_vpec_second must be in the range [0,1]')
+    if prob_lowz_each < 0 or prob_lowz_each > 1:
+        raise ValueError('prob_lowz_each must be in the range [0,1]')
+
     score = np.random.rand(target_types.size).reshape(target_types.shape)
     # score is a random number between 0 and 1
     # redshift success is when this score is less than Pr(success)
     prob = np.ones(target_types.shape)
     # H0 targets will only be observed once; ie. success is guaranteed
     # Therefore, we can just leave prob as 1 for these targets
-    is_vpec = (target_types == 'is_vpec')
+    is_vpec = (target_types == 'is_vpec_target')
     # success for 20% vpec targets on first visit
-    prob = np.where(is_vpec & (num_visits == 1), 0.2, prob)
+    prob = np.where(is_vpec & (num_visits == 1), prob_vpec_first, prob)
     # success for 70% of vpec targets after two visits
-    prob = np.where(is_vpec & (num_visits == 2), (0.7-0.2)/(1.-0.2), prob)
+    prob = np.where(is_vpec & (num_visits == 2), (
+        prob_vpec_second - prob_vpec_first
+    ) / (1. - prob_vpec_first), prob)
     # success for 100% of vpec targets after two visits
     prob = np.where(is_vpec & (num_visits == 3), 1., prob)
-    is_lowz = (target_types == 'is_lowz')
+    is_lowz = (target_types == 'is_lowz_target')
     # 80% success for lowz targets on each pass
     prob = np.where(is_lowz, 0.8, prob)
     # redshift success is when this score is less than Pr(success)
