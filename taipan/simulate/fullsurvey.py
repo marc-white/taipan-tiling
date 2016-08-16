@@ -22,6 +22,8 @@ from src.resources.v0_0_1.readout.readStandards import execute as rSexec
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
 from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
 from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexec
+from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
+from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
@@ -307,7 +309,12 @@ def sim_do_night(cursor, date, date_start, date_end,
                             x['tile_pk'] == tile_to_obs][0],
                            ))
             # This is the section of code that does the 'observing'
-
+            # Get the list of science target IDs on this tile
+            target_ids = rSTiexec(cursor, tile_to_obs)
+            # Get the array of target_ids with target types from the database
+            target_types = rSTyexec(cursor, target_ids=target_ids)
+            # Get an array with the number of visits and repeats of these
+            # targets
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
