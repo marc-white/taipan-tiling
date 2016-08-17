@@ -24,12 +24,15 @@ from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
 from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexec
 from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
 from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
+from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
 from src.scripts.connection import get_connection
+
+from simulate import test_redshift_success
 
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
@@ -309,12 +312,27 @@ def sim_do_night(cursor, date, date_start, date_end,
                             x['tile_pk'] == tile_to_obs][0],
                            ))
             # This is the section of code that does the 'observing'
+
+            # Read in from DB
             # Get the list of science target IDs on this tile
             target_ids = rSTiexec(cursor, tile_to_obs)
             # Get the array of target_ids with target types from the database
-            target_types = rSTyexec(cursor, target_ids=target_ids)
+            target_types_db = rSTyexec(cursor, target_ids=target_ids)
             # Get an array with the number of visits and repeats of these
-            # targets
+            visits_repeats = rSVexec(cursor, target_ids=target_ids)
+
+            # Form an array showing the type of those targets
+            target_types = list(['' for _ in target_types_db])
+            for ttype in ['is_HO_target', 'is_vpec_target', 'is_lowz_target']:
+                target_types[
+                    np.asarray([_[ttype] is True for _ in target_types_db])
+                ] = ttype
+            # Calculate a success/failure rate for each target
+            success_targets = test_redshift_success(ttypes,
+                                                    visits_repeats['visits'])
+
+            # Set relevant targets as observed successfully, all others
+            # observed but unsuccessfully
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
