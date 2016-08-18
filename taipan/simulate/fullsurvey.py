@@ -7,6 +7,8 @@ import taipan.tiling as tl
 import taipan.scheduling as ts
 import simulate as tsim
 
+from utils.tiling import retile_fields
+
 import pickle
 
 import numpy as np
@@ -27,6 +29,10 @@ from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
 from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
+
+from src.resources.v0_0_1.manipulate.makeScienceVisitInc import execute as mSVIexec
+from src.resources.v0_0_1.manipulate.makeScienceRepeatInc import execute as mSRIexec
+from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
@@ -328,11 +334,19 @@ def sim_do_night(cursor, date, date_start, date_end,
                     np.asarray([_[ttype] is True for _ in target_types_db])
                 ] = ttype
             # Calculate a success/failure rate for each target
-            success_targets = test_redshift_success(ttypes,
-                                                    visits_repeats['visits'])
+            success_targets = test_redshift_success(target_types,
+                                                    visits_repeats['visits'] +
+                                                    1)  # Function needs
+                                                        # incremented visits
+                                                        # values
 
             # Set relevant targets as observed successfully, all others
             # observed but unsuccessfully
+            mSRIexec(cursor, target_ids[success_targets], set_done=True)
+            mSVIexec(cursor, target_ids[~success_targets])
+
+            # Mark the tile as having been observed
+            mTOexec(cursor, [tile_to_obs])
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
@@ -358,17 +372,12 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Work out which fields actually need re-tiling
         fields_to_retile = rCAexec(cursor, tile_list=tiles_observed)
         # Re-tile those fields to a particular depth - usually 1
-        # Re-compute the number of different types of science targets remaining
-        # on each field
-        # Note that this is preferable to trying to do the maths
-        # separately above/during the re-tile, which could introduce a lot of
-        #  painful discrepancies
-        # Function is fairly quick for a night's worth of fields
-        # mNScT.execute(cursor, fields=[fields_by_tile[t] for
-        #                               t in tiles_observed])
-        # Should possibly factor this out into a helper function that can
-        # calculate the affected fields from the observed_fields list
-        pass
+        # Note that the calls made by the tiling function automatically include
+        # a re-computation of the target numbers in each field
+        retile_fields(cursor, fields_to_retile, tiles_per_field=1)
+
+    logging.info('Completed simulated observing for %s' %
+                 date.strftime('%y-%m-%d'))
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):
