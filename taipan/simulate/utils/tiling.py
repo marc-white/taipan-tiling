@@ -21,8 +21,6 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
         A psycopg2 cursor for communicating with the database
     field_list:
         A list of fields to be re-tiled. Should be a list of field IDs.
-        ValueError will be thrown if any of the passed IDs don't exist in the
-        database.
     tiles_per_field:
         Optional int, denoting how many tiles to generate per field. Defaults
         to 1.

@@ -371,7 +371,10 @@ def sim_do_night(cursor, date, date_start, date_end,
     if len(tiles_observed) > 0:
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
+        logging.info('%d tiles were observed' % len(tiles_observed))
         fields_to_retile = rCAexec(cursor, tile_list=tiles_observed)
+        logging.info('This requires %d fields be re-tiled' %
+                     len(fields_to_retile))
         # Re-tile those fields to a particular depth - usually 1
         # Note that the calls made by the tiling function automatically include
         # a re-computation of the target numbers in each field
