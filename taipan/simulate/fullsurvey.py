@@ -331,7 +331,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             target_types = list(['' for _ in target_types_db])
             for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
                 target_types[
-                    np.asarray([_[ttype] is True for _ in target_types_db])
+                    np.asarray([_[ttype] is True for _ in target_types_db],
+                               dtype=bool)
                 ] = ttype
             # Calculate a success/failure rate for each target
             success_targets = test_redshift_success(target_types,
