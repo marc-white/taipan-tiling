@@ -8,7 +8,7 @@ from src.resources.v0_0_1.readout.readGuides import execute as rGexec
 from src.resources.v0_0_1.readout.readStandards import execute as rSexec
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 
-from src.resources.v0_0_1.readout.insertTiles import execute as iTexec
+from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
 
 def retile_fields(cursor, field_list, tiles_per_field=1):
