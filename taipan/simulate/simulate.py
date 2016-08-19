@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 
 
 def test_redshift_success(target_types, num_visits,
@@ -91,4 +92,8 @@ def test_redshift_success(target_types, num_visits,
     # 80% success for lowz targets on each pass
     prob = np.where(is_lowz, 0.8, prob)
     # redshift success is when this score is less than Pr(success)
-    return score < prob
+    success = score < prob
+    logging.debug('Out of %d observed targets, %d successes, %d rejections' %
+                  (len(target_types), np.count_nonzero(success),
+                   np.count_nonzero(~success)))
+    return success
