@@ -328,7 +328,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             visits_repeats = rSVexec(cursor, target_ids=target_ids)
 
             # Form an array showing the type of those targets
-            target_types = list(['' for _ in target_types_db])
+            target_types = np.asarray(list(['' for _ in target_types_db]))
             for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
                 target_types[
                     np.asarray([_[ttype] is True for _ in target_types_db],
