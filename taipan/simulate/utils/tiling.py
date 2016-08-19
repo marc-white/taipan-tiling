@@ -1,6 +1,5 @@
 # Utility functions for the simulator to ease tiling operations
 
-import taipan.core as tp
 import taipan.tiling as tl
 
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
