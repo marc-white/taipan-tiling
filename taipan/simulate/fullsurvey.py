@@ -321,7 +321,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
             # Read in from DB
             # Get the list of science target IDs on this tile
-            target_ids = rSTiexec(cursor, tile_to_obs)
+            target_ids = np.asarray(rSTiexec(cursor, tile_to_obs))
             # Get the array of target_ids with target types from the database
             target_types_db = rSTyexec(cursor, target_ids=target_ids)
             # Get an array with the number of visits and repeats of these
