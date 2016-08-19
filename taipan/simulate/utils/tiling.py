@@ -47,6 +47,6 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
                                           tiles=fields_to_tile)
 
     # Write the tile back to the database
-    iTexec(cursor, tile_list, candidate_targets)
+    iTexec(cursor, tile_list)
 
     return
