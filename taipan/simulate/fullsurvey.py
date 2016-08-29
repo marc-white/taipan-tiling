@@ -129,7 +129,10 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     Returns
     -------
-    Nil. All actions are internal or apply to the database.
+    local_time_now:
+        The local time at which observing ceased. Note that this may be well
+        after the night being investigated, due to a long weather break
+        occurring.
 
     """
     logging.info('Doing simulated observing for %s' % date.strftime('%y-%m-%d'))
@@ -382,6 +385,8 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     logging.info('Completed simulated observing for %s' %
                  date.strftime('%y-%m-%d'))
+
+    return local_time_now
 
 
 def execute(cursor, date_start, date_end, output_loc='.'):

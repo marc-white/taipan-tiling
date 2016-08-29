@@ -1396,9 +1396,6 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
     tile_list :
         The list of tiles making up the tiling.
 
-    final_completeness :
-        The target completeness achieved.
-
     candidate_targets :
         Any targets from candidate_targets that do not
         appear in the final tiling_list (i.e. were not assigned to a successful
@@ -1455,4 +1452,4 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
             output_tiles.append(candidate_tile)
 
     # Send the returned tiles back
-    return output_tiles
+    return output_tiles, candidate_targets_master
