@@ -68,12 +68,13 @@ def sim_prepare_db(cursor):
     logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
     # TEST ONLY: Trim the tile list to 10 to test DB write-out
     # field_tiles = random.sample(field_tiles, 40)
-    candidate_tiles = tl.generate_tiling_greedy_npasses(candidate_targets,
-                                                        standard_targets,
-                                                        guide_targets,
-                                                        1,
-                                                        tiles=field_tiles,
-                                                        )
+    candidate_tiles, targets_remain = \
+        tl.generate_tiling_greedy_npasses(candidate_targets,
+                                          standard_targets,
+                                          guide_targets,
+                                          1,
+                                          tiles=field_tiles,
+                                          )
     logging.info('First tile pass complete!')
 
     # 'Pickle' the tiles so they don't need to be regenerated later for tests

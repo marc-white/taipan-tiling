@@ -40,7 +40,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
     fields_to_tile = rCexec(cursor, field_ids=field_list)
 
     # Execute a re-tile of the affected fields to the required depth
-    tile_list, final_completeness, targets_after_tile = \
+    tile_list, targets_after_tile = \
         tl.generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                           guide_targets, tiles_per_field,
                                           tiles=fields_to_tile)
