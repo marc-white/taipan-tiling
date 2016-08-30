@@ -58,7 +58,7 @@ def sim_prepare_db(cursor):
 
     """
 
-    # Ge the field centres in from the database
+    # Get the field centres in from the database
     logging.info(SIMULATE_LOG_PREFIX+'Loading targets')
     field_tiles = rCexec(cursor)
     candidate_targets = rScexec(cursor)
@@ -85,7 +85,7 @@ def sim_prepare_db(cursor):
     iTexec(cursor, candidate_tiles)
 
     # Compute the n_sci_rem and n_sci_obs for these tiles
-    mTR.execute(cursor)
+    mNScT.execute(cursor)
 
     return
 
