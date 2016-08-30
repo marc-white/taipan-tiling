@@ -83,6 +83,8 @@ def sim_prepare_db(cursor):
 
     # Write the tiles to DB
     iTexec(cursor, candidate_tiles)
+    # Commit now in case mNScT not debugged right
+    cursor.connection.commit()
 
     # Compute the n_sci_rem and n_sci_obs for these tiles
     mNScT.execute(cursor)
