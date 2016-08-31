@@ -33,6 +33,7 @@ from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 from src.resources.v0_0_1.manipulate.makeScienceVisitInc import execute as mSVIexec
 from src.resources.v0_0_1.manipulate.makeScienceRepeatInc import execute as mSRIexec
 from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
+from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
@@ -84,9 +85,10 @@ def sim_prepare_db(cursor):
     # Write the tiles to DB
     iTexec(cursor, candidate_tiles)
     # Commit now in case mNScT not debugged right
-    cursor.connection.commit()
+    # cursor.connection.commit()
 
     # Compute the n_sci_rem and n_sci_obs for these tiles
+    mTPexec(cursor)
     mNScT.execute(cursor)
 
     return
@@ -442,8 +444,10 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
     # TODO: Add check to skip this step if tables already exist
     # Currently dummied out with an is False
-    if False:
+    if True:
         sim_prepare_db(cursor)
+
+    return
 
     fields = rCexec(cursor)
     # Construct the almanacs required

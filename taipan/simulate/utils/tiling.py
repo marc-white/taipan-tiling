@@ -9,6 +9,8 @@ from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
+from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
+
 
 def retile_fields(cursor, field_list, tiles_per_field=1):
     """
@@ -26,8 +28,10 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
 
     Returns
     -------
-    Nil. Tiles are generated, pushed back to the database, and then eliminated
-    from memory.
+    Nil. The following will occur:
+    - New tiles will be generated in local memory;
+    - Redundant tiles will be eliminated from the database;
+    - New tiles will be pushed into the database.
     """
     pass
 
@@ -45,7 +49,11 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
                                           guide_targets, tiles_per_field,
                                           tiles=fields_to_tile)
 
+    # Eliminate the redundant tiles
+    # TODO: Implement deletion functions
+
     # Write the tile back to the database
     iTexec(cursor, tile_list)
+    mTPexec(cursor, fields=fields_to_tile)
 
     return
