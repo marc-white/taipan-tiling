@@ -66,21 +66,25 @@ def sim_prepare_db(cursor):
     guide_targets = rGexec(cursor)
     standard_targets = rSexec(cursor)
 
-    logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
-    # TEST ONLY: Trim the tile list to 10 to test DB write-out
-    # field_tiles = random.sample(field_tiles, 40)
-    candidate_tiles, targets_remain = \
-        tl.generate_tiling_greedy_npasses(candidate_targets,
-                                          standard_targets,
-                                          guide_targets,
-                                          1,
-                                          tiles=field_tiles,
-                                          )
-    logging.info('First tile pass complete!')
+    try:
+        with open('tiles.pobj', 'r') as tfile:
+            candidate_targets = pickle.load(tfile)
+    except IOError:
+        logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
+        # TEST ONLY: Trim the tile list to 10 to test DB write-out
+        # field_tiles = random.sample(field_tiles, 40)
+        candidate_tiles, targets_remain = \
+            tl.generate_tiling_greedy_npasses(candidate_targets,
+                                              standard_targets,
+                                              guide_targets,
+                                              1,
+                                              tiles=field_tiles,
+                                              )
+        logging.info('First tile pass complete!')
 
-    # 'Pickle' the tiles so they don't need to be regenerated later for tests
-    with open('tiles.pobj', 'w') as tfile:
-        pickle.dump(candidate_tiles, tfile)
+        # 'Pickle' the tiles so they don't need to be regenerated later for tests
+        with open('tiles.pobj', 'w') as tfile:
+            pickle.dump(candidate_tiles, tfile)
 
     # Write the tiles to DB
     iTexec(cursor, candidate_tiles)
