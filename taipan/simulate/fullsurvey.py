@@ -68,7 +68,7 @@ def sim_prepare_db(cursor):
 
     try:
         with open('tiles.pobj', 'r') as tfile:
-            candidate_targets = pickle.load(tfile)
+            candidate_tiles = pickle.load(tfile)
     except IOError:
         logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
         # TEST ONLY: Trim the tile list to 10 to test DB write-out
@@ -82,7 +82,8 @@ def sim_prepare_db(cursor):
                                               )
         logging.info('First tile pass complete!')
 
-        # 'Pickle' the tiles so they don't need to be regenerated later for tests
+        # 'Pickle' the tiles so they don't need
+        # to be regenerated later for tests
         with open('tiles.pobj', 'w') as tfile:
             pickle.dump(candidate_tiles, tfile)
 
