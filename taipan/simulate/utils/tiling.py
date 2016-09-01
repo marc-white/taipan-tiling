@@ -39,7 +39,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     - Redundant tiles will be eliminated from the database;
     - New tiles will be pushed into the database.
     """
-    pass
+    logging.debug('Retiling fields w/ recorded datetime %s') % (
+        tiling_time.strftime('%y-%m-%d %H:%M:%S'),
+    )
 
     # Get the required targets from the database
     candidate_targets = rScexec(cursor, unobserved=True)
