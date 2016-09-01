@@ -1,6 +1,7 @@
 # Utility functions for the simulator to ease tiling operations
 
 import datetime
+import logging
 
 import taipan.tiling as tl
 
