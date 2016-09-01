@@ -9,7 +9,7 @@ from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
-from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
+from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
 
 def retile_fields(cursor, field_list, tiles_per_field=1):
@@ -50,10 +50,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
                                           tiles=fields_to_tile)
 
     # Eliminate the redundant tiles
-    # TODO: Implement deletion functions
+    dTexec(cursor, field_list=field_list, obs_status=False)
 
-    # Write the tile back to the database
+    # Write the new tiles back to the database
     iTexec(cursor, tile_list)
-    mTPexec(cursor, fields=fields_to_tile)
 
     return
