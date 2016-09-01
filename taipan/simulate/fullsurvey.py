@@ -362,17 +362,17 @@ def sim_do_night(cursor, date, date_start, date_end,
             mSRIexec(cursor, target_ids[success_targets], set_done=True)
             mSVIexec(cursor, target_ids[~success_targets])
 
-            # Mark the tile as having been observed
-            mTOexec(cursor, [tile_to_obs])
-
-            # Set the tile score to 0 so it's not re-observed tonight
-            tiles_scores[tile_to_obs] = 0.
-            tiles_observed.append(tile_to_obs)
-
             # Increment time_now and move to observe the next field
             ephem_time_now += ts.POINTING_TIME
             local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
                 ephem_time_now, ts.EPHEM_DT_STRFMT))
+
+            # Mark the tile as having been observed
+            mTOexec(cursor, [tile_to_obs], time_obs=local_time_now)
+
+            # Set the tile score to 0 so it's not re-observed tonight
+            tiles_scores[tile_to_obs] = 0.
+            tiles_observed.append(tile_to_obs)
 
         # When this dark period is exhausted, figure out when the next dark
         # period is tonight (if there is one)
@@ -394,7 +394,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Re-tile those fields to a particular depth - usually 1
         # Note that the calls made by the tiling function automatically include
         # a re-computation of the target numbers in each field
-        retile_fields(cursor, fields_to_retile, tiles_per_field=1)
+        retile_fields(cursor, fields_to_retile, tiles_per_field=1,
+                      tiling_time=local_time_now)
 
     logging.info('Completed simulated observing for %s' %
                  date.strftime('%y-%m-%d'))

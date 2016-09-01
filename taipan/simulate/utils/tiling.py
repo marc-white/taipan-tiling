@@ -1,5 +1,7 @@
 # Utility functions for the simulator to ease tiling operations
 
+import datetime
+
 import taipan.tiling as tl
 
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
@@ -12,7 +14,8 @@ from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
 
-def retile_fields(cursor, field_list, tiles_per_field=1):
+def retile_fields(cursor, field_list, tiles_per_field=1,
+                  tiling_time=datetime.datetime.now()):
     """
     Re-tile the fields passed.
 
@@ -25,6 +28,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
     tiles_per_field:
         Optional int, denoting how many tiles to generate per field. Defaults
         to 1.
+    tiling_time:
+        Optional; time to record as the tiling (i.e. configuration) time for
+        the new tiles. Defaults to datetime.datetime.now().
 
     Returns
     -------
@@ -53,6 +59,6 @@ def retile_fields(cursor, field_list, tiles_per_field=1):
     dTexec(cursor, field_list=field_list, obs_status=False)
 
     # Write the new tiles back to the database
-    iTexec(cursor, tile_list)
+    iTexec(cursor, tile_list, config_time=tiling_time)
 
     return
