@@ -2,7 +2,7 @@ import numpy as np
 import logging
 
 
-def test_redshift_success(target_types, num_visits,
+def test_redshift_success(target_types_db, num_visits,
                           prob_vpec_first=0.2,
                           prob_vpec_second=0.7,
                           prob_lowz_each=0.8):
@@ -18,7 +18,7 @@ def test_redshift_success(target_types, num_visits,
 
     Parameters
     ----------
-    target_types:
+    target_types_db:
         A list of target_types. These correspond to the database column names.
     num_visits:
         A corresponding list of the number of times each target has been
@@ -47,16 +47,16 @@ def test_redshift_success(target_types, num_visits,
     # Input checking
     # Make sure we have lists, not single values
     try:
-        burn = target_types[0]
+        burn = target_types_db[0]
     except TypeError:
-        target_types = [target_types, ]
+        target_types_db = [target_types_db, ]
     try:
         burn = num_visits[0]
     except TypeError:
         num_visits = [num_visits, ]
 
     # Check that the length of the two lists match
-    if len(target_types) != len(num_visits):
+    if len(target_types_db) != len(num_visits):
         raise ValueError('Lists of target priorities and num_visits must '
                          'be of equal length')
     # Make sure num_visits has been incremented before calling this function
@@ -73,13 +73,19 @@ def test_redshift_success(target_types, num_visits,
     if prob_lowz_each < 0 or prob_lowz_each > 1:
         raise ValueError('prob_lowz_each must be in the range [0,1]')
 
-    score = np.random.rand(target_types.size).reshape(target_types.shape)
+    # Split input table into lists
+    target_ids = target_types_db['target_id']
+    is_H0 = target_types_db['is_H0_target']
+    is_vpec = target_types_db['is_vpec_target']
+    is_lowz = target_types_db['is_lowz_target']
+
+    score = np.random.rand(target_ids.size).reshape(target_ids.shape)
     # score is a random number between 0 and 1
     # redshift success is when this score is less than Pr(success)
-    prob = np.ones(target_types.shape)
+    prob = np.ones(target_types_db.shape)
     # H0 targets will only be observed once; ie. success is guaranteed
     # Therefore, we can just leave prob as 1 for these targets
-    is_vpec = (target_types == 'is_vpec_target')
+    # is_vpec = (target_types_db == 'is_vpec_target')
     # success for 20% vpec targets on first visit
     prob = np.where(is_vpec & (num_visits == 1), prob_vpec_first, prob)
     # success for 70% of vpec targets after two visits
@@ -88,12 +94,12 @@ def test_redshift_success(target_types, num_visits,
     ) / (1. - prob_vpec_first), prob)
     # success for 100% of vpec targets after two visits
     prob = np.where(is_vpec & (num_visits == 3), 1., prob)
-    is_lowz = (target_types == 'is_lowz_target')
+    # is_lowz = (target_types_db == 'is_lowz_target')
     # 80% success for lowz targets on each pass
-    prob = np.where(is_lowz, 0.8, prob)
+    prob = np.where(is_lowz, np.min(0.8, prob), prob)
     # redshift success is when this score is less than Pr(success)
     success = score < prob
     logging.debug('Out of %d observed targets, %d successes, %d rejections' %
-                  (len(target_types), np.count_nonzero(success),
+                  (len(target_types_db), np.count_nonzero(success),
                    np.count_nonzero(~success)))
     return success
