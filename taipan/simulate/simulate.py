@@ -22,8 +22,11 @@ def test_redshift_success(target_types_db, num_visits,
         A list of target_types. These correspond to the database column names.
     num_visits:
         A corresponding list of the number of times each target has been
-        observed already. Note that these values must have been updated for the
-        current observation pass *before* test_redshift_success is invoked
+        observed already this repeat. Note that these values must have been
+        updated for the current observation pass *before* test_redshift_success
+        is invoked. We *strongly* recommend that this be done in memory for this
+        function, and then the results of this function inform what to write
+        permanently back to the database.
     prob_vpec_first:
         The probability that a peculiar velocity target will be successfully
         observed on the first pass. Float, 0.0 to 1.0 inclusive.
@@ -87,13 +90,14 @@ def test_redshift_success(target_types_db, num_visits,
     # Therefore, we can just leave prob as 1 for these targets
     # is_vpec = (target_types_db == 'is_vpec_target')
     # success for 20% vpec targets on first visit
-    prob = np.where(is_vpec & (num_visits == 1), prob_vpec_first, prob)
+    prob = np.where(np.logical_and(is_vpec, num_visits == 1),
+                    prob_vpec_first, prob)
     # success for 70% of vpec targets after two visits
-    prob = np.where(is_vpec & (num_visits == 2), (
+    prob = np.where(np.logical_and(is_vpec, num_visits == 2), (
         prob_vpec_second - prob_vpec_first
     ) / (1. - prob_vpec_first), prob)
     # success for 100% of vpec targets after two visits
-    prob = np.where(is_vpec & (num_visits == 3), 1., prob)
+    prob = np.where(np.logical_and(is_vpec, num_visits >= 3), 1., prob)
     # is_lowz = (target_types_db == 'is_lowz_target')
     # 80% success for lowz targets on each pass
     prob = np.where(is_lowz, np.minimum(0.8, prob), prob)
