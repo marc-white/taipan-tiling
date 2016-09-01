@@ -388,6 +388,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
         logging.info('%d tiles were observed' % len(tiles_observed))
+        logging.info('Observing done at %s local' %
+                     local_time_now.strftime('%Y-%m-%d %H:%M:%S'))
         fields_to_retile = rCAexec(cursor, tile_list=tiles_observed)
         logging.info('This requires %d fields be re-tiled' %
                      len(fields_to_retile))
