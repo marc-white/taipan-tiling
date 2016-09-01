@@ -87,7 +87,10 @@ def sim_prepare_db(cursor):
             pickle.dump(candidate_tiles, tfile)
 
     # Write the tiles to DB
-    iTexec(cursor, candidate_tiles)
+    iTexec(cursor, candidate_tiles, config_time=datetime.datetime(2010, 1, 1,
+                                                                  hour=0,
+                                                                  minute=0,
+                                                                  second=0))
     # Commit now in case mNScT not debugged right
     # cursor.connection.commit()
 
