@@ -96,7 +96,7 @@ def test_redshift_success(target_types_db, num_visits,
     prob = np.where(is_vpec & (num_visits == 3), 1., prob)
     # is_lowz = (target_types_db == 'is_lowz_target')
     # 80% success for lowz targets on each pass
-    prob = np.where(is_lowz, np.min(0.8, prob), prob)
+    prob = np.where(is_lowz, np.minimum(0.8, prob), prob)
     # redshift success is when this score is less than Pr(success)
     success = score < prob
     logging.debug('Out of %d observed targets, %d successes, %d rejections' %
