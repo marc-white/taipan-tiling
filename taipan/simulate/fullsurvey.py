@@ -96,7 +96,7 @@ def sim_prepare_db(cursor):
     # cursor.connection.commit()
 
     # Compute the n_sci_rem and n_sci_obs for these tiles
-    mTPexec(cursor)
+    # mTPexec(cursor)
     mNScT.execute(cursor)
 
     return
