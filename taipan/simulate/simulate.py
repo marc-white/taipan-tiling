@@ -3,7 +3,7 @@ import logging
 
 
 def test_redshift_success(target_types_db, num_visits,
-                          prob_vpec_first=0.2,
+                          prob_vpec_first=0.3,
                           prob_vpec_second=0.7,
                           prob_lowz_each=0.8):
     """
