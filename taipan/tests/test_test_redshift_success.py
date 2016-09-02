@@ -42,6 +42,9 @@ if __name__ == '__main__':
     # Trim the test arrays to what was used
     testarr = testarr[:17]
     visits = visits[:17]
+    # print testarr
+    # print visits
 
-    print testarr
-    print visits
+    # Run test_redshift_success across the system
+    result = test_redshift_success(testarr, visits)
+    print result
