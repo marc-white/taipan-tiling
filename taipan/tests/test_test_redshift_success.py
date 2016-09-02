@@ -47,13 +47,14 @@ if __name__ == '__main__':
 
     # Run test_redshift_success across the system
     results = []
-    for j in range(100):
+    for j in range(10000):
         result = test_redshift_success(testarr, visits)
         results.append(result)
     # print result
 
     results = np.asarray(results)
     results = np.sum(results, axis=0)
+    results /= (10000. / 100.)
     print results
 
     # Pretty-print results
