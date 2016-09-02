@@ -68,17 +68,17 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
     Nil. Database updated in place.
     """
 
-    # Get the field centres in from the database
-    logging.info(SIMULATE_LOG_PREFIX+'Loading targets')
-    field_tiles = rCexec(cursor)
-    candidate_targets = rScexec(cursor)
-    guide_targets = rGexec(cursor)
-    standard_targets = rSexec(cursor)
-
     try:
         with open('tiles.pobj', 'r') as tfile:
             candidate_tiles = pickle.load(tfile)
     except IOError:
+        # Get the field centres in from the database
+        logging.info(SIMULATE_LOG_PREFIX + 'Loading targets')
+        field_tiles = rCexec(cursor)
+        candidate_targets = rScexec(cursor)
+        guide_targets = rGexec(cursor)
+        standard_targets = rSexec(cursor)
+
         logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
         # TEST ONLY: Trim the tile list to 10 to test DB write-out
         # field_tiles = random.sample(field_tiles, 40)
