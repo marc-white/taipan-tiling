@@ -10,38 +10,38 @@ if __name__ == '__main__':
                                   ('is_lowz_target', np.dtype(bool))])
     for i in range(len(testarr)):
         testarr[i]['target_id'] = i
-    visits = np.zeros((30,), dtype=int)
+    visits = np.ones((30,), dtype=int)
 
     # Construct single-type targets
     # Recall the ordering is vpec, H0, lowz
     testarr[1]['is_H0_target'] = True
     testarr[2]['is_lowz_target'] = True
-    testarr[3:6]['is_vpec_target'] = True
-    for i in range(3,6):
-        visits[i] = i - 3
+    testarr[3:5]['is_vpec_target'] = True
+    for i in range(3,5):
+        visits[i] = i - 3 + 1
 
     # Construct two-type targets
-    testarr[6]['is_H0_target'] = True
-    testarr[6]['is_lowz_target'] = True
-    testarr[7:10]['is_H0_target'] = True
-    testarr[7:10]['is_vpec_target'] = True
-    for i in range(7,10):
-        visits[i] = i - 7
-    testarr[10:13]['is_lowz_target'] = True
-    testarr[10:13]['is_vpec_target'] = True
-    for i in range(10,13):
-        visits[i] = i - 10
+    testarr[5]['is_H0_target'] = True
+    testarr[5]['is_lowz_target'] = True
+    testarr[6:9]['is_H0_target'] = True
+    testarr[6:9]['is_vpec_target'] = True
+    for i in range(6,8):
+        visits[i] = i - 6 + 1
+    testarr[8:11]['is_lowz_target'] = True
+    testarr[8:11]['is_vpec_target'] = True
+    for i in range(8,11):
+        visits[i] = i - 8 + 1
 
     # Construct all-type target
-    testarr[14:17]['is_H0_target'] = True
-    testarr[14:17]['is_vpec_target'] = True
-    testarr[14:17]['is_lowz_target'] = True
-    for i in range(14,17):
-        visits[i] = i - 14
+    testarr[11:14]['is_H0_target'] = True
+    testarr[11:14]['is_vpec_target'] = True
+    testarr[11:14]['is_lowz_target'] = True
+    for i in range(11,14):
+        visits[i] = i - 14 + 1
 
     # Trim the test arrays to what was used
-    testarr = testarr[:17]
-    visits = visits[:17]
+    testarr = testarr[:14]
+    visits = visits[:14]
     # print testarr
     # print visits
 
