@@ -1311,7 +1311,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    sequential_ordering=(1, 2),
                                    rank_supplements=False,
                                    repick_after_complete=True,
-                                   recompute_difficulty=True
+                                   recompute_difficulty=True,
+                                   repeat_targets=False,
                                    ):
     """
     Generate a tiling based on the greedy algorithm, but instead of going
@@ -1391,6 +1392,12 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         difficulties after a tile is moved to the results lsit. Defaults to
         True.
 
+    repeat_targets:
+        Boolean value, denoting whether different fields can use the same
+        targets that have already been assigned (True), or if each tile
+        generated must have an independent set of science targets assigned
+        (False). Defaults to False.
+
     Returns
     -------
     tile_list :
@@ -1429,7 +1436,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         # Regenerate the target catalogue
         logging.debug('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
                       (tile.field_id, tile.ra, tile.dec))
-        candidate_targets_master = candidate_targets[:]
+        if repeat_targets:
+            candidate_targets_master = candidate_targets[:]
         for i in range(npass):
             logging.debug('Pass %d of %d' % (i+1, npass))
             # Create a tile copy

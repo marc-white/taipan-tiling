@@ -93,9 +93,12 @@ def test_redshift_success(target_types_db, num_visits,
     prob = np.where(np.logical_and(is_vpec, num_visits == 1),
                     prob_vpec_first, prob)
     # success for 70% of vpec targets after two visits
-    prob = np.where(np.logical_and(is_vpec, num_visits == 2), (
-        prob_vpec_second - prob_vpec_first
-    ) / (1. - prob_vpec_first), prob)
+    prob = np.where(np.logical_and(is_vpec, num_visits == 2),
+    #                 (
+    #     prob_vpec_second - prob_vpec_first
+    # ) / (1. - prob_vpec_first),
+                    prob_vpec_second,
+                    prob)
     # success for 100% of vpec targets after two visits
     prob = np.where(np.logical_and(is_vpec, num_visits >= 3), 1., prob)
     # is_lowz = (target_types_db == 'is_lowz_target')
