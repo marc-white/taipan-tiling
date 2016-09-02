@@ -44,7 +44,8 @@ from simulate import test_redshift_success
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
 
-def sim_prepare_db(cursor):
+def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
+                   commit=True):
     """
     This initial step prepares the database for the simulation run by getting
     the fields in from the database, performing the initial tiling of fields,
@@ -52,11 +53,19 @@ def sim_prepare_db(cursor):
 
     Parameters
     ----------
-    cursor
+    cursor:
+        psycopg2 cursor for interacting with the database.
+    prepare_time:
+        Optional; datetime.datetime instance that the database should be
+        considered to be prepared at (e.g., initial tiles will have
+        date_config set to this). Defaults to datetime.datetime.now().
+    commit:
+        Optional; Boolean value denoting whether to hard-commit changes to
+        actual database. Defaults to True.
 
     Returns
     -------
-
+    Nil. Database updated in place.
     """
 
     # Get the field centres in from the database
@@ -79,6 +88,7 @@ def sim_prepare_db(cursor):
                                               guide_targets,
                                               1,
                                               tiles=field_tiles,
+                                              repeat_targets=False,
                                               )
         logging.info('First tile pass complete!')
 
@@ -88,16 +98,16 @@ def sim_prepare_db(cursor):
             pickle.dump(candidate_tiles, tfile)
 
     # Write the tiles to DB
-    iTexec(cursor, candidate_tiles, config_time=datetime.datetime(2010, 1, 1,
-                                                                  hour=0,
-                                                                  minute=0,
-                                                                  second=0))
+    iTexec(cursor, candidate_tiles, config_time=prepare_time)
     # Commit now in case mNScT not debugged right
     # cursor.connection.commit()
 
     # Compute the n_sci_rem and n_sci_obs for these tiles
     # mTPexec(cursor)
     mNScT.execute(cursor)
+
+    if commit:
+        cursor.connection.commit()
 
     return
 
@@ -484,9 +494,9 @@ def execute(cursor, date_start, date_end, output_loc='.'):
 
 if __name__ == '__main__':
     # Set the logging to write to terminal
-    logging.info('Executing fullsurvey.py as file')
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
+    logging.info('Executing fullsurvey.py as file')
 
     # Get a cursor
     # TODO: Correct package imports & references

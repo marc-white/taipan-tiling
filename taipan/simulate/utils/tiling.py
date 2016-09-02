@@ -45,7 +45,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     ))
 
     # Get the required targets from the database
-    candidate_targets = rScexec(cursor, unobserved=True)
+    candidate_targets = rScexec(cursor, unobserved=True, unassigned=True)
     guide_targets = rGexec(cursor)
     standard_targets = rSexec(cursor)
 
