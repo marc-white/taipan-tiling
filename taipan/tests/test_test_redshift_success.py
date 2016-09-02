@@ -21,7 +21,7 @@ if __name__ == '__main__':
         visits[i] = i - 3
 
     # Construct two-type targets
-    testarr[6]['is_HO_target'] = True
+    testarr[6]['is_H0_target'] = True
     testarr[6]['is_lowz_target'] = True
     testarr[7:10]['is_H0_target'] = True
     testarr[7:10]['is_vpec_target'] = True
