@@ -1445,7 +1445,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
             # Create a tile copy
             candidate_tile = copy.copy(tile)
             # Unpick the tile based on the candidate list
-            candidate_targets_master = candidate_tile.unpick_tile(
+            candidate_targets_master, _ = candidate_tile.unpick_tile(
                 candidate_targets_master,
                 standard_targets,
                 guide_targets,
