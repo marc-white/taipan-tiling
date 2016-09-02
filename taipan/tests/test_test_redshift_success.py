@@ -37,7 +37,7 @@ if __name__ == '__main__':
     testarr[11:14]['is_vpec_target'] = True
     testarr[11:14]['is_lowz_target'] = True
     for i in range(11,14):
-        visits[i] = i - 14 + 1
+        visits[i] = i - 11 + 1
 
     # Trim the test arrays to what was used
     testarr = testarr[:14]
