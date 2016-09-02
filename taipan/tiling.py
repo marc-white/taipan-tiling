@@ -1432,6 +1432,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
     else:
         recompute_difficulty = True
 
+    candidate_targets_master = candidate_targets[:]
+
     for tile in tiles:
         # Regenerate the target catalogue
         logging.debug('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
