@@ -16,35 +16,53 @@ if __name__ == '__main__':
     # Recall the ordering is vpec, H0, lowz
     testarr[1]['is_H0_target'] = True
     testarr[2]['is_lowz_target'] = True
-    testarr[3:5]['is_vpec_target'] = True
-    for i in range(3,5):
+    testarr[3:6]['is_vpec_target'] = True
+    for i in range(3,6):
         visits[i] = i - 3 + 1
 
     # Construct two-type targets
-    testarr[5]['is_H0_target'] = True
-    testarr[5]['is_lowz_target'] = True
-    testarr[6:9]['is_H0_target'] = True
-    testarr[6:9]['is_vpec_target'] = True
-    for i in range(6,8):
-        visits[i] = i - 6 + 1
-    testarr[8:11]['is_lowz_target'] = True
-    testarr[8:11]['is_vpec_target'] = True
-    for i in range(8,11):
-        visits[i] = i - 8 + 1
+    testarr[6]['is_H0_target'] = True
+    testarr[6]['is_lowz_target'] = True
+    testarr[7:10]['is_H0_target'] = True
+    testarr[7:10]['is_vpec_target'] = True
+    for i in range(7,10):
+        visits[i] = i - 7 + 1
+    testarr[10:13]['is_lowz_target'] = True
+    testarr[10:13]['is_vpec_target'] = True
+    for i in range(10,13):
+        visits[i] = i - 10 + 1
 
     # Construct all-type target
-    testarr[11:14]['is_H0_target'] = True
-    testarr[11:14]['is_vpec_target'] = True
-    testarr[11:14]['is_lowz_target'] = True
-    for i in range(11,14):
-        visits[i] = i - 11 + 1
+    testarr[13:16]['is_H0_target'] = True
+    testarr[13:16]['is_vpec_target'] = True
+    testarr[13:16]['is_lowz_target'] = True
+    for i in range(13,16):
+        visits[i] = i - 13 + 1
 
     # Trim the test arrays to what was used
-    testarr = testarr[:14]
-    visits = visits[:14]
+    testarr = testarr[:16]
+    visits = visits[:16]
     # print testarr
     # print visits
 
     # Run test_redshift_success across the system
     result = test_redshift_success(testarr, visits)
-    print result
+    # print result
+
+    # Pretty-print results
+    print 'No-type target (100%):        %r' % result[0]
+    print 'H0 only (100%):               %r' % result[1]
+    print 'lowz only (80%):              %r' % result[2]
+    print 'vpec only, 1 pass (30%):      %r' % result[3]
+    print 'vpec only, 2 pass (70%):      %r' % result[4]
+    print 'vpec only, 3 pass (100%):     %r' % result[5]
+    print 'H0 and lowz (80%):            %r' % result[6]
+    print 'H0 and vpec, 1 pass (30%):    %r' % result[7]
+    print 'H0 and vpec, 2 pass (70%):    %r' % result[8]
+    print 'H0 and vpec, 3 pass (100%):   %r' % result[9]
+    print 'lowz and vpec, 1 pass (30%):  %r' % result[10]
+    print 'lowz and vpec, 2 pass (70%):  %r' % result[11]
+    print 'lowz and vpec, 3 pass (100%): %r' % result[12]
+    print 'All types, 1 pass (30%):      %r' % result[13]
+    print 'All types, 1 pass (70%):      %r' % result[14]
+    print 'All types, 1 pass (100%):     %r' % result[15]
