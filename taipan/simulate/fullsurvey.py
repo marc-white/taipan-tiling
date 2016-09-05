@@ -503,6 +503,6 @@ if __name__ == '__main__':
     conn = get_connection()
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
-    logging.debug('Doing scripts execute function')
+    logging.debug('Doing execute function')
     execute(cursor, datetime.date(2016,4,1), datetime.date(2017,4,1),
-            output_loc='.', prep_db=False)
+            output_loc='.', prep_db=True)
