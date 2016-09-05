@@ -504,5 +504,5 @@ if __name__ == '__main__':
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
     logging.debug('Doing execute function')
-    execute(cursor, datetime.date(2016,4,1), datetime.date(2017,4,1),
+    execute(cursor, datetime.date(2016,4,1), datetime.date(2016,6,1),
             output_loc='.', prep_db=True)
