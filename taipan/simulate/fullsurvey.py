@@ -114,7 +114,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 
 def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
-                 save_new_almanacs=True):
+                 save_new_almanacs=True, commit=True):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonight
@@ -149,6 +149,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     save_new_almanacs:
         Boolean value, denoting whether to save any new almanacs that are
         created by sim_do_night. Defaults to True.
+    commit:
+        Boolean value, denoting whether to hard-commit the database changes made
+        to the database proper. Defaults to True.
 
     Returns
     -------
@@ -412,10 +415,13 @@ def sim_do_night(cursor, date, date_start, date_end,
     logging.info('Completed simulated observing for %s' %
                  date.strftime('%y-%m-%d'))
 
+    if commit:
+        cursor.connection.commit()
+
     return local_time_now
 
 
-def execute(cursor, date_start, date_end, output_loc='.'):
+def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
     """
     Execute the simulation
     Parameters
@@ -426,49 +432,31 @@ def execute(cursor, date_start, date_end, output_loc='.'):
         String providing the path for placing the output plotting images.
         Defaults to '.' (ie. the present working directory). Directory must
         already exist.
+    date_start:
+        The start date of the simulated observing period. Should be a
+        datetime.date instance.
+    date_end:
+        The final day of the simulated observing period. Should be a
+        datetime.date instance.
+    output_loc:
+        Optional; location for storing any command-line returns from the
+        simulation. Defaults to '.' (i.e. present working directory).
+    prep_db:
+        Boolean value, denoting whether or not to invoke the sim_prepare_db
+        function before beginning the simulation. Defaults to True.
 
     Returns
     -------
     Nil. Tiling outputs are written to the database (to simulate the action of
-    the virtual observer), and plots are generated and placed in the output
-    folder.
+    the virtual observer). Anything generated and written out to file will end
+    up in output_loc (although currently nothing is).
     """
 
-    # This is just a rough scaffold to show the steps the code will need to
-    # take
-
-    # construct_league_table()
-    # read_league_table()
-    #
-    # generate_initial_tiles()
-    # write_tiles_to_db() # This creates the league table
-    #
-    # # DO EITHER:
-    # date_curr = date_start
-    # while date_curr < date_end:
-    #     observe_night() # This will select & 'observe' tiles,
-    #     # return the tiles observed
-    #     manipulate_targets() # Update flags on successfully observe targets
-    #     retile_fields () # Retile the affected fields
-    #     curr_date += 1 # day
-    #
-    # # OR DO THIS INSTEAD:
-    # observe_timeframe(date_start, date_end)
-    # # This function will handle all of the above, but re-tile after each
-    # # observation (and do all necessary DB interaction). This will be faster,
-    # # as all the target handling can be done internally without
-    # # reading/writing DB, *but* the function that do that then won't be
-    # # prototyped
-    #
-    # read_in_observed_tiles()
-    # generate_outputs()
-
-    # TODO: Add check to skip this step if tables already exist
-    # Currently dummied out with an is False
-    if True:
-        sim_prepare_db(cursor)
-
-    return
+    if prep_db:
+        sim_prepare_db(cursor,
+                       prepare_time=datetime.datetime.combine(
+                           date_start, datetime.time(12, 0)),
+                       commit=True)
 
     fields = rCexec(cursor)
     # Construct the almanacs required
@@ -489,13 +477,24 @@ def execute(cursor, date_start, date_end, output_loc='.'):
     for k in [k for (k, v) in almanacs_existing.iteritems() if v]:
         almanacs[k].save()
 
-    return
+    # Run the actual observing
+    logging.info('Commencing observing...')
+    curr_date = date_start
+    while curr_date <= date_end:
+        sim_do_night(cursor, curr_date, date_start, date_end,
+                     almanac_dict=almanacs, dark_almanac=dark_almanac,
+                     commit=True)
+        currdate += datetime.timedelta(1.)
+
+    logging.info('----------')
+    logging.info('OBSERVING COMPLETE')
+    logging.info('----------')
 
 
 if __name__ == '__main__':
     # Set the logging to write to terminal
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logging.info('Executing fullsurvey.py as file')
 
     # Get a cursor
@@ -505,4 +504,5 @@ if __name__ == '__main__':
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
     logging.debug('Doing scripts execute function')
-    execute(cursor, None, None)
+    execute(cursor, datetime.date(2016,4,1), datetime.date(2017,4,1),
+            output_loc='.', prep_db=False)
