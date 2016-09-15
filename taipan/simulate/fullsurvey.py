@@ -167,9 +167,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     if date < date_start or date > date_end:
         raise ValueError('date must be in the range [date_start, date_end]')
 
-    logging.info('Starting observing for night %s' %
+    logging.info('Checking almanacs for night %s' %
                  date.strftime('%Y-%m-%d'))
-
+    start = datetime.datetime.now()
     # Seed an alamnac dictionary if not passed
     if almanac_dict is None:
         almanac_dict = {}
@@ -236,13 +236,23 @@ def sim_do_night(cursor, date, date_start, date_end,
         if save_new_almanacs:
             dark_almanac.save()
 
-    logging.debug('Finding first block of dark time for this evening')
+    end = datetime.datetime.now()
+    delta = end - start
+    logging.info('Completed almanac prep in %d:%2.1f' %
+                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+
+    logging.info('Finding first block of dark time for this evening')
+    start = datetime.datetime.now()
     # Compute the times for the first block of dark time tonight
     midday = datetime.datetime.combine(date, datetime.time(12, 0, 0))
     midday_end = datetime.datetime.combine(date_end, datetime.time(12, 0, 0))
     dark_start, dark_end = dark_almanac.next_dark_period(midday,
                                                          limiting_dt=midday +
                                                          datetime.timedelta(1))
+    end = datetime.datetime.now()
+    delta = end - start
+    logging.info('Found first block of dark time in %d:%2.1f' %
+                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     tiles_observed = []
 
@@ -296,6 +306,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         # 'Observe' while the remaining time in this dark period is
         # longer than one pointing (slew + obs)
         logging.info('Commencing observing...')
+        start = datetime.datetime.now()
         while ephem_time_now < (dark_end - ts.POINTING_TIME):
             logging.info('At time %5.3f, going to %5.3f' % (
                 ephem_time_now, dark_end,
@@ -395,8 +406,14 @@ def sim_do_night(cursor, date, date_start, date_end,
                 seconds=dark_almanac.resolution * 60.),
             limiting_dt=midday + datetime.timedelta(1))
 
+    end = datetime.datetime.now()
+    delta = end - start
+    logging.info('Completed simulated observing in %d:%2.1f' %
+                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+
     # We are now done observing for the night. It is time for some
     # housekeeping
+    start = datetime.datetime.now()
     if len(tiles_observed) > 0:
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
@@ -411,6 +428,11 @@ def sim_do_night(cursor, date, date_start, date_end,
         # a re-computation of the target numbers in each field
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                       tiling_time=local_time_now)
+
+    end = datetime.datetime.now()
+    delta = end - start
+    logging.info('Completed simulated end-of-night tasks in %d:%2.1f' %
+                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     logging.info('Completed simulated observing for %s' %
                  date.strftime('%y-%m-%d'))
@@ -453,13 +475,19 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
     """
 
     if prep_db:
+        start = datetime.datetime.now()
         sim_prepare_db(cursor,
                        prepare_time=datetime.datetime.combine(
                            date_start, datetime.time(12, 0)),
                        commit=True)
+        end = datetime.datetime.now()
+        delta = end - start
+        logging.info('Completed DB prep in %d:%2.1f' %
+                     (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     fields = rCexec(cursor)
     # Construct the almanacs required
+    start = datetime.datetime.now()
     logging.info('Constructing dark almanac...')
     dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end,
                                   resolution=15.)
@@ -476,6 +504,10 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
     logging.info('Saving almanacs to disc...')
     for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
         almanacs[k].save()
+    end = datetime.datetime.now()
+    delta = end - start
+    logging.info('Completed almanac prep in %d:%2.1f' %
+                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     # Run the actual observing
     logging.info('Commencing observing...')
