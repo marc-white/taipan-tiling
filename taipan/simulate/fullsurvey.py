@@ -484,7 +484,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
         sim_do_night(cursor, curr_date, date_start, date_end,
                      almanac_dict=almanacs, dark_almanac=dark_almanac,
                      commit=True)
-        currdate += datetime.timedelta(1.)
+        curr_date += datetime.timedelta(1.)
 
     logging.info('----------')
     logging.info('OBSERVING COMPLETE')
