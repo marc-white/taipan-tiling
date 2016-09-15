@@ -494,7 +494,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
 if __name__ == '__main__':
     # Set the logging to write to terminal
     logger = logging.getLogger()
-    logger.setLevel(logging.debug)
+    logger.setLevel(logging.DEBUG)
     logging.info('Executing fullsurvey.py as file')
 
     # Get a cursor
