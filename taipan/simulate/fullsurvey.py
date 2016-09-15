@@ -474,7 +474,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
     almanacs_existing = {k: v.generate_file_name() in files_on_disk
                          for (k, v) in almanacs.iteritems()}
     logging.info('Saving almanacs to disc...')
-    for k in [k for (k, v) in almanacs_existing.iteritems() if v]:
+    for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
         almanacs[k].save()
 
     # Run the actual observing
