@@ -164,6 +164,7 @@ class Almanac(object):
     # Define class attributes
     _ra = None
     _dec = None
+    _field_id = None
     _start_date = None
     _end_date = None
     _airmass = None
@@ -205,6 +206,18 @@ class Almanac(object):
         if d < -90. or d > 90.:
             raise ValueError('Almanac must have -90 <= RA <= 90')
         self._dec = d
+
+    @property
+    def field_id(self):
+        """
+        Field_id this Almanac corresponds to
+        """
+        return self._field_id
+
+    @field_id.setter
+    def field_id(self, f):
+        f = int(f)
+        self._field_id = f
 
     @property
     def start_date(self):
@@ -360,8 +373,31 @@ class Almanac(object):
 
         return
 
+    # Save almanac to database
+    # This is the correct way that a almanac should now be interacted with
+    def save_db(self, cursor):
+        """
+        Write the information contained within the almanac into the scheduling/
+        observing database.
+
+        Parameters
+        ----------
+        cursor:
+            psycopg2 cursor for interacting with the database.
+
+        Returns
+        -------
+        Nil. The elements of the Almanac are pushed into the observability
+        table of the database.
+        """
+        pass
+        if not self.field_id:
+            raise RuntimeError('Almanacs must have a valid field_id set before '
+                               'they can be written to the database.')
+
     # Save & read from disk
     # Uses pickle to seralize objects
+    # These functions are maintained for legacy purposes only
     def save(self, filename=None, filepath='./'):
         if filepath[-1] != '/':
             raise ValueError('filepath must end with /')
