@@ -238,7 +238,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     end = datetime.datetime.now()
     delta = end - start
-    logging.info('Completed almanac prep in %d:%2.1f' %
+    logging.info('Completed (nightly) almanac prep in %d:%2.1f' %
                  (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     logging.info('Finding first block of dark time for this evening')
