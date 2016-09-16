@@ -98,7 +98,8 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
             pickle.dump(candidate_tiles, tfile)
 
     # Write the tiles to DB
-    iTexec(cursor, candidate_tiles, config_time=prepare_time)
+    iTexec(cursor, candidate_tiles, config_time=prepare_time,
+           disqualify_below_min=False)
     # Commit now in case mNScT not debugged right
     # cursor.connection.commit()
 
@@ -432,7 +433,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Note that the calls made by the tiling function automatically include
         # a re-computation of the target numbers in each field
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
-                      tiling_time=local_time_now)
+                      tiling_time=local_time_now,
+                      disqualify_below_min=False)
 
     end = datetime.datetime.now()
     delta = end - start

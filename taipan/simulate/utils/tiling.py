@@ -16,7 +16,8 @@ from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
 
 def retile_fields(cursor, field_list, tiles_per_field=1,
-                  tiling_time=datetime.datetime.now()):
+                  tiling_time=datetime.datetime.now(),
+                  disqualify_below_min=True):
     """
     Re-tile the fields passed.
 
@@ -32,6 +33,11 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     tiling_time:
         Optional; time to record as the tiling (i.e. configuration) time for
         the new tiles. Defaults to datetime.datetime.now().
+    disqualify_below_min:
+        Optional Boolean, passed on through to
+        TaipanTile.calculate_tile_score(). Sets tile scores to 0 if tiles do
+        not meet minimum numbers of guides and/or standards assigned. Defaults
+        to True.
 
     Returns
     -------
@@ -62,6 +68,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     dTexec(cursor, field_list=field_list, obs_status=False)
 
     # Write the new tiles back to the database
-    iTexec(cursor, tile_list, config_time=tiling_time)
+    iTexec(cursor, tile_list, config_time=tiling_time,
+           disqualify_below_min=disqualify_below_min)
 
     return
