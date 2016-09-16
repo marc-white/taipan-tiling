@@ -284,7 +284,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                       len(fields_available))
 
         # Rank the available fields
-        logging.debug('Computing field scores')
+        logging.info('Computing field scores')
+        start = datetime.datetime.now()
         tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['cw_sum']) for
                         row in scores_array if
                         row['field_id'] in fields_available}
@@ -302,6 +303,10 @@ def sim_do_night(cursor, date, date_start, date_end,
                         t, v in tiles_scores.iteritems()}
         logging.debug('Tiles scores: ')
         logging.debug(tiles_scores)
+        end = datetime.datetime.now()
+        delta = end - start
+        logging.info('Computed tile scores/hours remaining in %d:%2.1f' %
+                     (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
         # 'Observe' while the remaining time in this dark period is
         # longer than one pointing (slew + obs)
