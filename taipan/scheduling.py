@@ -373,28 +373,6 @@ class Almanac(object):
 
         return
 
-    # Save almanac to database
-    # This is the correct way that a almanac should now be interacted with
-    def save_db(self, cursor):
-        """
-        Write the information contained within the almanac into the scheduling/
-        observing database.
-
-        Parameters
-        ----------
-        cursor:
-            psycopg2 cursor for interacting with the database.
-
-        Returns
-        -------
-        Nil. The elements of the Almanac are pushed into the observability
-        table of the database.
-        """
-        pass
-        if not self.field_id:
-            raise RuntimeError('Almanacs must have a valid field_id set before '
-                               'they can be written to the database.')
-
     # Save & read from disk
     # Uses pickle to seralize objects
     # These functions are maintained for legacy purposes only
