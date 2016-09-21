@@ -962,11 +962,14 @@ class DarkAlmanac(Almanac):
 
         logging.debug('Populating DarkAlmanac data list')
 
-        self.data = np.array(np.asarray([dates, is_dark_time, sun]), dtype=[
-            ('date', float),
-            ('dark_time', bool),
-            ('sun_alt', float)
-        ])
+        self.data = np.array([tuple(x) for x in
+                              np.vstack((dates, is_dark_time, sun)).T.tolist()],
+                             dtype=[
+                                 ('date', float),
+                                 ('dark_time', bool),
+                                 ('sun_alt', float)
+                             ])
+        self.data.sort(axis=-1, order='date')
 
         # Blank or initialise the relevant dicts
         # self.dark_time = {}
