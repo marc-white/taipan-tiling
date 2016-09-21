@@ -849,7 +849,7 @@ class DarkAlmanac(Almanac):
 
     @data.setter
     def data(self, a):
-        if not isinstance(a, np.array):
+        if not isinstance(a, np.ndarray):
             raise ValueError("data must be a numpy array")
         try:
             _ = a['date']
