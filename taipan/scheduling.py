@@ -571,7 +571,9 @@ class Almanac(object):
         try:
             obs_start = self.data[np.logical_and(
                 self.data['airmass'] <= self.minimum_airmass,
-                ephem_dt <= self.data['date'] < ephem_limiting_dt)]['date'][0]
+                np.logical_and(
+                    ephem_dt <= self.data['date'],
+                    self.data['date'] < ephem_limiting_dt))]['date'][0]
         except KeyError:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
@@ -579,8 +581,10 @@ class Almanac(object):
         try:
             obs_end = self.data[np.logical_and(
                 self.data['airmass'] > self.minimum_airmass,
-                obs_start < self.data['date'] < ephem_limiting_dt
-            )]['date'][0]
+                np.logical_and(
+                    obs_start < self.data['date'],
+                    self.data['date'] < ephem_limiting_dt
+                ))]['date'][0]
             # obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
             #            obs_start < t < ephem_limiting_dt and
             #            b > self.minimum_airmass).next()
@@ -748,8 +752,11 @@ class Almanac(object):
                                   (next_per_start, next_per_end, ))
                     half_res_in_days = self.resolution * 60. / SECONDS_PER_DAY
                     better_per = self.data[np.logical_and(
-                        (next_per_start - half_res_in_days) <
-                        self.data['date'] < (next_per_end - half_res_in_days),
+                        np.logical_and(
+                            (next_per_start - half_res_in_days) <
+                            self.data['date'],
+                            self.data['date'] <
+                            (next_per_end - half_res_in_days)),
                         self.data['airmass'] <= airmass_now
                     )]
                     # better_per = [k for
@@ -761,10 +768,10 @@ class Almanac(object):
                     #               v <= airmass_now]
                     logging.debug('Resl. elements in better_per: %d' %
                                   len(better_per))
-                    whole_per = self.data[
-                        (next_per_start - half_res_in_days) <
+                    whole_per = self.data[np.logical_and(
+                        (next_per_start - half_res_in_days) < self.data['date'],
                         self.data['date'] < (next_per_end - half_res_in_days)
-                    ]
+                    )]
                     # whole_per = [k for
                     #              k, v in sorted(self.airmass.iteritems()) if
                     #              (next_per_start -
@@ -1069,7 +1076,9 @@ class DarkAlmanac(Almanac):
         # Search for the next time slot when the Sun is below SOLAR_HORIZON
         try:
             night_start = self.data[np.logical_and(
-                ephem_dt <= self.data['date'] < ephem_limiting_dt,
+                np.logical_and(
+                    ephem_dt <= self.data['date'],
+                    self.data['date'] < ephem_limiting_dt),
                 self.data['sun_alt'] < SOLAR_HORIZON
             )]['date'[0]]
             # night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
@@ -1080,7 +1089,9 @@ class DarkAlmanac(Almanac):
             return None, None
         try:
             night_end = self.data[np.logical_and(
-                night_start < self.data['date'] < ephem_limiting_dt,
+                np.logical_and(
+                    night_start < self.data['date'],
+                    self.data['date'] < ephem_limiting_dt),
                 self.data['sun_alt'] >= SOLAR_HORIZON
             )]['date'][0]
             # night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
@@ -1126,7 +1137,10 @@ class DarkAlmanac(Almanac):
 
         try:
             dark_start = self.data[np.logical_and(
-                ephem_dt <= self.data['date'] < ephem_limiting_dt,
+                np.logical_and(
+                    ephem_dt <= self.data['date'],
+                    self.data['date'] < ephem_limiting_dt
+                ),
                 self.data['dark_time']
             )]
             # dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
@@ -1136,7 +1150,10 @@ class DarkAlmanac(Almanac):
             return None, None
         try:
             dark_end = self.data[np.logical_and(
-                dark_start < self.data['date'] < ephem_limiting_dt,
+                np.logical_and(
+                    dark_start < self.data['date'],
+                    self.data['date'] < ephem_limiting_dt
+                ),
                 ~self.data['dark_time']
             )]
             # dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
