@@ -364,10 +364,10 @@ class Almanac(object):
             self.end_date = end_date
         else:
             self.compute_end_date(observing_period)
-        self.data = np.array([], dtype=[
-            ('date', float),
-            ('airmass', float),
-        ])
+        # self.data = np.array([], dtype=[
+        #     ('date', float),
+        #     ('airmass', float),
+        # ])
         self.observer = observer
         self.minimum_airmass = minimum_airmass
         self.resolution = resolution
