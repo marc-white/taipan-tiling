@@ -766,7 +766,7 @@ class Almanac(object):
                     #                    half_res_in_days) and
                     #               v <= airmass_now]
                     logging.debug('Resl. elements in better_per: %d' %
-                                  len(better_per))
+                                  better_per.shape[-1])
                     whole_per = self.data[np.logical_and(
                         (next_per_start - half_res_in_days) < self.data['date'],
                         self.data['date'] < (next_per_end - half_res_in_days)
@@ -778,15 +778,15 @@ class Almanac(object):
                     #              k < (next_per_end -
                     #                   half_res_in_days)]
                     logging.debug('Resl. elements in whole_per: %d' %
-                                  len(whole_per))
-                    if len(whole_per) > 0:
+                                  whole_per.shape[-1])
+                    if whole_per.shape[-1] > 0:
                         logging.debug('Period bounds found: %5.3f to %5.3f '
                                       '(%d units of resolution %2.1f)' %
                                       (whole_per[0], whole_per[-1],
-                                       len(whole_per),
+                                       whole_per.shape[-1],
                                        self.resolution))
-                    hours_obs += len(better_per) * (self.resolution / 60.)
-                    # factor = float(len(better_per)) / float(len(whole_per))
+                    hours_obs += better_per.shape[-1] * (self.resolution / 60.)
+                    # factor = float(better_per.shape[-1]) / float(whole_per.shape[-1])
                 else:
                     # factor = 1.
                     hours_obs += (next_per_end - next_per_start) * 24.  # hours
