@@ -463,7 +463,7 @@ class Almanac(object):
                            np.arange(0, observing_period,
                                      self.resolution / 1440.))
         else:
-            dates_j2000 = sorted(self.airmass.keys())
+            dates_j2000 = sorted(self.data['date'])
 
         # Perform the computation
         time_total = 0.
@@ -512,7 +512,7 @@ class Almanac(object):
         airmass_values = np.clip(np.where(target > np.radians(10.),
                                           1./np.sin(target), 99.), 0., 9.)
 
-        self.data = np.array(np.asarray([dates, airmass_values]), dtype=[
+        self.data = np.array([dates.tolist(), airmass_values.tolist()], dtype=[
             ('date', float),
             ('airmass', float),
         ])
