@@ -516,7 +516,7 @@ class Almanac(object):
             ('date', float),
             ('airmass', float),
         ])
-        self.data.sort(order='date')
+        # self.data.sort(axis=-1, order='date')
 
         return
 
