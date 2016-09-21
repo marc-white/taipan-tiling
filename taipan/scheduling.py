@@ -656,9 +656,8 @@ class Almanac(object):
                              'exclude_dark_time to True - this results in no '
                              'observing time!')
         if datetime_to is None:
-            datetime_to = pytz.utc.localize(ephem_to_dt(sorted(
-                self.airmass.iterkeys())[-1])).astimezone(tz).replace(
-                tzinfo=None)
+            datetime_to = pytz.utc.localize(ephem_to_dt(self.data['date'][-1]))\
+                .astimezone(tz).replace(tzinfo=None)
             logging.debug('Computed datetime_to: %s' %
                           datetime_to.strftime('%Y-%m-%d %H:%M'))
         if datetime_to < datetime_from:
