@@ -574,7 +574,7 @@ class Almanac(object):
                 np.logical_and(
                     ephem_dt <= self.data['date'],
                     self.data['date'] < ephem_limiting_dt))]['date'][0]
-        except KeyError:
+        except IndexError:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
             return obs_start, obs_end
@@ -588,7 +588,7 @@ class Almanac(object):
             # obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
             #            obs_start < t < ephem_limiting_dt and
             #            b > self.minimum_airmass).next()
-        except KeyError:
+        except IndexError:
             # No end time found, so use the last time in the almanac,
             # plus a resolution element
             obs_end = self.data['date'][-1] + (self.resolution /
@@ -1083,7 +1083,7 @@ class DarkAlmanac(Almanac):
             # night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
             #                ephem_dt <= t < ephem_limiting_dt and
             #                b < SOLAR_HORIZON).next()
-        except KeyError:
+        except IndexError:
             # No nights left in this DarkAlmanac, so return None for both
             return None, None
         try:
@@ -1096,7 +1096,7 @@ class DarkAlmanac(Almanac):
             # night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
             #              night_start < t < ephem_limiting_dt and
             #              b >= SOLAR_HORIZON).next()
-        except KeyError:
+        except IndexError:
             # No end time found, so use the limiting time (which is the end of
             # the almanac if not passed)
             night_end = ephem_limiting_dt
@@ -1144,7 +1144,7 @@ class DarkAlmanac(Almanac):
             )][0]
             # dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
             #               ephem_dt <= t < ephem_limiting_dt and b).next()
-        except KeyError:
+        except IndexError:
             # No dark time left in this almanac; return None to both parameters
             return None, None
         try:
@@ -1158,7 +1158,7 @@ class DarkAlmanac(Almanac):
             # dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
             #             dark_start < t < ephem_limiting_dt and
             #             not b).next()
-        except KeyError:
+        except IndexError:
             # No end time found, so use the limiting time (which is the end of
             # the almanac if not passed)
             dark_end = ephem_limiting_dt
