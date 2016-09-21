@@ -167,7 +167,7 @@ class Almanac(object):
     _field_id = None
     _start_date = None
     _end_date = None
-    _airmass = None
+    _data = None
     _resolution = None
     _minimum_airmass = None
     _observer = None
@@ -256,19 +256,25 @@ class Almanac(object):
         self._end_date = d
 
     @property
-    def airmass(self):
+    def data(self):
         """
         An OrderedDict of the type:
         date_j2000: airmass
         An OrderedDict is used to keep the entries in date (i.e. key) order
         """
-        return self._airmass
+        return self._data
 
-    @airmass.setter
-    def airmass(self, a):
-        if not isinstance(a, dict):
-            raise ValueError("airmass must be a dictionary")
-        self._airmass = a
+    @data.setter
+    def data(self, a):
+        if not isinstance(a, np.array):
+            raise ValueError("data must be a numpy array")
+        try:
+            _ = a['date']
+            _ = a['airmass']
+        except:
+            raise ValueError("data must be a numpy structured array "
+                             "with columns 'date' and 'airmass'")
+        self._data = a
 
     @property
     def minimum_airmass(self):
@@ -358,7 +364,10 @@ class Almanac(object):
             self.end_date = end_date
         else:
             self.compute_end_date(observing_period)
-        self.airmass = {}
+        self.airmass = np.array(dtype=[
+            ('date', float),
+            ('airmass', float),
+        ])
         self.observer = observer
         self.minimum_airmass = minimum_airmass
         self.resolution = resolution
@@ -413,7 +422,7 @@ class Almanac(object):
         self.end_date = file_almanac.end_date
         self.observer = file_almanac.observer
         self.resolution = file_almanac.resolution
-        self.airmass = file_almanac.airmass
+        self.data = file_almanac.data
         self.minimum_airmass = file_almanac.minimum_airmass
 
         return True
@@ -435,7 +444,7 @@ class Almanac(object):
                       (target._ra, target._dec, target._epoch))
 
         # Calculate the time grid
-        if self.airmass is None or len(self.airmass) == 0:
+        if self.data is None or len(self.data) == 0:
             # Set the observer start to the midday before the observations
             # should start
             start_dt = self.observer.date = get_utc_datetime(
@@ -503,11 +512,10 @@ class Almanac(object):
         airmass_values = np.clip(np.where(target > np.radians(10.),
                                           1./np.sin(target), 99.), 0., 9.)
 
-        if self.airmass is None:
-            self.airmass = {}
-
-        for i in range(len(dates)):
-            self.airmass[dates[i]] = airmass_values[i]
+        self.data = np.array(np.asarray([dates, airmass_values]), dtype=[
+            ('date', float),
+            ('airmass', float),
+        ]).sort(order='date')
 
         return
 
@@ -559,23 +567,27 @@ class Almanac(object):
 
         # Determine obs_start and obs_end
         try:
-            obs_start = (t for t, b in sorted(self.airmass.iteritems()) if
-                         ephem_dt <= t < ephem_limiting_dt and
-                         b <= self.minimum_airmass).next()
-        except StopIteration:
+            obs_start = self.data[np.logical_and(
+                self.data['airmass'] <= self.minimum_airmass,
+                ephem_dt <= self.data['date'] < ephem_limiting_dt)]['date'][0]
+        except KeyError:
             # No nights left in this DarkAlmanac, so return None for both
             obs_start, obs_end = None, None
             return obs_start, obs_end
         try:
-            obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
-                       obs_start < t < ephem_limiting_dt and
-                       b > self.minimum_airmass).next()
-        except StopIteration:
+            obs_end = self.data[np.logical_and(
+                self.data['airmass'] > self.minimum_airmass,
+                obs_start < self.data['date'] < ephem_limiting_dt
+            )]['date'][0]
+            # obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
+            #            obs_start < t < ephem_limiting_dt and
+            #            b > self.minimum_airmass).next()
+        except KeyError:
             # No end time found, so use the last time in the almanac,
             # plus a resolution element
-            obs_end = sorted(self.airmass.iterkeys())[-1] + (self.resolution /
-                                                             (SECONDS_PER_DAY /
-                                                              60.))
+            obs_end = self.data['date'][-1] + (self.resolution /
+                                               (SECONDS_PER_DAY /
+                                                60.))
 
         if obs_start is None and obs_end is not None:
             raise RuntimeError("CODE ERROR: next_observable_period should not "
@@ -684,10 +696,14 @@ class Almanac(object):
 
         hours_obs = 0.
         dt_up_to = copy.copy(datetime_from)
-        airmass_now = (v for k, v in sorted(self.airmass.iteritems()) if
-                       k >= ephem.Date(tz.localize(
-                           datetime_from).astimezone(pytz.utc))
-                       ).next()
+        airmass_now = self.data[
+            self.data['date'] >= ephem.Date(tz.localize(datetime_from).
+                                            astimezone(pytz.utc))
+        ]['airmass'][0]
+        # airmass_now = (v for k, v in sorted(self.airmass.iteritems()) if
+        #                k >= ephem.Date(tz.localize(
+        #                    datetime_from).astimezone(pytz.utc))
+        #                ).next()
         while dt_up_to < datetime_to:
             logging.debug('Up to %s; going til %s' %
                           (dt_up_to.strftime(EPHEM_DT_STRFMT),
@@ -729,21 +745,30 @@ class Almanac(object):
                                   'Period considered: %5.3f to %5.3f' %
                                   (next_per_start, next_per_end, ))
                     half_res_in_days = self.resolution * 60. / SECONDS_PER_DAY
-                    better_per = [k for
-                                  k, v in sorted(self.airmass.iteritems()) if
-                                  (next_per_start -
-                                   half_res_in_days) <
-                                  k < (next_per_end -
-                                       half_res_in_days) and
-                                  v <= airmass_now]
+                    better_per = self.data[np.logical_and(
+                        (next_per_start - half_res_in_days) <
+                        self.data['date'] < (next_per_end - half_res_in_days),
+                        self.data['airmass'] <= airmass_now
+                    )]
+                    # better_per = [k for
+                    #               k, v in sorted(self.airmass.iteritems()) if
+                    #               (next_per_start -
+                    #                half_res_in_days) <
+                    #               k < (next_per_end -
+                    #                    half_res_in_days) and
+                    #               v <= airmass_now]
                     logging.debug('Resl. elements in better_per: %d' %
                                   len(better_per))
-                    whole_per = [k for
-                                 k, v in sorted(self.airmass.iteritems()) if
-                                 (next_per_start -
-                                  half_res_in_days) <
-                                 k < (next_per_end -
-                                      half_res_in_days)]
+                    whole_per = self.data[
+                        (next_per_start - half_res_in_days) <
+                        self.data['date'] < (next_per_end - half_res_in_days)
+                    ]
+                    # whole_per = [k for
+                    #              k, v in sorted(self.airmass.iteritems()) if
+                    #              (next_per_start -
+                    #               half_res_in_days) <
+                    #              k < (next_per_end -
+                    #                   half_res_in_days)]
                     logging.debug('Resl. elements in whole_per: %d' %
                                   len(whole_per))
                     if len(whole_per) > 0:
@@ -808,37 +833,57 @@ class DarkAlmanac(Almanac):
     def minimum_airmass(self, a):
         self._minimum_airmass = 2.
 
-    # Create a new class attribute, dark_time, which simply aliases
-    # airmass
-    # However, the hidden value _airmass will still be used
+    # Will alter the formation of the 'data' attribute to hold DarkAlmanac info
 
     @property
-    def dark_time(self):
+    def data(self):
         """
-        A catalogue of whether time should be considered 'dark' or not
+        An OrderedDict of the type:
+        date_j2000: airmass
+        An OrderedDict is used to keep the entries in date (i.e. key) order
         """
-        return self._airmass
+        return self._data
 
-    @dark_time.setter
-    def dark_time(self, d):
-        if not isinstance(d, dict):
-            raise ValueError('dark_time must be a dictionary of datetimes '
-                             'and corresponding Boolean values')
-        self._airmass = d
+    @data.setter
+    def data(self, a):
+        if not isinstance(a, np.array):
+            raise ValueError("data must be a numpy array")
+        try:
+            _ = a['date']
+            _ = a['dark_time']
+            _ = a['sun_alt']
+        except:
+            raise ValueError("data must be a numpy structured array "
+                             "with columns 'date', 'dark_time' and 'sun_alt'")
+        self._data = a
 
-    @property
-    def sun_alt(self):
-        """
-        Altitude of Sun at given time (radians)
-        """
-        return self._sun_alt
-
-    @sun_alt.setter
-    def sun_alt(self, d):
-        if not isinstance(d, dict):
-            raise ValueError('sun_alt must be a dictionary of datetimes '
-                             'and corresponding Boolean values')
-        self._sun_alt = d
+    # @property
+    # def dark_time(self):
+    #     """
+    #     A catalogue of whether time should be considered 'dark' or not
+    #     """
+    #     return self._airmass
+    #
+    # @dark_time.setter
+    # def dark_time(self, d):
+    #     if not isinstance(d, dict):
+    #         raise ValueError('dark_time must be a dictionary of datetimes '
+    #                          'and corresponding Boolean values')
+    #     self._airmass = d
+    #
+    # @property
+    # def sun_alt(self):
+    #     """
+    #     Altitude of Sun at given time (radians)
+    #     """
+    #     return self._sun_alt
+    #
+    # @sun_alt.setter
+    # def sun_alt(self, d):
+    #     if not isinstance(d, dict):
+    #         raise ValueError('sun_alt must be a dictionary of datetimes '
+    #                          'and corresponding Boolean values')
+    #     self._sun_alt = d
 
     # Class functions
     def generate_file_name(self):
@@ -848,25 +893,25 @@ class DarkAlmanac(Almanac):
         )
         return filename
 
-    def load(self, filepath='./'):
-        # Supers the original class load, adds in sun_alt calculation
-        logging.debug('super-ing base Almanac load method')
-        load_available = super(DarkAlmanac, self).load(filepath=filepath)
-
-        # Re-load and do DarkAlmanac-specific load
-        if load_available:
-            try:
-                with open('%s%s' % (filepath,
-                                    self.generate_file_name(), )) as fileobj:
-                    file_almanac = pickle.load(fileobj)
-            except EOFError:
-                return False
-
-            self.sun_alt = file_almanac.sun_alt
-        else:
-            return False
-
-        return True
+    # def load(self, filepath='./'):
+    #     # Supers the original class load, adds in sun_alt calculation
+    #     logging.debug('super-ing base Almanac load method')
+    #     load_available = super(DarkAlmanac, self).load(filepath=filepath)
+    #
+    #     # Re-load and do DarkAlmanac-specific load
+    #     if load_available:
+    #         try:
+    #             with open('%s%s' % (filepath,
+    #                                 self.generate_file_name(), )) as fileobj:
+    #                 file_almanac = pickle.load(fileobj)
+    #         except EOFError:
+    #             return False
+    #
+    #         self.sun_alt = file_almanac.sun_alt
+    #     else:
+    #         return False
+    #
+    #     return True
 
     # Initialization
     def __init__(self, start_date, end_date=None,
@@ -882,6 +927,11 @@ class DarkAlmanac(Almanac):
                                           minimum_airmass=None,
                                           resolution=resolution, populate=False)
         self._minimum_airmass = 2.
+        self.data = np.array([], dtype=[
+            ('date', float),
+            ('dark_time', bool),
+            ('sun_alt', float)
+        ])
 
         logging.debug('Looking for existing dark almanac file')
         # See if an almanac with these properties already exists in the PWD
@@ -907,14 +957,22 @@ class DarkAlmanac(Almanac):
                              'with no remainder (i.e. resolution must be a '
                              'divisor of 1440).')
 
-        # Blank or initialise the relevant dicts
-        self.dark_time = {}
-        self.sun_alt = {}
+        logging.debug('Populating DarkAlmanac data list')
 
-        logging.debug('Populating dark time dicts')
-        for i in range(len(dates)):
-            self.dark_time[dates[i]] = is_dark_time[i]
-            self.sun_alt[dates[i]] = sun[i]
+        self.data = np.array(np.asarray([dates, is_dark_time, sun]), dtype=[
+            ('date', float),
+            ('dark_time', bool),
+            ('sun_alt', float)
+        ])
+
+        # Blank or initialise the relevant dicts
+        # self.dark_time = {}
+        # self.sun_alt = {}
+        #
+        # logging.debug('Populating dark time dicts')
+        # for i in range(len(dates)):
+        #     self.dark_time[dates[i]] = is_dark_time[i]
+        #     self.sun_alt[dates[i]] = sun[i]
 
         logging.debug('Dark almanac created!')
 
@@ -958,8 +1016,10 @@ class DarkAlmanac(Almanac):
         dt = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
         ephem_dt = ephem.Date(dt)
         if limiting_dt is None:
-            ephem_limiting_dt = sorted(self.dark_time.keys())[-1] + (
+            ephem_limiting_dt = self.data['date'][-1] + (
                 self.resolution / (SECONDS_PER_DAY / 60.0)
+            # ephem_limiting_dt = sorted(self.dark_time.keys())[-1] + (
+            #     self.resolution / (SECONDS_PER_DAY / 60.0)
             )
         else:
             limiting_dt = tz.localize(
@@ -1003,17 +1063,25 @@ class DarkAlmanac(Almanac):
 
         # Search for the next time slot when the Sun is below SOLAR_HORIZON
         try:
-            night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
-                           ephem_dt <= t < ephem_limiting_dt and
-                           b < SOLAR_HORIZON).next()
-        except StopIteration:
+            night_start = self.data[np.logical_and(
+                ephem_dt <= self.data['date'] < ephem_limiting_dt,
+                self.data['sun_alt'] < SOLAR_HORIZON
+            )]['date'[0]]
+            # night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
+            #                ephem_dt <= t < ephem_limiting_dt and
+            #                b < SOLAR_HORIZON).next()
+        except KeyError:
             # No nights left in this DarkAlmanac, so return None for both
             return None, None
         try:
-            night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
-                         night_start < t < ephem_limiting_dt and
-                         b >= SOLAR_HORIZON).next()
-        except StopIteration:
+            night_end = self.data[np.logical_and(
+                night_start < self.data['date'] < ephem_limiting_dt,
+                self.data['sun_alt'] >= SOLAR_HORIZON
+            )]['date'][0]
+            # night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
+            #              night_start < t < ephem_limiting_dt and
+            #              b >= SOLAR_HORIZON).next()
+        except KeyError:
             # No end time found, so use the limiting time (which is the end of
             # the almanac if not passed)
             night_end = ephem_limiting_dt
@@ -1052,16 +1120,24 @@ class DarkAlmanac(Almanac):
                                                                     tz=tz)
 
         try:
-            dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
-                          ephem_dt <= t < ephem_limiting_dt and b).next()
-        except StopIteration:
+            dark_start = self.data[np.logical_and(
+                ephem_dt <= self.data['date'] < ephem_limiting_dt,
+                self.data['dark_time']
+            )]
+            # dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
+            #               ephem_dt <= t < ephem_limiting_dt and b).next()
+        except KeyError:
             # No dark time left in this almanac; return None to both parameters
             return None, None
         try:
-            dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
-                        dark_start < t < ephem_limiting_dt and
-                        not b).next()
-        except StopIteration:
+            dark_end = self.data[np.logical_and(
+                dark_start < self.data['date'] < ephem_limiting_dt,
+                ~self.data['dark_time']
+            )]
+            # dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
+            #             dark_start < t < ephem_limiting_dt and
+            #             not b).next()
+        except KeyError:
             # No end time found, so use the limiting time (which is the end of
             # the almanac if not passed)
             dark_end = ephem_limiting_dt
