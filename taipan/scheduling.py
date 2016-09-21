@@ -1079,7 +1079,7 @@ class DarkAlmanac(Almanac):
                     ephem_dt <= self.data['date'],
                     self.data['date'] < ephem_limiting_dt),
                 self.data['sun_alt'] < SOLAR_HORIZON
-            )]['date'[0]]
+            )]['date'][0]
             # night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
             #                ephem_dt <= t < ephem_limiting_dt and
             #                b < SOLAR_HORIZON).next()
@@ -1141,7 +1141,7 @@ class DarkAlmanac(Almanac):
                     self.data['date'] < ephem_limiting_dt
                 ),
                 self.data['dark_time']
-            )]
+            )][0]
             # dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
             #               ephem_dt <= t < ephem_limiting_dt and b).next()
         except KeyError:
@@ -1154,7 +1154,7 @@ class DarkAlmanac(Almanac):
                     self.data['date'] < ephem_limiting_dt
                 ),
                 ~self.data['dark_time']
-            )]
+            )][0]
             # dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
             #             dark_start < t < ephem_limiting_dt and
             #             not b).next()
