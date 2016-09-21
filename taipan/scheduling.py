@@ -549,9 +549,8 @@ class Almanac(object):
         logging.debug('Using next_observable_period')
         # Input checking
         if datetime_to is None:
-            datetime_to = pytz.utc.localize(ephem_to_dt(sorted(
-                self.airmass.iterkeys())[-1])).astimezone(tz).replace(
-                tzinfo=None)
+            datetime_to = pytz.utc.localize(ephem_to_dt(self.data['date'][-1])).\
+                astimezone(tz).replace(tzinfo=None)
             logging.debug('Calculated datetime_to of %s' % str(datetime_to))
         if datetime_to < datetime_from:
             raise ValueError('datetime_from must occur before datetime_to')
