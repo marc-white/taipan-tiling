@@ -537,6 +537,8 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     logging.info('Executing fullsurvey.py as file')
 
+    global_start = datetime.datetime.now()
+
     # Get a cursor
     # TODO: Correct package imports & references
     logging.debug('Getting connection')
@@ -546,3 +548,15 @@ if __name__ == '__main__':
     logging.debug('Doing execute function')
     execute(cursor, datetime.date(2016,4,1), datetime.date(2016,4,15),
             output_loc='.', prep_db=True)
+
+    global_end = datetime.datetime.now()
+    global_delta = global_end - global_start
+    print('')
+    print('--------')
+    print('SIMULATION COMPLETE')
+    print('Simulation time:')
+    print('%dh %dm %2.1fs' % (
+        global_delta.total_seconds() // 3600,
+        (global_delta.total_seconds() % 3600) // 60,
+        global_delta.total_seconds() % 60,
+    ))
