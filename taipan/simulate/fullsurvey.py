@@ -554,6 +554,7 @@ if __name__ == '__main__':
     print('')
     print('--------')
     print('SIMULATION COMPLETE')
+    print('Simulated 15 nights')
     print('Simulation time:')
     print('%dh %dm %2.1fs' % (
         global_delta.total_seconds() // 3600,
