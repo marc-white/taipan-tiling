@@ -513,7 +513,7 @@ class Almanac(object):
                                           1./np.sin(target), 99.), 0., 9.)
 
         self.data = np.array([tuple(x) for x in
-                              np.vstack((dates, airmass_values).T.tolist())],
+                              np.vstack((dates, airmass_values)).T.tolist()],
                              dtype=[
                                  ('date', float),
                                  ('airmass', float)
