@@ -512,10 +512,12 @@ class Almanac(object):
         airmass_values = np.clip(np.where(target > np.radians(10.),
                                           1./np.sin(target), 99.), 0., 9.)
 
-        self.data = np.array([dates.tolist(), airmass_values.tolist()], dtype=[
-            ('date', float),
-            ('airmass', float),
-        ])
+        self.data = np.array([tuple(x) for x in
+                              np.vstack((dates, airmass_values).T.tolist())],
+                             dtype=[
+                                 ('date', float),
+                                 ('airmass', float)
+                             ])
         # self.data.sort(axis=-1, order='date')
 
         return
