@@ -1141,7 +1141,7 @@ class DarkAlmanac(Almanac):
                     self.data['date'] < ephem_limiting_dt
                 ),
                 self.data['dark_time']
-            )][0]
+            )]['date'][0]
             # dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
             #               ephem_dt <= t < ephem_limiting_dt and b).next()
         except IndexError:
@@ -1154,7 +1154,7 @@ class DarkAlmanac(Almanac):
                     self.data['date'] < ephem_limiting_dt
                 ),
                 ~self.data['dark_time']
-            )][0]
+            )]['date'][0]
             # dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
             #             dark_start < t < ephem_limiting_dt and
             #             not b).next()
