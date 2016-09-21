@@ -515,7 +515,8 @@ class Almanac(object):
         self.data = np.array(np.asarray([dates, airmass_values]), dtype=[
             ('date', float),
             ('airmass', float),
-        ]).sort(order='date')
+        ])
+        self.data.sort(order='date')
 
         return
 
