@@ -517,7 +517,7 @@ class Almanac(object):
                              dtype=[
                                  ('date', float),
                                  ('airmass', float)
-                             ])
+                             ]).sort(order='date')
         # self.data.sort(axis=-1, order='date')
 
         return
