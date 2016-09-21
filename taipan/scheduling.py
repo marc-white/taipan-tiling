@@ -782,7 +782,8 @@ class Almanac(object):
                     if whole_per.shape[-1] > 0:
                         logging.debug('Period bounds found: %5.3f to %5.3f '
                                       '(%d units of resolution %2.1f)' %
-                                      (whole_per[0], whole_per[-1],
+                                      (whole_per['date'][0],
+                                       whole_per['date'][-1],
                                        whole_per.shape[-1],
                                        self.resolution))
                     hours_obs += better_per.shape[-1] * (self.resolution / 60.)
