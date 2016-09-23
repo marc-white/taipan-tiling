@@ -33,6 +33,7 @@ from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 from src.resources.v0_0_1.manipulate.makeScienceVisitInc import execute as mSVIexec
 from src.resources.v0_0_1.manipulate.makeScienceRepeatInc import execute as mSRIexec
 from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
+from src.resources.v0_0_1.manipulate.makeTilesQueued import execute as mTQexec
 from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
@@ -88,7 +89,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                                               guide_targets,
                                               1,
                                               tiles=field_tiles,
-                                              repeat_targets=False,
+                                              repeat_targets=True,
                                               )
         logging.info('First tile pass complete!')
 
@@ -365,41 +366,25 @@ def sim_do_night(cursor, date, date_start, date_end,
                             x['tile_pk'] == tile_to_obs][0],
                            ))
             # This is the section of code that does the 'observing'
+            # This is a proxy for generating an 'observing list' at the start
+            # of the night; simulating live operations just turns out to be
+            # easier/quicker to implement, and conceptually identical at this
+            # stage
 
-            # Read in from DB
-            # Get the list of science target IDs on this tile
-            target_ids = np.asarray(rSTiexec(cursor, tile_to_obs))
-            # Get the array of target_ids with target types from the database
-            target_types_db = rSTyexec(cursor, target_ids=target_ids)
-            # Get an array with the number of visits and repeats of these
-            visits_repeats = rSVexec(cursor, target_ids=target_ids)
+            # Set the tile to be queued
+            mTQexec(cursor, [tile_to_obs], time_obs=local_time_now)
 
-            # Form an array showing the type of those targets
-            # target_types = np.asarray(list(['' for _ in target_types_db]))
-            # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
-            #     target_types[
-            #         np.asarray([_[ttype] is True for _ in target_types_db],
-            #                    dtype=bool)
-            #     ] = ttype
-            # Calculate a success/failure rate for each target
-            success_targets = test_redshift_success(target_types_db,
-                                                    visits_repeats['visits'] +
-                                                    1)  # Function needs
-                                                        # incremented visits
-                                                        # values
-
-            # Set relevant targets as observed successfully, all others
-            # observed but unsuccessfully
-            mSRIexec(cursor, target_ids[success_targets], set_done=True)
-            mSVIexec(cursor, target_ids[~success_targets])
+            # Re-tile the affected areas (should be 7 tiles, modulo any areas
+            # where we have deliberately added an over/underdense tiling)
+            fields_to_retile = rCAexec(cursor, tile_list=[tile_to_obs])
+            retile_fields(cursor, fields_to_retile, tiles_per_field=1,
+                          tiling_time=local_time_now,
+                          disqualify_below_min=False)
 
             # Increment time_now and move to observe the next field
             ephem_time_now += ts.POINTING_TIME
             local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
                 ephem_time_now, ts.EPHEM_DT_STRFMT))
-
-            # Mark the tile as having been observed
-            mTOexec(cursor, [tile_to_obs], time_obs=local_time_now)
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
@@ -422,6 +407,41 @@ def sim_do_night(cursor, date, date_start, date_end,
     # housekeeping
     start = datetime.datetime.now()
     if len(tiles_observed) > 0:
+
+        # -------
+        # FAKE DQ/SCIENCE ANALYSIS
+        # -------
+        # Read in from DB
+        # Get the list of science target IDs on this tile
+        target_ids = np.asarray(rSTiexec(cursor, tiles_observed))
+        # Get the array of target_ids with target types from the database
+        target_types_db = rSTyexec(cursor, target_ids=target_ids)
+        # Get an array with the number of visits and repeats of these
+        visits_repeats = rSVexec(cursor, target_ids=target_ids)
+
+        # Form an array showing the type of those targets
+        # target_types = np.asarray(list(['' for _ in target_types_db]))
+        # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
+        #     target_types[
+        #         np.asarray([_[ttype] is True for _ in target_types_db],
+        #                    dtype=bool)
+        #     ] = ttype
+        # Calculate a success/failure rate for each target
+        success_targets = test_redshift_success(target_types_db,
+                                                visits_repeats['visits'] +
+                                                1)  # Function needs
+        # incremented visits
+        # values
+
+        # Set relevant targets as observed successfully, all others
+        # observed but unsuccessfully
+        mSRIexec(cursor, target_ids[success_targets], set_done=True)
+        mSVIexec(cursor, target_ids[~success_targets])
+
+        # Mark the tiles as having been observed
+        mTOexec(cursor, tiles_observed, time_obs=local_time_now)
+
+
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
         logging.info('%d tiles were observed' % len(tiles_observed))

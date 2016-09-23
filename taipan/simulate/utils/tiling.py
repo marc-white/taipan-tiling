@@ -51,7 +51,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     ))
 
     # Get the required targets from the database
-    candidate_targets = rScexec(cursor, unobserved=True, unassigned=True)
+    candidate_targets = rScexec(cursor, unobserved=True, unassigned=True,
+                                unqueued=True)
     guide_targets = rGexec(cursor)
     standard_targets = rSexec(cursor)
 
@@ -65,7 +66,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                                           tiles=fields_to_tile)
 
     # Eliminate the redundant tiles
-    dTexec(cursor, field_list=field_list, obs_status=False)
+    dTexec(cursor, field_list=field_list, obs_status=False, queue_status=False)
 
     # Write the new tiles back to the database
     iTexec(cursor, tile_list, config_time=tiling_time,
