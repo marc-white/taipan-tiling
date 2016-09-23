@@ -86,7 +86,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
         # TEST ONLY: Trim the tile list to 10 to test DB write-out
         # field_tiles = random.sample(field_tiles, 40)
         # Set the logging to debug for this
-        old_level = logger.level()
+        old_level = logger.level
         logger.setLevel(logging.DEBUG)
         candidate_tiles, targets_remain = \
             tl.generate_tiling_greedy_npasses(candidate_targets,
