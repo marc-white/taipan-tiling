@@ -69,6 +69,8 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
     Nil. Database updated in place.
     """
 
+    logger = logging.getLogger()
+
     try:
         with open('tiles.pobj', 'r') as tfile:
             candidate_tiles = pickle.load(tfile)
@@ -83,6 +85,9 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
         logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
         # TEST ONLY: Trim the tile list to 10 to test DB write-out
         # field_tiles = random.sample(field_tiles, 40)
+        # Set the logging to debug for this
+        old_level = logger.level()
+        logger.setLevel(logging.DEBUG)
         candidate_tiles, targets_remain = \
             tl.generate_tiling_greedy_npasses(candidate_targets,
                                               standard_targets,
@@ -91,6 +96,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                                               tiles=field_tiles,
                                               repeat_targets=True,
                                               )
+        logger.setLevel(old_level)
         logging.info('First tile pass complete!')
 
         # 'Pickle' the tiles so they don't need
