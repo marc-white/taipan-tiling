@@ -2765,7 +2765,6 @@ class TaipanTile(object):
         assigned_objs = self.get_assigned_targets()
 
         if assigned_standards < STANDARDS_PER_TILE_MIN:
-            logging.debug('Having to strip targets for standards...')
             standards_this_tile = [t for t in standard_targets
                 if t not in assigned_objs]
             if check_tile_radius:
@@ -2773,28 +2772,30 @@ class TaipanTile(object):
                     if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
                 # standards_this_tile = targets_in_range(self.ra, self.dec,
                 #   standards_this_tile, TILE_RADIUS)
-            if rank_supplements:
-                standards_this_tile.sort(key=lambda x: -1 * x.priority)
-            failure_detected = False
-            while (assigned_standards < STANDARDS_PER_TILE_MIN) and (not
-                    failure_detected):
-                standards_avail = len(standards_this_tile)
-                standards_this_tile, removed = self.assign_tile(
-                    standards_this_tile,
-                    check_tile_radius=check_tile_radius,
-                    method='priority',
-                    overwrite_existing=True)
-                if len(standards_this_tile) != standards_avail:
-                    assigned_standards += 1
-                else:
-                    failure_detected = True
-                    # print 'Failure detected!'
-                if removed is not None and removed != 'sky':
-                    if (isinstance(removed, TaipanTarget)
-                        and (not removed.guide)
-                        and (not removed.standard)
-                        and (removed not in candidate_targets)):
-                        candidates_this_tile.append(removed)
+            if len(standards_this_tile) > 0:
+                logging.debug('Having to strip targets for standards...')
+                if rank_supplements:
+                    standards_this_tile.sort(key=lambda x: -1 * x.priority)
+                failure_detected = False
+                while (assigned_standards < STANDARDS_PER_TILE_MIN) and (not
+                        failure_detected):
+                    standards_avail = len(standards_this_tile)
+                    standards_this_tile, removed = self.assign_tile(
+                        standards_this_tile,
+                        check_tile_radius=check_tile_radius,
+                        method='priority',
+                        overwrite_existing=True)
+                    if len(standards_this_tile) != standards_avail:
+                        assigned_standards += 1
+                    else:
+                        failure_detected = True
+                        # print 'Failure detected!'
+                    if removed is not None and removed != 'sky':
+                        if (isinstance(removed, TaipanTarget)
+                            and (not removed.guide)
+                            and (not removed.standard)
+                            and (removed not in candidate_targets)):
+                            candidates_this_tile.append(removed)
 
         # All fibres except for sky fibres should now be assigned, unless there
         # are some inaccessible fibres for guides/standards. In this case, 
