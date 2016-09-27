@@ -9,6 +9,8 @@ from src.resources.v0_0_1.readout.readScience import execute as rScexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
 from src.resources.v0_0_1.readout.readStandards import execute as rSexec
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
+from src.resources.v0_0_1.readout.readCentroidsAffected import execute as \
+    rCAexec
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
@@ -17,7 +19,7 @@ from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
 def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
-                  disqualify_below_min=True):
+                  disqualify_below_min=True, restrict_targets=True):
     """
     Re-tile the fields passed.
 
@@ -38,6 +40,11 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         TaipanTile.calculate_tile_score(). Sets tile scores to 0 if tiles do
         not meet minimum numbers of guides and/or standards assigned. Defaults
         to True.
+    restrict_targets:
+        Optional Boolean, denoting whether to restrict the read-in
+        science_targets on the database side (rather than only during tiling).
+        This provides factor 5-10 speed increases when only re-tiling small
+        regions of sky. Defaults to True.
 
     Returns
     -------
@@ -50,13 +57,18 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         logging.debug('No fields passed to utils.tiling - no tiling done')
         return
 
+    if restrict_targets:
+        fields_w_targets = rCAexec(cursor, field_list=field_list)
+    else:
+        fields_w_targets = None
+
     logging.debug('Retiling fields w/ recorded datetime %s' % (
         tiling_time.strftime('%y-%m-%d %H:%M:%S'),
     ))
 
     # Get the required targets from the database
     candidate_targets = rScexec(cursor, unobserved=True, unassigned=True,
-                                unqueued=True)
+                                unqueued=True, field_list=fields_w_targets)
     guide_targets = rGexec(cursor)
     standard_targets = rSexec(cursor)
 
