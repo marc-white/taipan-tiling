@@ -266,62 +266,65 @@ def sim_do_night(cursor, date, date_start, date_end,
     tiles_observed = []
 
     while dark_start is not None:
-        logging.info('Observing over dark period %5.3f to %5.3f' %
-                     (dark_start, dark_end, ))
-        ephem_time_now = dark_start
-        local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
-                                                           ts.EPHEM_DT_STRFMT))
-
-        # Get the next observing period for all fields being considered
-        field_periods = {r['field_id']: almanacs_relevant[
-            r['field_id']
-        ].next_observable_period(
-            local_time_now - (datetime.timedelta(
-                almanacs_relevant[r['field_id']].resolution *
-                60. / ts.SECONDS_PER_DAY)),
-            datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
-                         r in scores_array}
-        logging.debug('Next observing period for each field:')
-        logging.debug(field_periods)
-        logging.info('Next available field will rise at %5.3f' %
-                     (min([v[0] for v in field_periods.itervalues() if
-                           v[0] is not None]), )
-                     )
-        fields_available = [f for f, v in field_periods.iteritems() if
-                            v[0] is not None and v[0] < dark_end]
-        logging.debug('%d fields available at some point tonight' %
-                      len(fields_available))
-
-        # Rank the available fields
-        logging.info('Computing field scores')
-        start = datetime.datetime.now()
-        tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['cw_sum']) for
-                        row in scores_array if
-                        row['field_id'] in fields_available}
-        fields_by_tile = {row['tile_pk']: row['field_id'] for
-                          row in scores_array if
-                          row['field_id'] in fields_available}
-        hours_obs = {f: almanacs_relevant[f].hours_observable(
-            local_time_now,
-            datetime_to=midday_end,
-            dark_almanac=dark_almanac,
-            hours_better=True
-        ) for f in fields_by_tile.values()}
-        # Modulate scores by hours remaining
-        tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
-                        t, v in tiles_scores.iteritems()}
-        logging.debug('Tiles scores: ')
-        logging.debug(tiles_scores)
-        end = datetime.datetime.now()
-        delta = end - start
-        logging.info('Computed tile scores/hours remaining in %d:%2.1f' %
-                     (delta.total_seconds() / 60, delta.total_seconds() % 60.))
-
-        # 'Observe' while the remaining time in this dark period is
-        # longer than one pointing (slew + obs)
         logging.info('Commencing observing...')
         start = datetime.datetime.now()
         while ephem_time_now < (dark_end - ts.POINTING_TIME):
+            logging.info('Observing over dark period %5.3f to %5.3f' %
+                         (dark_start, dark_end,))
+            ephem_time_now = dark_start
+            local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
+                                                               ts.EPHEM_DT_STRFMT))
+
+            # Get the next observing period for all fields being considered
+            field_periods = {r['field_id']: almanacs_relevant[
+                r['field_id']
+            ].next_observable_period(
+                local_time_now - (datetime.timedelta(
+                    almanacs_relevant[r['field_id']].resolution *
+                    60. / ts.SECONDS_PER_DAY)),
+                datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
+                             r in scores_array}
+            logging.debug('Next observing period for each field:')
+            logging.debug(field_periods)
+            logging.info('Next available field will rise at %5.3f' %
+                         (min([v[0] for v in field_periods.itervalues() if
+                               v[0] is not None]),)
+                         )
+            fields_available = [f for f, v in field_periods.iteritems() if
+                                v[0] is not None and v[0] < dark_end]
+            logging.debug('%d fields available at some point tonight' %
+                          len(fields_available))
+
+            # Rank the available fields
+            logging.info('Computing field scores')
+            start = datetime.datetime.now()
+            tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['cw_sum'])
+                            for
+                            row in scores_array if
+                            row['field_id'] in fields_available}
+            fields_by_tile = {row['tile_pk']: row['field_id'] for
+                              row in scores_array if
+                              row['field_id'] in fields_available}
+            hours_obs = {f: almanacs_relevant[f].hours_observable(
+                local_time_now,
+                datetime_to=midday_end,
+                dark_almanac=dark_almanac,
+                hours_better=True
+            ) for f in fields_by_tile.values()}
+            # Modulate scores by hours remaining
+            tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
+                            t, v in tiles_scores.iteritems()}
+            logging.debug('Tiles scores: ')
+            logging.debug(tiles_scores)
+            end = datetime.datetime.now()
+            delta = end - start
+            logging.info('Computed tile scores/hours remaining in %d:%2.1f' %
+                         (delta.total_seconds() / 60,
+                          delta.total_seconds() % 60.))
+
+            # 'Observe' while the remaining time in this dark period is
+            # longer than one pointing (slew + obs)
+
             logging.info('At time %5.3f, going to %5.3f' % (
                 ephem_time_now, dark_end,
             ))
@@ -330,8 +333,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # logging.debug('Next observing period for each field:')
                 # logging.debug(field_periods)
                 tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
-                                                     key=lambda x: -1. * x[1]
-                                                     ) if
+                                                    key=lambda x: -1. * x[1]
+                                                    ) if
                                field_periods[fields_by_tile[t]][0] is not
                                None and
                                field_periods[fields_by_tile[t]][1] is not
@@ -356,7 +359,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                     return
 
                 logging.info('No fields up - advancing time to %5.3f' %
-                              ephem_time_now)
+                             ephem_time_now)
                 local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
                     ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue

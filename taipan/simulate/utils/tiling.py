@@ -46,6 +46,10 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     - Redundant tiles will be eliminated from the database;
     - New tiles will be pushed into the database.
     """
+    if len(field_list) == 0:
+        logging.debug('No fields passed to utils.tiling - no tiling done')
+        return
+
     logging.debug('Retiling fields w/ recorded datetime %s' % (
         tiling_time.strftime('%y-%m-%d %H:%M:%S'),
     ))
