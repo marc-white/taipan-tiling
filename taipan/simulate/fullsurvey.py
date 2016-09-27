@@ -268,13 +268,12 @@ def sim_do_night(cursor, date, date_start, date_end,
     while dark_start is not None:
         logging.info('Commencing observing...')
         start = datetime.datetime.now()
+        logging.info('Observing over dark period %5.3f to %5.3f' %
+                     (dark_start, dark_end,))
+        ephem_time_now = dark_start
+        local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
+                                                           ts.EPHEM_DT_STRFMT))
         while ephem_time_now < (dark_end - ts.POINTING_TIME):
-            logging.info('Observing over dark period %5.3f to %5.3f' %
-                         (dark_start, dark_end,))
-            ephem_time_now = dark_start
-            local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
-                                                               ts.EPHEM_DT_STRFMT))
-
             # Get the next observing period for all fields being considered
             field_periods = {r['field_id']: almanacs_relevant[
                 r['field_id']
