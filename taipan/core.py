@@ -597,10 +597,11 @@ def targets_in_range(ra, dec, target_list, dist,
             if t.dist_point((ra, dec)) < dist]
     else:
         # Do KDTree computation
-        # logging.debug('Generating KDTree with leafsize %d' % leafsize)
+        logging.debug('Generating KDTree with leafsize %d' % leafsize)
         cart_targets = np.asarray([t.ucposn for t in target_list])
         # logging.debug(cart_targets)
         tree = cKDTree(cart_targets, leafsize=leafsize)
+        logging.debug('Querying tree')
         inds = tree.query_ball_point(polar2cart((ra, dec)),
                                      dist_euclidean(dist / 3600.))
         targets_in_range = [target_list[i] for i in inds]
