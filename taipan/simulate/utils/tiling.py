@@ -77,7 +77,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     tile_list, targets_after_tile = \
         tl.generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                           guide_targets, tiles_per_field,
-                                          tiles=fields_to_tile)e
+                                          tiles=fields_to_tile)
 
     # Eliminate the redundant tiles from the DB
     dTexec(cursor, field_list=field_list, obs_status=False, queue_status=False)
