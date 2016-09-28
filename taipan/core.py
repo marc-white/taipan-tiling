@@ -1672,7 +1672,7 @@ class TaipanTile(object):
             for t in self.get_assigned_targets()]))
         return excluded_tgts
 
-    def available_targets(self, tgts):
+    def available_targets(self, tgts, leafsize=BREAKEVEN_KDTREE):
         """
         Calculate which targets are within this tile.
 
@@ -1692,7 +1692,7 @@ class TaipanTile(object):
         # available_targets = [t for t in tgts
         #   if t.dist_point((self.ra, self.dec)) < TILE_RADIUS]
         available_targets = targets_in_range(self.ra, self.dec, tgts,
-                                             TILE_RADIUS)
+                                             TILE_RADIUS, leafsize=leafsize)
         return available_targets
 
     def calculate_tile_score(self, method='completeness',
