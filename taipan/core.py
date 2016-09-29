@@ -2860,11 +2860,11 @@ class TaipanTile(object):
                 < FIBRE_EXCLUSION_RADIUS)],
                 full_target_list=candidate_targets_return)
 
-        logging.debug('Made tile with %d science, %d standard '
-                      'and %d guide targets' %
-                      (len(self.get_assigned_targets_science()),
-                       len(self.get_assigned_targets_standard()),
-                       len(self.get_assigned_targets_guide()), ))
+        logging.info('Made tile with %d science, %d standard '
+                     'and %d guide targets' %
+                     (len(self.get_assigned_targets_science()),
+                      len(self.get_assigned_targets_standard()),
+                      len(self.get_assigned_targets_guide()), ))
 
 
         return candidate_targets_return, removed_targets
