@@ -264,6 +264,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                  (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     tiles_observed = []
+    tiles_observed_at = []
 
     while dark_start is not None:
         logging.info('Commencing observing...')
@@ -381,6 +382,9 @@ def sim_do_night(cursor, date, date_start, date_end,
 
             # Set the tile to be queued
             mTQexec(cursor, [tile_to_obs], time_obs=local_time_now)
+            # Record the time that this was done
+            tiles_observed_at.append(local_time_now)
+
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
@@ -416,9 +420,21 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     # We are now done observing for the night. It is time for some
     # housekeeping
-    start = datetime.datetime.now()
-    if len(tiles_observed) > 0:
 
+    # ------
+    # FAKE WEATHER FAILURES
+    # ------
+    # For now, assume P% of all tiles are lost randomly to weather
+    P = 0.25
+    weather_prob = np.random.random(len(tiles_observed))
+    tiles_observed = list(np.asarray(tiles_observed)[weather_prob < P])
+    tiles_observed_at = list(
+        np.asarray(tiles_observed_at)[weather_prob < P])
+    logging.info('Lost %d tiles to "weather"' %
+                 np.count_nonzero(weather_prob < P))
+    start = datetime.datetime.now()
+
+    if len(tiles_observed) > 0:
         # -------
         # FAKE DQ/SCIENCE ANALYSIS
         # -------
@@ -450,7 +466,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         mSVIexec(cursor, target_ids[~success_targets])
 
         # Mark the tiles as having been observed
-        mTOexec(cursor, tiles_observed, time_obs=local_time_now)
+        mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
 
 
         # Re-tile the affected fields
