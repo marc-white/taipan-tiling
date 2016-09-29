@@ -88,7 +88,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
         # field_tiles = random.sample(field_tiles, 40)
         # Set the logging to debug for this
         old_level = logger.level
-        logger.setLevel(logging.DEBUG)
+        # logger.setLevel(logging.DEBUG)
         candidate_tiles, targets_remain = \
             tl.generate_tiling_greedy_npasses(candidate_targets,
                                               standard_targets,
@@ -97,7 +97,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                                               tiles=field_tiles,
                                               repeat_targets=True,
                                               )
-        logger.setLevel(old_level)
+        # logger.setLevel(old_level)
         logging.info('First tile pass complete!')
 
         # 'Pickle' the tiles so they don't need
@@ -391,11 +391,11 @@ def sim_do_night(cursor, date, date_start, date_end,
             # where we have deliberately added an over/underdense tiling)
             fields_to_retile = rCAexec(cursor, tile_list=[tile_to_obs])
             # Switch the logger to DEBUG
-            logger.setLevel(logging.DEBUG)
+            # logger.setLevel(logging.DEBUG)
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                           tiling_time=local_time_now,
                           disqualify_below_min=False)
-            logger.setLevel(logging.INFO)
+            # logger.setLevel(logging.INFO)
 
             # Increment time_now and move to observe the next field
             ephem_time_now += ts.POINTING_TIME
