@@ -11,7 +11,7 @@ def simulate_bugfails(bug_list, prob=1./10000.):
     ----------
     bug_list:
         A list corresponding to each current success status of each bug (True
-        for successful, False for unsuccessful). Must contain only Booleans
+        for successful, False for unsuccessful). Must contain only Booleans.
     prob:
         The probability of any particular bug failing on a particular
         observations. Defaults to 1/10000. Must be a float in the range [0,1).

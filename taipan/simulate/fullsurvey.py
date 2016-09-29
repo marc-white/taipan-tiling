@@ -442,6 +442,12 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Read in from DB
         # Get the list of science target IDs on this tile
         target_ids = np.asarray(rSTiexec(cursor, tiles_observed))
+
+        # Add in small probability of uncategorized 'bug failure'
+        target_ids = target_ids[simulate_bugfails([True] * len(target_ids),
+                                                  prob=0.0001)]
+
+
         # Get the array of target_ids with target types from the database
         target_types_db = rSTyexec(cursor, target_ids=target_ids)
         # Get an array with the number of visits and repeats of these
@@ -459,8 +465,6 @@ def sim_do_night(cursor, date, date_start, date_end,
         success_targets = test_redshift_success(target_types_db,
                                                 visits_repeats['visits'] +
                                                 1)  # Function needs
-        # Add in small probability of uncategorized 'bug failure'
-        success_targets = simulate_bugfails(success_targets, prob=0.0001)
 
         # Set relevant targets as observed successfully, all others
         # observed but unsuccessfully
