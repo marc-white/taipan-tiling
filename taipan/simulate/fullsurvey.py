@@ -8,6 +8,7 @@ import taipan.scheduling as ts
 import simulate as tsim
 
 from utils.tiling import retile_fields
+from utils.bugfail import simulate_bugfails
 
 import pickle
 
@@ -454,11 +455,12 @@ def sim_do_night(cursor, date, date_start, date_end,
         #                    dtype=bool)
         #     ] = ttype
         # Calculate a success/failure rate for each target
+        # Compute target success based on target type(s)
         success_targets = test_redshift_success(target_types_db,
                                                 visits_repeats['visits'] +
                                                 1)  # Function needs
-        # incremented visits
-        # values
+        # Add in small probability of uncategorized 'bug failure'
+        success_targets = simulate_bugfails(success_targets, prob=0.0001)
 
         # Set relevant targets as observed successfully, all others
         # observed but unsuccessfully
