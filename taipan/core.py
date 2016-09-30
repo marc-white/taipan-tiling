@@ -2309,8 +2309,8 @@ class TaipanTile(object):
         removed_targets = []
 
         # Calculate rest positions for all GUIDE fibres
-        fibre_posns = {fibre: self.compute_fibre_posn(fibre) 
-            for fibre in FIBRES_GUIDE}
+        fibre_posns = {fibre: self.compute_fibre_posn(fibre) for
+                       fibre in FIBRES_GUIDE}
 
         guides_this_tile = guide_targets[:]
         if check_tile_radius:
@@ -2324,6 +2324,7 @@ class TaipanTile(object):
         assigned_guides = len([t for t in self._fibres.values() 
             if isinstance(t, TaipanTarget)
             and t.guide])
+
         while assigned_guides < GUIDES_PER_TILE and len(guides_this_tile) > 0:
 
             guide = guides_this_tile[0]
@@ -2362,8 +2363,8 @@ class TaipanTile(object):
         assigned_objs = self.get_assigned_targets()
 
         if assigned_guides < GUIDES_PER_TILE_MIN:
-            # print 'Having to strip targets for guides...'
-            guides_this_tile = [t for t in guide_targets 
+            logging.debug('Having to strip targets for guides...')
+            guides_this_tile = [t for t in guide_targets
                 if t not in assigned_objs]
             if check_tile_radius:
                 guides_this_tile = [g for g in guides_this_tile
@@ -2378,15 +2379,15 @@ class TaipanTile(object):
                 for g in guides_this_tile]
             # Don't consider guides which are excluded by already-assigned
             # guides
-            excluded_by_guides = [i for i in range(len(guides_this_tile))
-                if np.any(map(lambda x: x.guide,
-                    problem_targets[i]))]
-            guides_this_tile = [guides_this_tile[i] 
-                for i in range(len(guides_this_tile))
-                if i not in excluded_by_guides]
-            problem_targets = [problem_targets[i] 
-                for i in range(len(problem_targets))
-                if i not in excluded_by_guides]
+            excluded_by_guides = [i for i in range(len(guides_this_tile)) if
+                                  np.any(map(lambda x: x.guide,
+                                             problem_targets[i]))]
+            guides_this_tile = [guides_this_tile[i] for i in
+                                range(len(guides_this_tile)) if
+                                i not in excluded_by_guides]
+            problem_targets = [problem_targets[i] for
+                               i in range(len(problem_targets)) if
+                               i not in excluded_by_guides]
 
             # Compute the total ranking weights for targets blocking the
             # remaining guide candidates
@@ -2704,7 +2705,7 @@ class TaipanTile(object):
         removed_for_guides = self.assign_guides(guides_this_tile,
             check_tile_radius=not(check_tile_radius), # don't recheck radius
             target_method=method, combined_weight=combined_weight,
-            sequential_ordering=sequential_ordering)
+            sequential_ordering=sequential_ordering, rank_guides=False)
         # Put any science targets back in candidate_targets, and any standards
         # back in standards_this_tile
         candidates_this_tile += [t for t in removed_for_guides 
