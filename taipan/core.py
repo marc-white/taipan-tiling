@@ -2318,8 +2318,10 @@ class TaipanTile(object):
                 if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
 
         if rank_guides:
+            logging.debug('Sorting input guide list by priority')
             guides_this_tile.sort(key=lambda x: -1 * x.priority)
         else:
+            logging.debug('Sorting input guide list by dist to guide fibre')
             # Instead of having randomly ordered guides, let's rank them
             # by the distance to their nearest guide fibre
             guide_targets_dists = None
@@ -2345,6 +2347,7 @@ class TaipanTile(object):
             if isinstance(t, TaipanTarget)
             and t.guide])
 
+        logging.debug('Finding available fibres...')
         while assigned_guides < GUIDES_PER_TILE and len(guides_this_tile) > 0:
 
             guide = guides_this_tile[0]
@@ -2353,7 +2356,6 @@ class TaipanTile(object):
                 continue
 
             # Identify the closest fibre to this target
-            # print 'Finding available fibres...'
             fibre_dists = {fibre: guide.dist_point(fibre_posns[fibre])
                 for fibre in fibre_posns}
             permitted_fibres = sorted([fibre for fibre in fibre_dists
@@ -2361,9 +2363,9 @@ class TaipanTile(object):
                 key=lambda x: fibre_dists[x])
 
             # Attempt to make assignment
+            logging.debug('Looking to add to fiber...')
             candidate_found = False
             while not(candidate_found) and len(permitted_fibres) > 0:
-                # print 'Looking to add to fiber...'
                 if self._fibres[permitted_fibres[0]] is None:
                     # Assign the target and 'pop' it from the input list
                     self._fibres[permitted_fibres[0]] = guides_this_tile.pop(0)
