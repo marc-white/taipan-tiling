@@ -2472,7 +2472,7 @@ class TaipanTile(object):
                     overwrite_existing=False,
                     check_tile_radius=True, recompute_difficulty=True,
                     method='priority', combined_weight=1.0,
-                    sequential_ordering=(0,1,2),
+                    sequential_ordering=(1,2),
                     rank_supplements=False,
                     repick_after_complete=True,
                     consider_removed_targets=True):
