@@ -589,7 +589,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
 if __name__ == '__main__':
 
     sim_start = datetime.date(2016,4,1)
-    sim_end = datetime.date(2016,4,15)
+    sim_end = datetime.date(2017,4,1)
     global_start = datetime.datetime.now()
 
     # Set the logging to write to terminal AND file
@@ -603,6 +603,7 @@ if __name__ == '__main__':
         filemode='w'
     )
     logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     logging.info('Executing fullsurvey.py as file')
