@@ -587,12 +587,25 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
 
 
 if __name__ == '__main__':
-    # Set the logging to write to terminal
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logging.info('Executing fullsurvey.py as file')
 
+    sim_start = datetime.date(2016,4,1)
+    sim_end = datetime.date(2016,4,15)
     global_start = datetime.datetime.now()
+
+    # Set the logging to write to terminal AND file
+    logging.basicConfig(
+        level=logging.INFO,
+        filename='./simlog_%s_to_%s_at_%s' % (
+            sim_start.strftime('%Y%m%d'),
+            sim_end.strftime('%Y%m%d'),
+            global_start.strftime('%Y%m%d-%H%M'),
+        ),
+        filemode='w'
+    )
+    logger = logging.getLogger()
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    logging.info('Executing fullsurvey.py as file')
 
     # Get a cursor
     # TODO: Correct package imports & references
@@ -601,7 +614,7 @@ if __name__ == '__main__':
     cursor = conn.cursor()
     # Execute the simulation based on command-line arguments
     logging.debug('Doing execute function')
-    execute(cursor, datetime.date(2016,4,1), datetime.date(2016,4,15),
+    execute(cursor, sim_start, sim_end,
             output_loc='.', prep_db=True)
 
     global_end = datetime.datetime.now()
@@ -609,7 +622,7 @@ if __name__ == '__main__':
     print('')
     print('--------')
     print('SIMULATION COMPLETE')
-    print('Simulated 15 nights')
+    print('Simulated %d nights' % (sim_end - sim_start).days)
     print('Simulation time:')
     print('%dh %dm %2.1fs' % (
         global_delta.total_seconds() // 3600,
