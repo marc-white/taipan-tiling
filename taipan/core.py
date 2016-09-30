@@ -2324,22 +2324,26 @@ class TaipanTile(object):
             logging.debug('Sorting input guide list by dist to guide fibre')
             # Instead of having randomly ordered guides, let's rank them
             # by the distance to their nearest guide fibre
-            guide_targets_dists = None
-            for posn in fibre_posns.itervalues():
-                guide_dists = [g.dist_point(posn) for g in guide_targets]
-                if guide_targets_dists is None:
-                    guide_targets_dists = np.asarray(guide_dists)
-                else:
-                    guide_targets_dists = np.c_[guide_targets_dists,
-                                                guide_dists]
-            # Pick the lowest distance value for each target
-            guide_targets_dists = np.min(guide_targets_dists,
-                                         axis=-1).tolist()
-            # Sort the guides by their closest distance to any guide fibre
-            guides_this_tile = [g for (d, g) in
-                                sorted(zip(guide_targets_dists,
-                                           guides_this_tile),
-                                       key=lambda pair: pair[0])]
+            guides_this_tile.sort(key=lambda x: np.min([
+                x.dist_point(posn) for posn in fibre_posns.itervalues()
+            ]))
+
+            # guide_targets_dists = None
+            # for posn in fibre_posns.itervalues():
+            #     guide_dists = [g.dist_point(posn) for g in guide_targets]
+            #     if guide_targets_dists is None:
+            #         guide_targets_dists = np.asarray(guide_dists)
+            #     else:
+            #         guide_targets_dists = np.c_[guide_targets_dists,
+            #                                     guide_dists]
+            # # Pick the lowest distance value for each target
+            # guide_targets_dists = np.min(guide_targets_dists,
+            #                              axis=-1).tolist()
+            # # Sort the guides by their closest distance to any guide fibre
+            # guides_this_tile = [g for (d, g) in
+            #                     sorted(zip(guide_targets_dists,
+            #                                guides_this_tile),
+            #                            key=lambda pair: pair[0])]
 
             # Assign up to GUIDES_PER_TILE guides
         # Attempt to assign guide stars to this tile
