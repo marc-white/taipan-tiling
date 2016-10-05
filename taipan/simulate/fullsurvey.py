@@ -414,12 +414,14 @@ def sim_do_night(cursor, date, date_start, date_end,
                 seconds=dark_almanac.resolution * 60.),
             limiting_dt=midday + datetime.timedelta(1))
 
-    if local_time_now is None:
+    try:
+        _ = local_time_now
+    except (NameError, UnboundLocalError, ):
         # This means that there was no dark period at all tonight.
         # So, we need to set local_time_now to be a reasonable time the
         # following morning (say 9am local)
         local_time_now = datetime.datetime.combine(date + datetime.timedelta(1),
-                                                   datetime.time(9,0,0))
+                                                   datetime.time(9, 0, 0))
 
     end = datetime.datetime.now()
     delta = end - start
