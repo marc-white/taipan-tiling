@@ -405,9 +405,9 @@ def sim_do_night(cursor, date, date_start, date_end,
             # stage
 
             # Set the tile to be queued
-            mTQexec(cursor, [tile_to_obs], time_obs=local_time_now)
+            mTQexec(cursor, [tile_to_obs], time_obs=local_utc_now)
             # Record the time that this was done
-            tiles_observed_at.append(local_time_now)
+            tiles_observed_at.append(local_utc_now)
 
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
@@ -416,7 +416,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Switch the logger to DEBUG
             # logger.setLevel(logging.DEBUG)
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
-                          tiling_time=local_time_now,
+                          tiling_time=local_utc_now,
                           disqualify_below_min=False)
             # logger.setLevel(logging.INFO)
 
@@ -524,7 +524,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         # a re-computation of the target numbers in each field
         logger.setLevel(logging.DEBUG)
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
-                      tiling_time=local_time_now,
+                      tiling_time=local_utc_now,
                       disqualify_below_min=False)
         logger.setLevel(logging.INFO)
 
