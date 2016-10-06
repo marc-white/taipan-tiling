@@ -487,33 +487,32 @@ def sim_do_night(cursor, date, date_start, date_end,
         target_ids = target_ids[simulate_bugfails([True] * len(target_ids),
                                                   prob=0.0001)]
 
+        if len(target_ids) > 0:
+            # Get the array of target_ids with target types from the database
+            target_types_db = rSTyexec(cursor, target_ids=target_ids)
+            # Get an array with the number of visits and repeats of these
+            visits_repeats = rSVexec(cursor, target_ids=target_ids)
 
-        # Get the array of target_ids with target types from the database
-        target_types_db = rSTyexec(cursor, target_ids=target_ids)
-        # Get an array with the number of visits and repeats of these
-        visits_repeats = rSVexec(cursor, target_ids=target_ids)
+            # Form an array showing the type of those targets
+            # target_types = np.asarray(list(['' for _ in target_types_db]))
+            # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
+            #     target_types[
+            #         np.asarray([_[ttype] is True for _ in target_types_db],
+            #                    dtype=bool)
+            #     ] = ttype
+            # Calculate a success/failure rate for each target
+            # Compute target success based on target type(s)
+            success_targets = test_redshift_success(target_types_db,
+                                                    visits_repeats['visits'] +
+                                                    1)  # Function needs
 
-        # Form an array showing the type of those targets
-        # target_types = np.asarray(list(['' for _ in target_types_db]))
-        # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
-        #     target_types[
-        #         np.asarray([_[ttype] is True for _ in target_types_db],
-        #                    dtype=bool)
-        #     ] = ttype
-        # Calculate a success/failure rate for each target
-        # Compute target success based on target type(s)
-        success_targets = test_redshift_success(target_types_db,
-                                                visits_repeats['visits'] +
-                                                1)  # Function needs
-
-        # Set relevant targets as observed successfully, all others
-        # observed but unsuccessfully
-        mSRIexec(cursor, target_ids[success_targets], set_done=True)
-        mSVIexec(cursor, target_ids[~success_targets])
+            # Set relevant targets as observed successfully, all others
+            # observed but unsuccessfully
+            mSRIexec(cursor, target_ids[success_targets], set_done=True)
+            mSVIexec(cursor, target_ids[~success_targets])
 
         # Mark the tiles as having been observed
         mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
-
 
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
