@@ -359,10 +359,12 @@ def sim_do_night(cursor, date, date_start, date_end,
                                field_periods[fields_by_tile[t]][1] is not
                                None and
                                field_periods[fields_by_tile[t]][0] -
-                               ts.SLEW_TIME <
-                               ephem_time_now and
+                               datetime.timedelta(seconds=ts.SLEW_TIME) <
+                               local_utc_now and
                                field_periods[fields_by_tile[t]][1] >
-                               ephem_time_now + ts.POINTING_TIME).next()
+                               local_utc_now +
+                               datetime.timedelta(
+                                   seconds=ts.POINTING_TIME)).next()
             except StopIteration:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
@@ -447,6 +449,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     delta = end - start
     logging.info('Completed simulated observing in %d:%2.1f' %
                  (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+
+    # Generate a local time for end-of-night operations
+    local_time_now = ts.localize_utc_dt(local_utc_now)
 
     # We are now done observing for the night. It is time for some
     # housekeeping
