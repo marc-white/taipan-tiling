@@ -278,8 +278,10 @@ def sim_do_night(cursor, date, date_start, date_end,
         logging.info('Commencing observing...')
         start = datetime.datetime.now()
         logging.info('Observing over dark period %s to %s local' %
-                     (ts.localize_utc_dt(dark_start).strftime(),
-                      ts.localize_utc_dt(dark_end).strftime(), ))
+                     (ts.localize_utc_dt(dark_start).strftime(
+                         '%Y-%m-%d %H:%M:%S'),
+                      ts.localize_utc_dt(dark_end).strftime(
+                          '%Y-%m-%d %H:%M:%S'), ))
         # ephem_time_now = dark_start
         # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
         #                                                    ts.EPHEM_DT_STRFMT))
@@ -301,7 +303,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             logging.debug('Next observing period for each field:')
             logging.debug(field_periods)
             logging.info('Next available field will rise at %s' %
-                         (min([v[0].strftime() for v in
+                         (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
                                field_periods.itervalues() if
                                v[0] is not None]),)
                          )
@@ -345,7 +347,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             # longer than one pointing (slew + obs)
 
             logging.info('At time %s, going to %s' % (
-                local_utc_now.strftime(), dark_end.strftime(),
+                local_utc_now.strftime('%Y-%m-%d %H:%M:%S'), dark_end.strftime('%Y-%m-%d %H:%M:%S'),
             ))
             # Select the best ranked field we can see
             try:
@@ -380,7 +382,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                     return
 
                 logging.info('No fields up - advancing time to %s' %
-                             local_utc_now.strftime())
+                             local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
                 # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
                 #     ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue
@@ -390,7 +392,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                          'time %s, RA %3.1f, DEC %2.1f' %
                           (tile_to_obs, tiles_scores[tile_to_obs],
                            fields_by_tile[tile_to_obs],
-                           local_utc_now.strftime(),
+                           local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
                            [x['ra'] for x in scores_array if
                             x['tile_pk'] == tile_to_obs][0],
                            [x['dec'] for x in scores_array if
