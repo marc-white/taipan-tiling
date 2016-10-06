@@ -526,11 +526,11 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Re-tile those fields to a particular depth - usually 1
         # Note that the calls made by the tiling function automatically include
         # a re-computation of the target numbers in each field
-        logger.setLevel(logging.DEBUG)
+        # logger.setLevel(logging.DEBUG)
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                       tiling_time=local_utc_now,
                       disqualify_below_min=False)
-        logger.setLevel(logging.INFO)
+        # logger.setLevel(logging.INFO)
 
     end = datetime.datetime.now()
     delta = end - start
