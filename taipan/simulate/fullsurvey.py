@@ -586,27 +586,29 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
 
     fields = rCexec(cursor)
     # Construct the almanacs required
-    start = datetime.datetime.now()
-    logging.info('Constructing dark almanac...')
-    dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end,
-                                  resolution=15.)
-    dark_almanac.save()
-    logging.info('Constructing field almanacs...')
-    almanacs = {field.field_id: ts.Almanac(field.ra, field.dec, date_start,
-                                           end_date=date_end, resolution=15.,
-                                           minimum_airmass=2)
-                for field in fields}
-    # Work out which of the field almanacs already exist on disk
-    files_on_disk = os.listdir(output_loc)
-    almanacs_existing = {k: v.generate_file_name() in files_on_disk
-                         for (k, v) in almanacs.iteritems()}
-    logging.info('Saving almanacs to disc...')
-    for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
-        almanacs[k].save()
-    end = datetime.datetime.now()
-    delta = end - start
-    logging.info('Completed almanac prep in %d:%2.1f' %
-                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+    # start = datetime.datetime.now()
+    # logging.info('Constructing dark almanac...')
+    # dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end,
+    #                               resolution=15.)
+    # dark_almanac.save()
+    # logging.info('Constructing field almanacs...')
+    # almanacs = {field.field_id: ts.Almanac(field.ra, field.dec, date_start,
+    #                                        end_date=date_end, resolution=15.,
+    #                                        minimum_airmass=2)
+    #             for field in fields}
+    # # Work out which of the field almanacs already exist on disk
+    # files_on_disk = os.listdir(output_loc)
+    # almanacs_existing = {k: v.generate_file_name() in files_on_disk
+    #                      for (k, v) in almanacs.iteritems()}
+    # logging.info('Saving almanacs to disc...')
+    # for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
+    #     almanacs[k].save()
+    # end = datetime.datetime.now()
+    # delta = end - start
+    # logging.info('Completed almanac prep in %d:%2.1f' %
+    #              (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+    almanacs = None
+    dark_almanac = None
 
     # Run the actual observing
     logging.info('Commencing observing...')
