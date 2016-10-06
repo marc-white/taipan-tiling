@@ -28,6 +28,7 @@ from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexe
 from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
 from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
 from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
+import src.resources.v0_0_1.readout.readAlmanacStats as rAS
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
@@ -209,56 +210,62 @@ def sim_do_night(cursor, date, date_start, date_end,
     # If we don't, we'll need to make one
     # Note that, because of the way Python's scoping is set up, this will
     # permanently add the almanac to the input dictionary
-    logging.debug('Checking all necessary almanacs are present')
-    almanacs_existing = almanac_dict.keys()
-    almanacs_relevant = {row['field_id']: None for row in scores_array}
-    for row in scores_array:
-        if row['field_id'] not in almanacs_existing:
-            almanac_dict[row['field_id']] = [ts.Almanac(row['ra'], row['dec'],
-                                                        date_start, date_end), ]
-            if save_new_almanacs:
-                almanac_dict[row['field_id']][0].save()
-            almanacs_existing.append(row['field_id'])
-
-        # Now, make sure that the almanacs actually cover the correct date range
-        # If not, replace any existing almanacs with one super Almanac for the
-        # entire range requested
-        try:
-            almanacs_relevant[
-                row['field_id']] = (a for a in almanac_dict[row['field_id']] if
-                                    a.start_date <= date <= a.end_date).next()
-        except KeyError:
-            # This catches when no almanacs satisfy the condition in the
-            # list constructor above
-            almanac_dict[row['field_id']] = [
-                ts.Almanac(row['ra'], row['dec'],
-                           date_start, date_end), ]
-            if save_new_almanacs:
-                almanac_dict[row['field_id']][0].save()
-            almanacs_relevant[
-                    row['field_id']] = almanac_dict[row['field_id']][0]
-
-    # Check that the dark almanac spans the relevant dates; if not,
-    # regenerate it
-    if dark_almanac is None or (dark_almanac.start_date > date or
-                                dark_almanac.end_date < date):
-        dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)
-        if save_new_almanacs:
-            dark_almanac.save()
-
-    end = datetime.datetime.now()
-    delta = end - start
-    logging.info('Completed (nightly) almanac prep in %d:%2.1f' %
-                 (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+    # logging.debug('Checking all necessary almanacs are present')
+    # almanacs_existing = almanac_dict.keys()
+    # almanacs_relevant = {row['field_id']: None for row in scores_array}
+    # for row in scores_array:
+    #     if row['field_id'] not in almanacs_existing:
+    #         almanac_dict[row['field_id']] = [ts.Almanac(row['ra'], row['dec'],
+    #                                                     date_start, date_end), ]
+    #         if save_new_almanacs:
+    #             almanac_dict[row['field_id']][0].save()
+    #         almanacs_existing.append(row['field_id'])
+    #
+    #     # Now, make sure that the almanacs actually cover the correct date range
+    #     # If not, replace any existing almanacs with one super Almanac for the
+    #     # entire range requested
+    #     try:
+    #         almanacs_relevant[
+    #             row['field_id']] = (a for a in almanac_dict[row['field_id']] if
+    #                                 a.start_date <= date <= a.end_date).next()
+    #     except KeyError:
+    #         # This catches when no almanacs satisfy the condition in the
+    #         # list constructor above
+    #         almanac_dict[row['field_id']] = [
+    #             ts.Almanac(row['ra'], row['dec'],
+    #                        date_start, date_end), ]
+    #         if save_new_almanacs:
+    #             almanac_dict[row['field_id']][0].save()
+    #         almanacs_relevant[
+    #                 row['field_id']] = almanac_dict[row['field_id']][0]
+    #
+    # # Check that the dark almanac spans the relevant dates; if not,
+    # # regenerate it
+    # if dark_almanac is None or (dark_almanac.start_date > date or
+    #                             dark_almanac.end_date < date):
+    #     dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)
+    #     if save_new_almanacs:
+    #         dark_almanac.save()
+    #
+    # end = datetime.datetime.now()
+    # delta = end - start
+    # logging.info('Completed (nightly) almanac prep in %d:%2.1f' %
+    #              (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
     logging.info('Finding first block of dark time for this evening')
     start = datetime.datetime.now()
     # Compute the times for the first block of dark time tonight
-    midday = datetime.datetime.combine(date, datetime.time(12, 0, 0))
-    midday_end = datetime.datetime.combine(date_end, datetime.time(12, 0, 0))
-    dark_start, dark_end = dark_almanac.next_dark_period(midday,
-                                                         limiting_dt=midday +
-                                                         datetime.timedelta(1))
+    midday = ts.utc_local_dt(datetime.datetime.combine(date,
+                                                       datetime.time(12, 0, 0)))
+    midday_end = ts.utc_local_dt(datetime.datetime.combine(date_end,
+                                                           datetime.time(12, 0,
+                                                                         0)))
+    # dark_start, dark_end = dark_almanac.next_dark_period(midday,
+    #                                                      limiting_dt=midday +
+    #                                                      datetime.timedelta(1))
+    dark_start, dark_end = rAS.next_night_period(cursor, midday,
+                                                 limiting_dt=midday_end,
+                                                 dark=True, grey=False)
     end = datetime.datetime.now()
     delta = end - start
     logging.info('Found first block of dark time in %d:%2.1f' %
@@ -270,25 +277,32 @@ def sim_do_night(cursor, date, date_start, date_end,
     while dark_start is not None:
         logging.info('Commencing observing...')
         start = datetime.datetime.now()
-        logging.info('Observing over dark period %5.3f to %5.3f' %
-                     (dark_start, dark_end,))
-        ephem_time_now = dark_start
-        local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
-                                                           ts.EPHEM_DT_STRFMT))
-        while ephem_time_now < (dark_end - ts.POINTING_TIME):
+        logging.info('Observing over dark period %s to %s local' %
+                     (ts.localize_utc_dt(dark_start).strftime(),
+                      ts.localize_utc_dt(dark_end).strftime(), ))
+        # ephem_time_now = dark_start
+        # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(ephem_time_now,
+        #                                                    ts.EPHEM_DT_STRFMT))
+        local_utc_now = dark_start
+        while local_utc_now < (dark_end - datetime.timedelta(ts.POINTING_TIME)):
             # Get the next observing period for all fields being considered
-            field_periods = {r['field_id']: almanacs_relevant[
-                r['field_id']
-            ].next_observable_period(
-                local_time_now - (datetime.timedelta(
-                    almanacs_relevant[r['field_id']].resolution *
-                    60. / ts.SECONDS_PER_DAY)),
-                datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
+            # field_periods = {r['field_id']: almanacs_relevant[
+            #     r['field_id']
+            # ].next_observable_period(
+            #     local_time_now - (datetime.timedelta(
+            #         almanacs_relevant[r['field_id']].resolution *
+            #         60. / ts.SECONDS_PER_DAY)),
+            #     datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
+            #                  r in scores_array}
+            field_periods = {r['field_id']: rAS.next_observable_period(
+                cursor, r['field_id'], local_utc_now,
+                datetime_to=dark_end) for
                              r in scores_array}
             logging.debug('Next observing period for each field:')
             logging.debug(field_periods)
-            logging.info('Next available field will rise at %5.3f' %
-                         (min([v[0] for v in field_periods.itervalues() if
+            logging.info('Next available field will rise at %s' %
+                         (min([v[0].strftime() for v in
+                               field_periods.itervalues() if
                                v[0] is not None]),)
                          )
             fields_available = [f for f, v in field_periods.iteritems() if
@@ -306,12 +320,16 @@ def sim_do_night(cursor, date, date_start, date_end,
             fields_by_tile = {row['tile_pk']: row['field_id'] for
                               row in scores_array if
                               row['field_id'] in fields_available}
-            hours_obs = {f: almanacs_relevant[f].hours_observable(
-                local_time_now,
-                datetime_to=midday_end,
-                dark_almanac=dark_almanac,
-                hours_better=True
-            ) for f in fields_by_tile.values()}
+            # hours_obs = {f: almanacs_relevant[f].hours_observable(
+            #     local_time_now,
+            #     datetime_to=midday_end,
+            #     dark_almanac=dark_almanac,
+            #     hours_better=True
+            # ) for f in fields_by_tile.values()}
+            hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
+                                                 datetime_to=midday_end,
+                                                 hours_better=True) for
+                         f in fields_by_tile.values()}
             # Modulate scores by hours remaining
             tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
                             t, v in tiles_scores.iteritems()}
@@ -326,8 +344,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             # 'Observe' while the remaining time in this dark period is
             # longer than one pointing (slew + obs)
 
-            logging.info('At time %5.3f, going to %5.3f' % (
-                ephem_time_now, dark_end,
+            logging.info('At time %s, going to %s' % (
+                local_utc_now.strftime(), dark_end.strftime(),
             ))
             # Select the best ranked field we can see
             try:
@@ -349,27 +367,28 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
-                ephem_time_now = min([v[0] for f, v in
-                                      field_periods.iteritems()
-                                      if v[0] is not None and
-                                      v[1] if not None and
-                                      v[0] > ephem_time_now])
-                if ephem_time_now is None:
+                local_utc_now = min([v[0] for f, v in
+                                     field_periods.iteritems()
+                                     if v[0] is not None and
+                                     v[1] if not None and
+                                     v[0] > local_utc_now])
+                if local_utc_now is None:
                     logging.info('There appears to be no valid observing time '
                                  'remaining out to the end_date')
                     return
 
-                logging.info('No fields up - advancing time to %5.3f' %
-                             ephem_time_now)
-                local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
-                    ephem_time_now, ts.EPHEM_DT_STRFMT))
+                logging.info('No fields up - advancing time to %s' %
+                             local_utc_now.strftime())
+                # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
+                #     ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue
 
             # 'Observe' the field
             logging.info('Observing tile %d (score: %.1f), field %d at '
-                         'time %5.3f, RA %3.1f, DEC %2.1f' %
+                         'time %s, RA %3.1f, DEC %2.1f' %
                           (tile_to_obs, tiles_scores[tile_to_obs],
-                           fields_by_tile[tile_to_obs], ephem_time_now,
+                           fields_by_tile[tile_to_obs],
+                           local_utc_now.strftime(),
                            [x['ra'] for x in scores_array if
                             x['tile_pk'] == tile_to_obs][0],
                            [x['dec'] for x in scores_array if
@@ -398,9 +417,9 @@ def sim_do_night(cursor, date, date_start, date_end,
             # logger.setLevel(logging.INFO)
 
             # Increment time_now and move to observe the next field
-            ephem_time_now += ts.POINTING_TIME
-            local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
-                ephem_time_now, ts.EPHEM_DT_STRFMT))
+            local_utc_now += datetime.timedelta(ts.POINTING_TIME)
+            # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
+            #     ephem_time_now, ts.EPHEM_DT_STRFMT))
 
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
@@ -410,18 +429,19 @@ def sim_do_night(cursor, date, date_start, date_end,
         # period is tonight (if there is one)
         logging.debug('Finding next block of dark time for tonight')
         dark_start, dark_end = dark_almanac.next_dark_period(
-            local_time_now + datetime.timedelta(
-                seconds=dark_almanac.resolution * 60.),
+            local_utc_now + datetime.timedelta(
+                minutes=15.),
             limiting_dt=midday + datetime.timedelta(1))
 
     try:
-        _ = local_time_now
+        _ = local_utc_now
     except (NameError, UnboundLocalError, ):
         # This means that there was no dark period at all tonight.
         # So, we need to set local_time_now to be a reasonable time the
         # following morning (say 9am local)
-        local_time_now = datetime.datetime.combine(date + datetime.timedelta(1),
-                                                   datetime.time(9, 0, 0))
+        local_utc_now = ts.utc_local_dt(
+            datetime.datetime.combine(date + datetime.timedelta(1),
+                                      datetime.time(9, 0, 0)))
 
     end = datetime.datetime.now()
     delta = end - start
@@ -512,7 +532,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     if commit:
         cursor.connection.commit()
 
-    return local_time_now
+    return local_utc_now
 
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
