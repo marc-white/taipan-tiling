@@ -554,7 +554,7 @@ def compute_target_difficulties(target_list, full_target_list=None,
         logging.debug('Difficulties done!')
         
     difficulties = [1]
-    if min(difficulties) ==0:
+    if min(difficulties) == 0:
         raise UserWarning
 
     return

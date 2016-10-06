@@ -150,6 +150,27 @@ def localize_utc_dt(dt, tz=UKST_TIMEZONE):
     dt_local = pytz.utc.localize(dt).astimezone(tz).replace(tzinfo=None)
     return dt_local
 
+
+def utc_local_dt(dt, tz=UKST_TIMEZONE):
+    """
+    Convert a naive datetime (assumed to be in timezone tz) into a
+    naive UTC datetime
+
+    Parameters
+    ----------
+    dt:
+        The datetime to convert.
+    tz:
+        The 'local' timezone. Defaults to UKST_TIMEZONE.
+
+    Returns
+    -------
+    dt_utc:
+        A naive timezone, but cast into the 'local' timezone.
+    """
+    dt_utc = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
+    return dt_utc
+
 # ______________________________________________________________________________
 # CLASS DEFINITIONS
 # ______________________________________________________________________________
