@@ -432,7 +432,11 @@ def sim_do_night(cursor, date, date_start, date_end,
         # When this dark period is exhausted, figure out when the next dark
         # period is tonight (if there is one)
         logging.debug('Finding next block of dark time for tonight')
-        dark_start, dark_end = dark_almanac.next_dark_period(
+        # dark_start, dark_end = dark_almanac.next_dark_period(
+        #     local_utc_now + datetime.timedelta(
+        #         minutes=15.),
+        #     limiting_dt=midday + datetime.timedelta(1))
+        dark_start, dark_end = rAS.next_night_period(
             local_utc_now + datetime.timedelta(
                 minutes=15.),
             limiting_dt=midday + datetime.timedelta(1))
