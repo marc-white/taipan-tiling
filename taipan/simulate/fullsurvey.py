@@ -328,10 +328,16 @@ def sim_do_night(cursor, date, date_start, date_end,
             #     dark_almanac=dark_almanac,
             #     hours_better=True
             # ) for f in fields_by_tile.values()}
-            hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
-                                                 datetime_to=midday_end,
-                                                 hours_better=True) for
-                         f in fields_by_tile.values()}
+            # hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
+            #                                      datetime_to=midday_end,
+            #                                      hours_better=True) for
+            #              f in fields_by_tile.values()}
+            hours_obs = {h['field_id']: h['count'] for h in
+                         rAS.hours_observable_bulk(cursor,
+                                                   fields_by_tile.values(),
+                                                   local_utc_now,
+                                                   datetime_to=midday_end,
+                                                   hours_better=True)}
             # Modulate scores by hours remaining
             tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
                             t, v in tiles_scores.iteritems()}
@@ -480,7 +486,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         # FAKE DQ/SCIENCE ANALYSIS
         # -------
         # Read in from DB
-        # Get the list of science target IDs on this tile
+        # Get the list of science target IDs on these tiles
         target_ids = np.asarray(rSTiexec(cursor, tiles_observed))
 
         # Add in small probability of uncategorized 'bug failure'
