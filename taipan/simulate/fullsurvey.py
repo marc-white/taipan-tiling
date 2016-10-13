@@ -513,9 +513,12 @@ def sim_do_night(cursor, date, date_start, date_end,
             #     ] = ttype
             # Calculate a success/failure rate for each target
             # Compute target success based on target type(s)
+            # Note function needs the 'updated' value of target visits, which
+            # won't be pushed to the database until after the result of this
+            # function is implemented
             success_targets = test_redshift_success(target_types_db,
                                                     visits_repeats['visits'] +
-                                                    1)  # Function needs
+                                                    1)
 
             # Set relevant targets as observed successfully, all others
             # observed but unsuccessfully
@@ -643,8 +646,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2016,4,1)
-    sim_end = datetime.date(2017,4,1)
+    sim_start = datetime.date(2017, 4, 1)
+    sim_end = datetime.date(2018, 4, 1)
     global_start = datetime.datetime.now()
 
     # Set the logging to write to terminal AND file
