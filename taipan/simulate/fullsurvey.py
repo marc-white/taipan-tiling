@@ -675,12 +675,12 @@ if __name__ == '__main__':
 
     global_end = datetime.datetime.now()
     global_delta = global_end - global_start
-    print('')
-    print('--------')
-    print('SIMULATION COMPLETE')
-    print('Simulated %d nights' % (sim_end - sim_start).days)
-    print('Simulation time:')
-    print('%dh %dm %2.1fs' % (
+    logging.info('')
+    logging.info('--------')
+    logging.info('SIMULATION COMPLETE')
+    logging.info('Simulated %d nights' % (sim_end - sim_start).days)
+    logging.info('Simulation time:')
+    logging.info('%dh %dm %2.1fs' % (
         global_delta.total_seconds() // 3600,
         (global_delta.total_seconds() % 3600) // 60,
         global_delta.total_seconds() % 60,
