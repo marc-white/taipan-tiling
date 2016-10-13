@@ -312,6 +312,10 @@ def sim_do_night(cursor, date, date_start, date_end,
             logging.debug('%d fields available at some point tonight' %
                           len(fields_available))
 
+            # Get the latest scores_array
+            scores_array = rTSexec(cursor, metrics=['cw_sum', 'n_sci_rem'],
+                                   ignore_zeros=True)
+
             # Rank the available fields
             logging.info('Computing field scores')
             start = datetime.datetime.now()
@@ -353,7 +357,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             # longer than one pointing (slew + obs)
 
             logging.info('At time %s, going to %s' % (
-                local_utc_now.strftime('%Y-%m-%d %H:%M:%S'), dark_end.strftime('%Y-%m-%d %H:%M:%S'),
+                local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
+                dark_end.strftime('%Y-%m-%d %H:%M:%S'),
             ))
             # Select the best ranked field we can see
             try:
@@ -532,9 +537,12 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Note that the calls made by the tiling function automatically include
         # a re-computation of the target numbers in each field
         # logger.setLevel(logging.DEBUG)
+        # Note we now need to retile fields which have is_queued=True and
+        # is_observed=False, as they're no longer actually queued
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                       tiling_time=local_utc_now,
-                      disqualify_below_min=False)
+                      disqualify_below_min=False,
+                      delete_queued=True)
         # logger.setLevel(logging.INFO)
 
     end = datetime.datetime.now()
