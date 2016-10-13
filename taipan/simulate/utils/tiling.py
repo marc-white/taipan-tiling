@@ -19,7 +19,8 @@ from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
 def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
-                  disqualify_below_min=True, restrict_targets=True):
+                  disqualify_below_min=True, restrict_targets=True,
+                  delete_queued=False):
     """
     Re-tile the fields passed.
 
@@ -45,6 +46,10 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         science_targets on the database side (rather than only during tiling).
         This provides factor 5-10 speed increases when only re-tiling small
         regions of sky. Defaults to True.
+    delete_queued:
+        Optional Boolean, denoting whether to delete any tiles marked as
+        'queued', but not 'observed'. Defaults to False (i.e. such tiles will
+        not be deleted).
 
     Returns
     -------
@@ -66,6 +71,13 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         tiling_time.strftime('%y-%m-%d %H:%M:%S'),
     ))
 
+    # Eliminate the redundant tiles from the DB
+    if delete_queued:
+        dTexec(cursor, field_list=field_list, obs_status=False)
+    else:
+        dTexec(cursor, field_list=field_list, obs_status=False,
+               queue_status=False)
+
     # Get the required targets from the database
     candidate_targets = rScexec(cursor, unobserved=True, unassigned=True,
                                 unqueued=True, field_list=fields_w_targets)
@@ -78,9 +90,6 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         tl.generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                           guide_targets, tiles_per_field,
                                           tiles=fields_to_tile)
-
-    # Eliminate the redundant tiles from the DB
-    dTexec(cursor, field_list=field_list, obs_status=False, queue_status=False)
 
     # Write the new tiles back to the database
     iTexec(cursor, tile_list, config_time=tiling_time,
