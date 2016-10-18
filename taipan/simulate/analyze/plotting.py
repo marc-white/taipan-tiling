@@ -113,14 +113,21 @@ def plot_tiles_per_night(cursor, start_date=None, end_date=None,
     ax.set_xlabel('Date')
     ax.set_ylabel('No. tiles observed')
 
-    ax.hist(obs_tile_info['date_obs'], bins=(end_date - start_date).days,
+    def date_vec(x):
+        return x.date()
+    date_vec = np.vectorize(date_vec)
+
+    ax.hist(obs_tile_info[np.logical_and(
+        date_vec(obs_tile_info['date_obs']) >= start_date,
+        date_vec(obs_tile_info['date_obs']) <= end_date)]['date_obs'],
+            bins=(end_date - start_date).days,
             label='Tiles observed')
 
     # ax.plot(np.asarray(nights) + datetime.timedelta(0.5),  # centre on midnight
     #         hrs_dark,
     #         'r-', lw=0.7, label='Dark hours')
-    ax.plot(np.asarray(nights),
-            # + datetime.timedelta(0.5),  # centre on midnight
+    ax.plot(np.asarray(nights)
+            + datetime.timedelta(1.5),  # centre on midnight
             np.asarray(hrs_dark) / (POINTING_TIME * 24.),
             'g-', lw=0.7, label='Possible tiles per night')
 
