@@ -98,6 +98,8 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                                               1,
                                               tiles=field_tiles,
                                               repeat_targets=True,
+                                              tile_unpick_method='sequential',
+                                              sequential_ordering=(2,1)
                                               )
         # logger.setLevel(old_level)
         logging.info('First tile pass complete!')
