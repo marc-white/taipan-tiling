@@ -418,7 +418,7 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
         ax1.add_patch(Circle(
             (np.radians((t['ra'] - 180.) % 360 - 180.), np.radians(t['dec'])),
             radius=np.radians(TILE_RADIUS / 3600.), facecolor='red',
-            edgecolor='none', lw=0.7, alpha=0.2
+            edgecolor='none', lw=0.7, alpha=0.1
         ))
 
         if i > 0 and (obs_tile_info[i]['date_obs'] -
