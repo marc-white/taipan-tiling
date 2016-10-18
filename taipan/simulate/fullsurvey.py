@@ -37,6 +37,7 @@ from src.resources.v0_0_1.manipulate.makeScienceRepeatInc import execute as mSRI
 from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
 from src.resources.v0_0_1.manipulate.makeTilesQueued import execute as mTQexec
 from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
+from src.resources.v0_0_1.manipulate.makeTilesReset import execute as mTRexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
@@ -127,7 +128,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                  save_new_almanacs=True, commit=True):
     """
     Do a simulated 'night' of observations. This involves:
-    - Determine the tiles to do tonight
+    - Determine the tiles to do tonighttar
     - 'Observe' them
     - Update the DB appropriately
 
@@ -416,7 +417,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             # stage
 
             # Set the tile to be queued
-            mTQexec(cursor, [tile_to_obs], time_obs=local_utc_now)
+            # Note we are *not* setting the tile's date_obs value yet
+            mTQexec(cursor, [tile_to_obs], time_obs=None)
             # Record the time that this was done
             tiles_observed_at.append(local_utc_now)
 
@@ -527,6 +529,9 @@ def sim_do_night(cursor, date, date_start, date_end,
 
         # Mark the tiles as having been observed
         mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
+
+        # Reset all tiles to be unqueued
+        mTRexec(cursor)
 
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling

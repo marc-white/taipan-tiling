@@ -4,18 +4,25 @@ import numpy as np
 
 from src.resources.v0_0_1.readout import readTileObservingInfo as rTOI
 from src.resources.v0_0_1.readout import readAlmanacStats as rAS
+from src.resources.v0_0_1.readout import readCentroids as rC
+from src.resources.v0_0_1.readout import readScienceObservingInfo as rSOI
+
 from ...scheduling import localize_utc_dt, utc_local_dt, POINTING_TIME
+from ...core import TILE_RADIUS
 
 import matplotlib
+from matplotlib.patches import Circle
+from mpl_toolkits.basemap import Basemap
 import datetime
+import time
 
 MIDDAY = datetime.time(12,0)
 
 
-def tiles_per_night(cursor, start_date=None, end_date=None,
-                    pylab_mode=False, output_loc='.',
-                    output_name='tiles_per_night',
-                    output_fmt='png'):
+def plot_tiles_per_night(cursor, start_date=None, end_date=None,
+                         pylab_mode=False, output_loc='.',
+                         output_name='tiles_per_night',
+                         output_fmt='png'):
     """
     Plot a histogram of the number of tiles observed per night. Histogram is
     binned on a 'nightly' basis.
@@ -108,14 +115,14 @@ def tiles_per_night(cursor, start_date=None, end_date=None,
     ax.hist(obs_tile_info['date_obs'], bins=(end_date - start_date).days,
             label='Tiles observed')
 
-    ax.plot(np.asarray(nights) + datetime.timedelta(0.5),  # centre on midnight
-            hrs_dark,
-            'r-', lw=0.7, label='Dark hours')
+    # ax.plot(np.asarray(nights) + datetime.timedelta(0.5),  # centre on midnight
+    #         hrs_dark,
+    #         'r-', lw=0.7, label='Dark hours')
     ax.plot(np.asarray(nights) + datetime.timedelta(0.5),  # centre on midnight
             np.asarray(hrs_dark) / (POINTING_TIME * 24.),
             'g-', lw=0.7, label='Possible tiles per night')
 
-    leg = ax.legend(fontsize=7)
+    leg = ax.legend(fontsize=12)
 
     if not pylab_mode:
         fig.savefig('%s/%s.%s' % (output_loc, output_name, output_fmt),
@@ -123,5 +130,330 @@ def tiles_per_night(cursor, start_date=None, end_date=None,
     else:
         matplotlib.pyplot.draw()
         matplotlib.pyplot.show()
+
+    return fig
+
+
+def plot_timedelta_histogram(cursor, pylab_mode=False,
+                            output_loc='.',
+                            output_name='timedelta_hist',
+                            output_fmt='png'):
+    """
+    Plot a histogram of the unique times between related tile observations
+    Parameters
+    ----------
+    cursor:
+        psycopg2 cursor for communicating with the database.
+    output_loc:
+        Optional string, denoting where to write output to in the event
+        the function is not run in Pylab mode. Defaults to '.' (i.e. the present
+        working directory).
+    output_name:
+        Optional string, denoting the name of the output image. Defaults to
+        'tiles_per_night'.
+    output_fmt:
+        Optional string, denoting the format of the output image. Defaults to
+        'png'. Should be a valid matplotlib format specifier.
+
+    Returns
+    -------
+    fig:
+        The matplotlib.Figure instance that the figure was drawn into. An image
+        file will also be written to disk if pylab_mode=False.
+    """
+
+    # Read in the tiles data
+    obs_tile_info = rTOI.execute(cursor)
+    obs_tile_info.sort(order='date_obs')
+
+    # Generate the timedelta array
+    timedeltas = obs_tile_info['date_obs'][1:] - obs_tile_info['date_obs'][:-1]
+    timedeltas = map(lambda x: int(x.total_seconds() / 60.), timedeltas)
+
+    # Actually plot
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+
+    ax = fig.add_subplot(111)
+    ax.set_title('Time between observations:')
+    ax.set_xlabel('Time (mins)')
+    ax.set_ylabel('No. differences')
+    ax.set_yscale('log')
+
+    ax.hist(timedeltas, bins=len(set(timedeltas)),
+            label='Differences')
+
+    if not pylab_mode:
+        fig.savefig('%s/%s.%s' % (output_loc, output_name, output_fmt),
+                    fmt=output_fmt)
+    else:
+        matplotlib.pyplot.draw()
+        matplotlib.pyplot.show()
+
+    return fig
+
+
+def plot_position_histogram(cursor, start_date=None, end_date=None,
+                            rabins=24, decbins=10, pylab_mode=False,
+                            output_loc='.',
+                            output_name='tiles_per_night',
+                            output_fmt='png'):
+    """
+    Plot a histogram of the number of tiles observed at RA/Dec positions.
+
+    Parameters
+    ----------
+    cursor:
+        psycopg2 cursor for communicating with the database.
+    start_date, end_date:
+        Optional datetime.date objects, denoting the start and end dates to
+        consider when producing the plot. Both default to None, at which point
+        these values will be calculated from the observed tiles stored in the
+        database.
+    rabins, decbins:
+        Optional integers, denoting how many histogram bins to split the RA and
+        Dec positions of the tile centroids into. Defaults to 24 and 10
+        respectively, which will split the full survey area into 10 degree bins
+        in both RA and Dec.
+    pylab_mode:
+        Optional Boolean, denoting whether to run in interactive Pylab mode
+        (True) or just write out to file (False). Defaults to False.
+    output_loc:
+        Optional string, denoting where to write output to in the event
+        the function is not run in Pylab mode. Defaults to '.' (i.e. the present
+        working directory).
+    output_name:
+        Optional string, denoting the name of the output image. Defaults to
+        'tiles_per_night'.
+    output_fmt:
+        Optional string, denoting the format of the output image. Defaults to
+        'png'. Should be a valid matplotlib format specifier.
+
+    Returns
+    -------
+    fig:
+        The matplotlib.Figure instance that the figure was drawn into. An image
+        file will also be written to disk if pylab_mode=False.
+    """
+    # Input checking
+    rabins = int(rabins)
+    decbins = int(decbins)
+
+    # Actually plot
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+
+    # Read in the tiles data
+    obs_tile_info = rTOI.execute(cursor)
+
+    # Construct the 2D histogram and plot
+    H, nx, ny = np.histogram2d(
+        np.radians((obs_tile_info['ra'] - 180.) % 360 - 180.),
+        np.radians(obs_tile_info['dec']),
+        bins=[rabins, decbins])
+
+    # axhist = fig.add_subplot(222,
+    #                          projection='mollweide',
+    #                          )
+    axhist = matplotlib.pyplot.subplot2grid((3,3), (0,1), colspan=2,
+                                            rowspan=2,
+                                            projection='mollweide')
+    axhist.grid(True)
+    # axhist.set_xlim(0., 360.)
+    # axhist.set_ylim(-90., 20.)
+    Y, X = np.meshgrid(ny, nx)
+    hist2d = axhist.pcolor(X, Y, H,
+                           cmap='hot')
+    histcb = fig.colorbar(hist2d, ax=axhist,
+                          # use_gridspec=True
+                          )
+    histcb.set_label('Tiles observed')
+
+    # Histogram of RA
+    axra = matplotlib.pyplot.subplot2grid((3,3), (2, 1), colspan=2)
+    histra = axra.hist(
+        (obs_tile_info['ra'] - 180.) % 360 - 180., bins=rabins)
+    axra.set_xlim((-180., 180.))
+    axra.set_xlabel('Right ascension (deg)')
+    axra.set_ylabel('Tiles observed')
+
+    # Histogram of Dec
+    axdec = matplotlib.pyplot.subplot2grid((3, 3), (0, 0), rowspan=2)
+    histdec = axdec.hist(
+        obs_tile_info['dec'],
+        bins=rabins,
+        orientation='horizontal')
+    axdec.set_ylim((-90., 90.))
+    axdec.set_ylabel('Declination')
+    axdec.set_xlabel('Tiles observed')
+
+    if not pylab_mode:
+        fig.savefig('%s/%s.%s' % (output_loc, output_name, output_fmt),
+                    fmt=output_fmt)
+    else:
+        matplotlib.pyplot.draw()
+        matplotlib.pyplot.show()
+
+    return fig
+
+
+def plot_observing_sequence(cursor, start_date=None, end_date=None,
+                            rotate=True, pylab_mode=False,
+                            output_loc='.',
+                            output_prefix='obs_seq',
+                            output_fmt='png'):
+    """
+    Plot an observing sequence diagnostic chart.
+
+    Parameters
+    ----------
+    cursor:
+        psycopg2 cursor for interacting with the results database
+    start_datetime, end_datetime:
+        Start and end datetimes in *UTC*. Both default to None, so these values
+        will be computed from the observed tiles in the database.
+    rotate:
+        Optional Boolean, denoting whether to rotate the plot such that the
+        most accessible hour angle at that time is centred. Defaults to True.
+    pylab_mode:
+        Optional Boolean, denoting whether to run in interactive Pylab mode
+        (True) or just write out to file (False). Defaults to False.
+    output_loc:
+        Optional string, denoting where to write output to in the event
+        the function is not run in Pylab mode. Defaults to '.' (i.e. the present
+        working directory).
+    output_prefix:
+        Optional string, denoting the name of the output image. Defaults to
+        'tiles_per_night'.
+    output_fmt:
+        Optional string, denoting the format of the output image. Defaults to
+        'png'. Should be a valid matplotlib format specifier.
+
+
+    Returns
+    -------
+     fig:
+        A matplotlib.Figure instance referencing the figure instance used.
+        In addition, either an image file will be written to disk
+        (pylab_mode=False), or an interactive Pylab window will be
+        opened/updated (pylab_mode=True).
+    """
+
+    # Let's get the information for all the observed tiles to start with1
+    obs_tile_info = rTOI.execute(cursor)
+    if len(obs_tile_info) == 0:
+        # No tiles observed - abort
+        return
+
+    # Pull in all the science targets for plotting
+    # sci_targets = rSc.execute(cursor)
+
+    # Get the science observing info
+    targets_db, targets_tiles, targets_completed = rSOI.execute(cursor)
+
+    # Read in the tile observing info
+    obs_tile_info = rTOI.execute(cursor)
+    obs_tile_info.sort(order='date_obs')
+    # obs_tile_info = obs_tile_info[:20]
+
+    # Prepare the Figure instance
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((9, 6))
+
+    ax1 = fig.add_subplot(
+        111,
+        projection='mollweide'
+    )
+    ax1.grid(True)
+
+    # m = Basemap(projection='moll', lon_0=0., ax=ax1)
+    # m.drawparallels(np.arange(-90., 90., 15.), labels=range(-90, 90, 15))
+    # m.drawmeridians(np.arange(0., 360., 30.))
+    # # Hack - basemap needs the list sorted by longitude
+    # targets_db.sort(order='ra')
+    # m.scatter(list((targets_db['ra']-180.) % 360 - 180.),
+    #           list(targets_db['dec']), latlon=True,
+    #           s=1, edgecolors=None, c='black', alpha=0.05)
+
+    # p_tgts_all = ax1.scatter(np.radians((targets_db['ra'] - 180.) % 360 - 180.),
+    #                          np.radians(targets_db['dec']),
+    #                          1, 'k', edgecolors='none',
+    #                          rasterized=True, alpha=0.02)
+
+    # To save computational power, plot the targets as a fine-grained
+    # 2d histogram
+    H, nx, ny = np.histogram2d(np.radians((targets_db['ra'] - 180.) %
+                                          360 - 180.),
+                               np.radians(targets_db['dec']),
+                               bins=[360, 90 - int(np.min(targets_db['dec']))])
+    Y, X = np.meshgrid(ny, nx)
+    ax1.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H)/4.0)
+
+    # Get and plot the field centroids
+    cents = rC.execute(cursor)
+    # for c in cents:
+    #     ax1.add_patch(Circle(
+    #         (np.radians((c.ra - 180.) % 360 - 180.), np.radians(c.dec)),
+    #         radius=np.radians(TILE_RADIUS / 3600.), facecolor='none',
+    #         edgecolor='r',
+    #         ls='--', lw=0.7
+    #     ))
+
+    # Plot the observed tiles in sequence
+    new_seq = True
+    moves_this_seq = 0
+    for i in range(len(obs_tile_info)):
+        t = obs_tile_info[i]
+        ax1.set_title(t['date_obs'].strftime('%Y-%m-%d %H:%M:%S'))
+        ax1.add_patch(Circle(
+            (np.radians((t['ra'] - 180.) % 360 - 180.), np.radians(t['dec'])),
+            radius=np.radians(TILE_RADIUS / 3600.), facecolor='red',
+            edgecolor='none', lw=0.7, alpha=0.2
+        ))
+
+        if i > 0 and (obs_tile_info[i]['date_obs'] -
+                          obs_tile_info[i-1]['date_obs'] <
+                          datetime.timedelta(minutes=60)):
+            new_seq = False
+            ax1.add_line(matplotlib.lines.Line2D(
+                np.radians((np.asarray([obs_tile_info[i-1]['ra'],
+                                        obs_tile_info[i]['ra']]) - 180.) %
+                           360 - 180.),
+                np.radians(np.asarray([obs_tile_info[i-1]['dec'],
+                                       obs_tile_info[i]['dec']])),
+                color='cyan', alpha=0.5, linewidth=3
+            ))
+            moves_this_seq += 1
+        else:
+            new_seq = True
+            for _ in range(moves_this_seq):
+                del ax1.lines[-1]
+            moves_this_seq = 0
+
+        if not pylab_mode:
+            # matplotlib.pyplot.draw()
+            fig.savefig('%s/%s-%s.%s' % (
+                output_loc,
+                output_prefix,
+                t['date_obs'].strftime('%Y-%m-%d-%H-%M-%S'),
+                output_fmt
+            ), fmt=output_fmt, dpi=300)
+
+    if pylab_mode:
+        matplotlib.pyplot.show()
+        matplotlib.pyplot.draw()
+    else:
+        # Save the figure
+        pass
 
     return fig
