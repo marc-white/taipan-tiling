@@ -201,7 +201,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     # Needs to do the following:
     # Read in the tiles that are awaiting observation, along with their scores
-    scores_array = rTSexec(cursor, metrics=['cw_sum', 'n_sci_rem'],
+    scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum', 'n_sci_rem'],
                            ignore_zeros=True)
     logging.debug('Scores array info:')
     logging.debug(scores_array)
@@ -328,13 +328,14 @@ def sim_do_night(cursor, date, date_start, date_end,
                           len(fields_available))
 
             # Get the latest scores_array
-            scores_array = rTSexec(cursor, metrics=['cw_sum', 'n_sci_rem'],
+            scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
+                                                    'n_sci_rem'],
                                    ignore_zeros=True)
 
             # Rank the available fields
             logging.info('Computing field scores')
             start = datetime.datetime.now()
-            tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['cw_sum'])
+            tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
                             for
                             row in scores_array if
                             row['field_id'] in fields_available}
