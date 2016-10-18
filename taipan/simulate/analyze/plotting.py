@@ -119,7 +119,8 @@ def plot_tiles_per_night(cursor, start_date=None, end_date=None,
     # ax.plot(np.asarray(nights) + datetime.timedelta(0.5),  # centre on midnight
     #         hrs_dark,
     #         'r-', lw=0.7, label='Dark hours')
-    ax.plot(np.asarray(nights) + datetime.timedelta(0.5),  # centre on midnight
+    ax.plot(np.asarray(nights),
+            # + datetime.timedelta(0.5),  # centre on midnight
             np.asarray(hrs_dark) / (POINTING_TIME * 24.),
             'g-', lw=0.7, label='Possible tiles per night')
 
@@ -136,9 +137,9 @@ def plot_tiles_per_night(cursor, start_date=None, end_date=None,
 
 
 def plot_timedelta_histogram(cursor, pylab_mode=False,
-                            output_loc='.',
-                            output_name='timedelta_hist',
-                            output_fmt='png'):
+                             output_loc='.',
+                             output_name='timedelta_hist',
+                             output_fmt='png'):
     """
     Plot a histogram of the unique times between related tile observations
     Parameters

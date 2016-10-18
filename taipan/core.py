@@ -456,7 +456,7 @@ def grab_target_difficulty(target, target_list):
 
 
 def compute_target_difficulties(target_list, full_target_list=None,
-    verbose=False, leafsize=BREAKEVEN_KDTREE):
+                                verbose=False, leafsize=BREAKEVEN_KDTREE):
     """
     Compute the target difficulties for a list of targets.
 
