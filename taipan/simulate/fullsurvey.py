@@ -361,6 +361,20 @@ def sim_do_night(cursor, date, date_start, date_end,
                 local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
                 dark_end.strftime('%Y-%m-%d %H:%M:%S'),
             ))
+
+            # ------
+            # FAKE WEATHER FAILURES
+            # ------
+            # For now, assume P% of all tiles are lost randomly to weather
+            P = 0.25
+            weather_prob = np.random.random(1)
+            if weather_prob[0] < P:
+                local_utc_now += datetime.timedelta(ts.POINTING_TIME)
+                logging.info('Lost one pointing to weather, advancing to %s' % (
+                    local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
+                ))
+                continue
+
             # Select the best ranked field we can see
             try:
                 # logging.debug('Next observing period for each field:')
@@ -475,19 +489,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     # We are now done observing for the night. It is time for some
     # housekeeping
 
-    # ------
-    # FAKE WEATHER FAILURES
-    # ------
-    # For now, assume P% of all tiles are lost randomly to weather
-    P = 0.25
-    weather_prob = np.random.random(len(tiles_observed))
-    tiles_observed = list(np.asarray(tiles_observed)[weather_prob < P])
-    tiles_observed_at = list(
-        np.asarray(tiles_observed_at)[weather_prob < P])
-    logging.info('Lost %d tiles to "weather"' %
-                 np.count_nonzero(weather_prob < P))
     start = datetime.datetime.now()
-
     if len(tiles_observed) > 0:
         # -------
         # FAKE DQ/SCIENCE ANALYSIS
