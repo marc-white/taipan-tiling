@@ -11,6 +11,7 @@ from ...scheduling import localize_utc_dt, utc_local_dt, POINTING_TIME
 from ...core import TILE_RADIUS
 
 import matplotlib
+import matplotlib.pyplot
 from matplotlib.patches import Circle
 # from mpl_toolkits.basemap import Basemap
 import datetime
