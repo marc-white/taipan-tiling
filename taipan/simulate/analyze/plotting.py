@@ -12,7 +12,7 @@ from ...core import TILE_RADIUS
 
 import matplotlib
 from matplotlib.patches import Circle
-from mpl_toolkits.basemap import Basemap
+# from mpl_toolkits.basemap import Basemap
 import datetime
 import time
 
