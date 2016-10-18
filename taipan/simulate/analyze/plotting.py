@@ -103,7 +103,7 @@ def plot_tiles_per_night(cursor, start_date=None, end_date=None,
         matplotlib.pyplot.clf()
         fig = matplotlib.pyplot.gcf()
     else:
-        fig = matplotlib.pyplot.Figure()
+        fig = matplotlib.pyplot.figure()
 
     ax = fig.add_subplot(111)
     ax.set_title('Tiles observed: %s to %s' % (
