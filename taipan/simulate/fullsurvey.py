@@ -296,7 +296,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             weather_prob = np.random.random(1)
             if weather_prob[0] < P:
                 local_utc_now += datetime.timedelta(ts.POINTING_TIME)
-                logging.info('Lost one pointing to weather, advancing to %s' % (
+                logging.info('*BREAK* Lost one pointing to weather, '
+                             'advancing to %s' % (
                     local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
                 ))
                 continue
