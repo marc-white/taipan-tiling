@@ -288,6 +288,19 @@ def sim_do_night(cursor, date, date_start, date_end,
         #                                                    ts.EPHEM_DT_STRFMT))
         local_utc_now = dark_start
         while local_utc_now < (dark_end - datetime.timedelta(ts.POINTING_TIME)):
+            # ------
+            # FAKE WEATHER FAILURES
+            # ------
+            # For now, assume P% of all tiles are lost randomly to weather
+            P = 0.25
+            weather_prob = np.random.random(1)
+            if weather_prob[0] < P:
+                local_utc_now += datetime.timedelta(ts.POINTING_TIME)
+                logging.info('Lost one pointing to weather, advancing to %s' % (
+                    local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
+                ))
+                continue
+
             # Get the next observing period for all fields being considered
             # field_periods = {r['field_id']: almanacs_relevant[
             #     r['field_id']
@@ -362,18 +375,6 @@ def sim_do_night(cursor, date, date_start, date_end,
                 dark_end.strftime('%Y-%m-%d %H:%M:%S'),
             ))
 
-            # ------
-            # FAKE WEATHER FAILURES
-            # ------
-            # For now, assume P% of all tiles are lost randomly to weather
-            P = 0.25
-            weather_prob = np.random.random(1)
-            if weather_prob[0] < P:
-                local_utc_now += datetime.timedelta(ts.POINTING_TIME)
-                logging.info('Lost one pointing to weather, advancing to %s' % (
-                    local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
-                ))
-                continue
 
             # Select the best ranked field we can see
             try:
@@ -532,7 +533,8 @@ def sim_do_night(cursor, date, date_start, date_end,
         # Mark the tiles as having been observed
         mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
 
-        # Reset all tiles to be unqueued
+        # Reset all tiles to be unqueued (none should be, but this is just
+        # a safety measure)
         mTRexec(cursor)
 
         # Re-tile the affected fields
