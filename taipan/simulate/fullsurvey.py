@@ -125,9 +125,65 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
     return
 
 
+def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
+                    prob_bugfail=1./10000.,
+                    prob_vpec_first=0.3, prob_vpec_second=0.7,
+                    prob_lowz_each=0.8):
+    # -------
+    # FAKE DQ/SCIENCE ANALYSIS
+    # -------
+    # Read in from DB
+    # Get the list of science target IDs on these tiles
+    target_ids = np.asarray(rSTiexec(cursor, tiles_observed))
+
+    # Add in small probability of uncategorized 'bug failure'
+    target_ids = target_ids[simulate_bugfails([True] * len(target_ids),
+                                              prob=prob_bugfail)]
+
+    if len(target_ids) > 0:
+        # Get the array of target_ids with target types from the database
+        target_types_db = rSTyexec(cursor, target_ids=target_ids)
+        # Get an array with the number of visits and repeats of these
+        visits_repeats = rSVexec(cursor, target_ids=target_ids)
+
+        # Form an array showing the type of those targets
+        # target_types = np.asarray(list(['' for _ in target_types_db]))
+        # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
+        #     target_types[
+        #         np.asarray([_[ttype] is True for _ in target_types_db],
+        #                    dtype=bool)
+        #     ] = ttype
+        # Calculate a success/failure rate for each target
+        # Compute target success based on target type(s)
+        # Note function needs the 'updated' value of target visits, which
+        # won't be pushed to the database until after the result of this
+        # function is implemented
+        success_targets = test_redshift_success(target_types_db,
+                                                visits_repeats['visits'] + 1,
+                                                prob_vpec_first=prob_vpec_first,
+                                                prob_vpec_second=
+                                                prob_vpec_second,
+                                                prob_lowz_each=prob_lowz_each)
+
+        # Set relevant targets as observed successfully, all others
+        # observed but unsuccessfully
+        mSRIexec(cursor, target_ids[success_targets], set_done=True)
+        mSVIexec(cursor, target_ids[~success_targets])
+
+    # Mark the tiles as having been observed
+    mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
+
+    # Reset all tiles to be unqueued (none should be, but this is just
+    # a safety measure)
+    mTRexec(cursor)
+
+    return
+
+
 def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
-                 save_new_almanacs=True, commit=True):
+                 save_new_almanacs=True, instant_dq=False,
+                 commit=True):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonighttar
@@ -162,6 +218,12 @@ def sim_do_night(cursor, date, date_start, date_end,
     save_new_almanacs:
         Boolean value, denoting whether to save any new almanacs that are
         created by sim_do_night. Defaults to True.
+    instant_dq:
+        Optional Boolean value, denoting whether to immediately apply
+        simulated data quality checks at the tile selection phase (effectively,
+        assume instantaneous data processing; True) or not, which requires
+        a re-tile of all affected fields at the end of the night (False).
+        Defaults to False.
     commit:
         Boolean value, denoting whether to hard-commit the database changes made
         to the database proper. Defaults to True.
@@ -441,6 +503,9 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Record the time that this was done
             tiles_observed_at.append(local_utc_now)
 
+            if instant_dq:
+                # Do the DQ analysis now
+                sim_dq_analysis(cursor, [tile_to_obs], [local_utc_now])
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
@@ -494,58 +559,16 @@ def sim_do_night(cursor, date, date_start, date_end,
     # We are now done observing for the night. It is time for some
     # housekeeping
 
+    logging.info('%d tiles were observed' % len(tiles_observed))
+    logging.info('Observing done at %s local' %
+                 local_time_now.strftime('%Y-%m-%d %H:%M:%S'))
+
     start = datetime.datetime.now()
-    if len(tiles_observed) > 0:
-        # -------
-        # FAKE DQ/SCIENCE ANALYSIS
-        # -------
-        # Read in from DB
-        # Get the list of science target IDs on these tiles
-        target_ids = np.asarray(rSTiexec(cursor, tiles_observed))
-
-        # Add in small probability of uncategorized 'bug failure'
-        target_ids = target_ids[simulate_bugfails([True] * len(target_ids),
-                                                  prob=0.0001)]
-
-        if len(target_ids) > 0:
-            # Get the array of target_ids with target types from the database
-            target_types_db = rSTyexec(cursor, target_ids=target_ids)
-            # Get an array with the number of visits and repeats of these
-            visits_repeats = rSVexec(cursor, target_ids=target_ids)
-
-            # Form an array showing the type of those targets
-            # target_types = np.asarray(list(['' for _ in target_types_db]))
-            # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
-            #     target_types[
-            #         np.asarray([_[ttype] is True for _ in target_types_db],
-            #                    dtype=bool)
-            #     ] = ttype
-            # Calculate a success/failure rate for each target
-            # Compute target success based on target type(s)
-            # Note function needs the 'updated' value of target visits, which
-            # won't be pushed to the database until after the result of this
-            # function is implemented
-            success_targets = test_redshift_success(target_types_db,
-                                                    visits_repeats['visits'] +
-                                                    1)
-
-            # Set relevant targets as observed successfully, all others
-            # observed but unsuccessfully
-            mSRIexec(cursor, target_ids[success_targets], set_done=True)
-            mSVIexec(cursor, target_ids[~success_targets])
-
-        # Mark the tiles as having been observed
-        mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
-
-        # Reset all tiles to be unqueued (none should be, but this is just
-        # a safety measure)
-        mTRexec(cursor)
+    if len(tiles_observed) > 0 and not instant_dq:
+        sim_dq_analysis(cursor, tiles_observed, tiles_observed_at)
 
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
-        logging.info('%d tiles were observed' % len(tiles_observed))
-        logging.info('Observing done at %s local' %
-                     local_time_now.strftime('%Y-%m-%d %H:%M:%S'))
         fields_to_retile = rCAexec(cursor, tile_list=tiles_observed)
         logging.info('This requires %d fields be re-tiled' %
                      len(fields_to_retile))
