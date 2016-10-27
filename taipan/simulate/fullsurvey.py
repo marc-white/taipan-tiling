@@ -598,7 +598,8 @@ def sim_do_night(cursor, date, date_start, date_end,
     return local_utc_now
 
 
-def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
+def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
+            instant_dq=False):
     """
     Execute the simulation
     Parameters
@@ -621,6 +622,12 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
     prep_db:
         Boolean value, denoting whether or not to invoke the sim_prepare_db
         function before beginning the simulation. Defaults to True.
+    instant_dq:
+        Optional Boolean value, denoting whether to immediately apply
+        simulated data quality checks at the tile selection phase (effectively,
+        assume instantaneous data processing; True) or not, which requires
+        a re-tile of all affected fields at the end of the night (False).
+        Defaults to False.
 
     Returns
     -------
@@ -672,6 +679,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True):
     while curr_date <= date_end:
         sim_do_night(cursor, curr_date, date_start, date_end,
                      almanac_dict=almanacs, dark_almanac=dark_almanac,
+                     instant_dq=instant_dq,
                      commit=True)
         curr_date += datetime.timedelta(1.)
 
@@ -701,6 +709,7 @@ if __name__ == '__main__':
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     logging.info('Executing fullsurvey.py as file')
+    logging.info('*** THIS IS AN INSTANT-FEEDBACK SIMULATION')
 
     # Get a cursor
     # TODO: Correct package imports & references
@@ -710,6 +719,7 @@ if __name__ == '__main__':
     # Execute the simulation based on command-line arguments
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
+            instant_dq=True,
             output_loc='.', prep_db=True)
 
     global_end = datetime.datetime.now()
