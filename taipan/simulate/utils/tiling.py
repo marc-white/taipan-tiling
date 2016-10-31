@@ -20,7 +20,7 @@ from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
                   disqualify_below_min=True, restrict_targets=True,
-                  delete_queued=False):
+                  delete_queued=False, bins=1):
     """
     Re-tile the fields passed.
 
@@ -50,6 +50,10 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         Optional Boolean, denoting whether to delete any tiles marked as
         'queued', but not 'observed'. Defaults to False (i.e. such tiles will
         not be deleted).
+    bins:
+        Optional integer, denoting how many bins to split re-tiling into.
+        Tiling appears to be optimally efficient for 10-20 tiles per batch.
+        Defaults to 1 (i.e. tiling will be done in one batch).
 
     Returns
     -------
@@ -58,14 +62,11 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     - Redundant tiles will be eliminated from the database;
     - New tiles will be pushed into the database.
     """
+    bins = int(bins)
+
     if len(field_list) == 0:
         logging.debug('No fields passed to utils.tiling - no tiling done')
         return
-
-    if restrict_targets:
-        fields_w_targets = rCAexec(cursor, field_list=field_list)
-    else:
-        fields_w_targets = None
 
     logging.debug('Retiling fields w/ recorded datetime %s' % (
         tiling_time.strftime('%y-%m-%d %H:%M:%S'),
@@ -78,21 +79,33 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         dTexec(cursor, field_list=field_list, obs_status=False,
                queue_status=False)
 
-    # Get the required targets from the database
-    candidate_targets = rScexec(cursor, unobserved=True, unassigned=True,
-                                unqueued=True, field_list=fields_w_targets)
-    guide_targets = rGexec(cursor, field_list=fields_w_targets)
-    standard_targets = rSexec(cursor, field_list=fields_w_targets)
-    fields_to_tile = rCexec(cursor, field_ids=field_list)
+    for k in range(bins):
 
-    # Execute a re-tile of the affected fields to the required depth
-    tile_list, targets_after_tile = \
-        tl.generate_tiling_greedy_npasses(candidate_targets, standard_targets,
-                                          guide_targets, tiles_per_field,
-                                          tiles=fields_to_tile)
+        sub_field_list = field_list[k * len(field_list) / bins:
+                                    min((k + 1) * len(field_list) / bins,
+                                        len(field_list))]
 
-    # Write the new tiles back to the database
-    iTexec(cursor, tile_list, config_time=tiling_time,
-           disqualify_below_min=disqualify_below_min)
+        if restrict_targets:
+            fields_w_targets = rCAexec(cursor, field_list=sub_field_list)
+        else:
+            fields_w_targets = None
+
+        # Get the required targets from the database
+        candidate_targets = rScexec(cursor, unobserved=True, unassigned=True,
+                                    unqueued=True, field_list=fields_w_targets)
+        guide_targets = rGexec(cursor, field_list=fields_w_targets)
+        standard_targets = rSexec(cursor, field_list=fields_w_targets)
+        fields_to_tile = rCexec(cursor, field_ids=sub_field_list)
+
+        # Execute a re-tile of the affected fields to the required depth
+        tile_list, targets_after_tile = \
+            tl.generate_tiling_greedy_npasses(candidate_targets,
+                                              standard_targets,
+                                              guide_targets, tiles_per_field,
+                                              tiles=fields_to_tile)
+
+        # Write the new tiles back to the database
+        iTexec(cursor, tile_list, config_time=tiling_time,
+               disqualify_below_min=disqualify_below_min)
 
     return

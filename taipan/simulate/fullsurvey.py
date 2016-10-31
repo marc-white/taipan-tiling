@@ -581,7 +581,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                       tiling_time=local_utc_now,
                       disqualify_below_min=False,
-                      delete_queued=True)
+                      delete_queued=True, bins=int(len(fields_to_retile)/15))
         # logger.setLevel(logging.INFO)
 
     end = datetime.datetime.now()
@@ -682,6 +682,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                      instant_dq=instant_dq,
                      commit=True)
         curr_date += datetime.timedelta(1.)
+        if curr_date == datetime.date(2014,5,1):
+            break
 
     logging.info('----------')
     logging.info('OBSERVING COMPLETE')
@@ -719,7 +721,7 @@ if __name__ == '__main__':
     # Execute the simulation based on command-line arguments
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
-            instant_dq=True,
+            instant_dq=False,
             output_loc='.', prep_db=True)
 
     global_end = datetime.datetime.now()
