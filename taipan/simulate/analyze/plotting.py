@@ -7,7 +7,10 @@ from src.resources.v0_0_1.readout import readAlmanacStats as rAS
 from src.resources.v0_0_1.readout import readCentroids as rC
 from src.resources.v0_0_1.readout import readScienceObservingInfo as rSOI
 
-from ...scheduling import localize_utc_dt, utc_local_dt, POINTING_TIME
+from ..utils.allskymap import AllSkyMap
+
+from ...scheduling import localize_utc_dt, utc_local_dt, POINTING_TIME, \
+    UKST_TELESCOPE
 from ...core import TILE_RADIUS
 
 import matplotlib
@@ -371,6 +374,13 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
 
     # Read in the tile observing info
     obs_tile_info = rTOI.execute(cursor)
+    dates = map(lambda x: x.date(), obs_tile_info['date_obs'])
+    dates = np.asarray(dates)
+    # print dates
+    if start_date is not None:
+        obs_tile_info = obs_tile_info[dates >= start_date]
+    if end_date is not None:
+        obs_tile_info = obs_tile_info[dates <= end_date]
     obs_tile_info.sort(order='date_obs')
     # obs_tile_info = obs_tile_info[:20]
 
@@ -382,11 +392,17 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
         fig = matplotlib.pyplot.figure()
         fig.set_size_inches((9, 6))
 
-    ax1 = fig.add_subplot(
-        111,
-        projection='mollweide'
-    )
-    ax1.grid(True)
+    # ax1 = fig.add_subplot(
+    #     111,
+    #     projection='mollweide'
+    # )
+    # ax1.grid(True)
+
+    mapplot = AllSkyMap(projection='moll', lon_0=180.)
+    limb = mapplot.drawmapboundary(fill_color='white')
+    mapplot.drawparallels(np.arange(-75, 76, 15), linewidth=0.5, dashes=[1, 2],
+                      labels=[1, 0, 0, 0], fontsize=9)
+    mapplot.drawmeridians(np.arange(30, 331, 30), linewidth=0.5, dashes=[1, 2])
 
     # m = Basemap(projection='moll', lon_0=0., ax=ax1)
     # m.drawparallels(np.arange(-90., 90., 15.), labels=range(-90, 90, 15))
@@ -404,12 +420,20 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
 
     # To save computational power, plot the targets as a fine-grained
     # 2d histogram
-    H, nx, ny = np.histogram2d(np.radians((targets_db['ra'] - 180.) %
-                                          360 - 180.),
-                               np.radians(targets_db['dec']),
+    # H, nx, ny = np.histogram2d(np.radians((targets_db['ra'] - 180.) %
+    #                                       360 - 180.),
+    #                            np.radians(targets_db['dec']),
+    #                            bins=[360, 90 - int(np.min(targets_db['dec']))])
+    # Y, X = np.meshgrid(ny, nx)
+    # ax1.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H)/4.0)
+
+    H, nx, ny = np.histogram2d(targets_db['ra'],
+                               targets_db['dec'],
                                bins=[360, 90 - int(np.min(targets_db['dec']))])
     Y, X = np.meshgrid(ny, nx)
-    ax1.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H)/4.0)
+    mapplot.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H) / 4.0,
+                   latlon=True,
+                   )
 
     # Get and plot the field centroids
     cents = rC.execute(cursor)
@@ -424,33 +448,75 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
     # Plot the observed tiles in sequence
     new_seq = True
     moves_this_seq = 0
+    geos_this_seq = []
+    z_marker = None
+    curr_tissot = None
     for i in range(len(obs_tile_info)):
+        if i > 0:
+            t_p = obs_tile_info[i-1]
         t = obs_tile_info[i]
-        ax1.set_title(t['date_obs'].strftime('%Y-%m-%d %H:%M:%S'))
-        ax1.add_patch(Circle(
-            (np.radians((t['ra'] - 180.) % 360 - 180.), np.radians(t['dec'])),
-            radius=np.radians(TILE_RADIUS / 3600.), facecolor='red',
-            edgecolor='none', lw=0.7, alpha=0.1
-        ))
+        # ax1.set_title(t['date_obs'].strftime('%Y-%m-%d %H:%M:%S'))
+        # ax1.add_patch(Circle(
+        #     (np.radians((t['ra'] - 180.) % 360 - 180.), np.radians(t['dec'])),
+        #     radius=np.radians(TILE_RADIUS / 3600.), facecolor='red',
+        #     edgecolor='none', lw=0.7, alpha=0.1
+        # ))
+        if curr_tissot:
+            for _ in curr_tissot[::-1]:
+                k = curr_tissot.pop(-1)
+                k.remove()
+            mapplot.tissot(t_p['ra'], t_p['dec'], TILE_RADIUS / 3600., 100,
+                           facecolor='red',
+                           edgecolor='none', lw=0.7, alpha=0.1)
+        curr_tissot = mapplot.tissot(t['ra'], t['dec'], TILE_RADIUS / 3600.,
+                                     100,
+                                     facecolor='yellow',
+                                     edgecolor='none', lw=0.7, alpha=1.)
+
+        # Compute and plot the zenith position, removing the old one if known
+        UKST_TELESCOPE.date = t['date_obs']
+        z_ra, z_dec = map(np.degrees,
+                          UKST_TELESCOPE.radec_of(0.0, np.radians(90.)))
+        if z_marker:
+            pass
+            z_marker.remove()
+        z_marker = mapplot.scatter([z_ra]*3, [z_dec]*3, s=30, marker='x',
+                                   edgecolors='none', facecolors='green',
+                                   latlon=True, zorder=10)
 
         if i > 0 and (obs_tile_info[i]['date_obs'] -
                           obs_tile_info[i-1]['date_obs'] <
                           datetime.timedelta(minutes=60)):
             new_seq = False
-            ax1.add_line(matplotlib.lines.Line2D(
-                np.radians((np.asarray([obs_tile_info[i-1]['ra'],
-                                        obs_tile_info[i]['ra']]) - 180.) %
-                           360 - 180.),
-                np.radians(np.asarray([obs_tile_info[i-1]['dec'],
-                                       obs_tile_info[i]['dec']])),
-                color='cyan', alpha=0.5, linewidth=3
-            ))
-            moves_this_seq += 1
+            # ax1.add_line(matplotlib.lines.Line2D(
+            #     np.radians((np.asarray([obs_tile_info[i-1]['ra'],
+            #                             obs_tile_info[i]['ra']]) - 180.) %
+            #                360 - 180.),
+            #     np.radians(np.asarray([obs_tile_info[i-1]['dec'],
+            #                            obs_tile_info[i]['dec']])),
+            #     color='cyan', alpha=0.5, linewidth=3
+            # ))
+            g = mapplot.geodesic(obs_tile_info[i-1]['ra'],
+                             obs_tile_info[i-1]['dec'],
+                             obs_tile_info[i]['ra'], obs_tile_info[i]['dec'],
+                             color='cyan', alpha=0.5, linewidth=3)
+            moves_this_seq += len(g)
+            geos_this_seq += g
         else:
+            # print geos_this_seq
             new_seq = True
-            for _ in range(moves_this_seq):
-                del ax1.lines[-1]
+            for _ in geos_this_seq[::-1]:
+            # for i in range(moves_this_seq)[::-1]:
+            #     del mapplot.ax.lines[-1]
+                _ = geos_this_seq.pop(-1)
+                _.remove()
+                # l = geos_this_seq.pop(i)
+                # del l
             moves_this_seq = 0
+            geos_this_seq = []
+
+        matplotlib.pyplot.title('%s' %
+                                t['date_obs'].strftime('%Y-%m-%d %H:%M:%S'))
 
         if not pylab_mode:
             # matplotlib.pyplot.draw()
