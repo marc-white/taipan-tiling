@@ -682,7 +682,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                      instant_dq=instant_dq,
                      commit=True)
         curr_date += datetime.timedelta(1.)
-        if curr_date == datetime.date(2014,5,1):
+        if curr_date == datetime.date(2017,5,1):
             break
 
     logging.info('----------')
