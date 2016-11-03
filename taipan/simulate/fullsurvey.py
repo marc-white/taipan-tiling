@@ -18,6 +18,7 @@ import ephem
 import operator
 import os
 import datetime
+import random
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
@@ -28,6 +29,8 @@ from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexe
 from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
 from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
 from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
+from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+    rCBTexec
 import src.resources.v0_0_1.readout.readAlmanacStats as rAS
 
 from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
@@ -183,6 +186,7 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
 def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
                  save_new_almanacs=True, instant_dq=False,
+                 prioritize_lowz=True,
                  commit=True):
     """
     Do a simulated 'night' of observations. This involves:
@@ -224,6 +228,11 @@ def sim_do_night(cursor, date, date_start, date_end,
         assume instantaneous data processing; True) or not, which requires
         a re-tile of all affected fields at the end of the night (False).
         Defaults to False.
+    prioritize_lowz : Boolean, optional
+        Whether or not to prioritize fields with lowz targets by computing
+        the hours_observable for those fields against a set end date, and
+        compute all other fields against a rolling one-year end date.
+        Defaults to True.
     commit:
         Boolean value, denoting whether to hard-commit the database changes made
         to the database proper. Defaults to True.
@@ -412,10 +421,31 @@ def sim_do_night(cursor, date, date_start, date_end,
             #     dark_almanac=dark_almanac,
             #     hours_better=True
             # ) for f in fields_by_tile.values()}
-            hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
-                                                 datetime_to=midday_end,
-                                                 hours_better=True) for
-                         f in fields_by_tile.values()}
+            if prioritize_lowz:
+                lowz_fields = rCBTexec(cursor, 'is_lowz_target',
+                                       unobserved=True)
+                hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
+                                                     datetime_to=max(
+                                                         midday_end,
+                                                         local_utc_now +
+                                                         datetime.timedelta(
+                                                             30.)
+                                                     ),
+                                                     hours_better=True) for
+                             f in fields_by_tile.values() if
+                             f in lowz_fields}
+                hours_obs += {f: rAS.hours_observable(cursor, f, local_utc_now,
+                                                      datetime_to=
+                                                      local_utc_now +
+                                                      datetime.timedelta(365),
+                                                      hours_better=True) for
+                              f in fields_by_tile.values() if
+                              f not in lowz_fields}
+            else:
+                hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
+                                                     datetime_to=midday_end,
+                                                     hours_better=True) for
+                             f in fields_by_tile.values()}
             # hours_obs = {h['field_id']: h['count'] for h in
             #              rAS.hours_observable_bulk(cursor,
             #                                        fields_by_tile.values(),
@@ -581,7 +611,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                       tiling_time=local_utc_now,
                       disqualify_below_min=False,
-                      delete_queued=True, bins=int(len(fields_to_retile)/30))
+                      delete_queued=True, bins=int(len(fields_to_retile)/15))
         # logger.setLevel(logging.INFO)
 
     end = datetime.datetime.now()
@@ -599,7 +629,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
-            instant_dq=False):
+            instant_dq=False, seed=None):
     """
     Execute the simulation
     Parameters
@@ -628,6 +658,14 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         assume instantaneous data processing; True) or not, which requires
         a re-tile of all affected fields at the end of the night (False).
         Defaults to False.
+    seed:
+        Optional hashable object (i.e. any random thing), used to seed the
+        random number module and force deterministic output from randomized
+        simulator operations. This is useful for making comparisons between
+        different simulator runs. Defaults to None, such that no seed is
+        applied.
+        .. warning:: Supplying a seed will not work if the Python environment
+                     variable ``PYTHONHASHSEED`` has been set.
 
     Returns
     -------
@@ -635,6 +673,10 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     the virtual observer). Anything generated and written out to file will end
     up in output_loc (although currently nothing is).
     """
+
+    # Seed the random number generator
+    if seed is not None:
+        random.seed(seed)
 
     if prep_db:
         start = datetime.datetime.now()
