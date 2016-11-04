@@ -753,7 +753,7 @@ if __name__ == '__main__':
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     logging.info('Executing fullsurvey.py as file')
-    logging.info('*** THIS IS AN INSTANT-FEEDBACK SIMULATION')
+    # logging.info('*** THIS IS AN INSTANT-FEEDBACK SIMULATION')
 
     # Get a cursor
     # TODO: Correct package imports & references
