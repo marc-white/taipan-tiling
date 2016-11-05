@@ -424,23 +424,27 @@ def sim_do_night(cursor, date, date_start, date_end,
             if prioritize_lowz:
                 lowz_fields = rCBTexec(cursor, 'is_lowz_target',
                                        unobserved=True)
-                hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
-                                                     datetime_to=max(
-                                                         midday_end,
+                hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
+                                                          local_utc_now,
+                                                          datetime_to=max(
+                                                              midday_end,
+                                                              local_utc_now +
+                                                              datetime.
+                                                              timedelta(30.)
+                                                          ),
+                                                          hours_better=True) for
+                                  f in fields_by_tile.values() if
+                                  f in lowz_fields}
+                hours_obs_oth = {f: rAS.hours_observable(cursor, f,
+                                                         local_utc_now,
+                                                         datetime_to=
                                                          local_utc_now +
                                                          datetime.timedelta(
-                                                             30.)
-                                                     ),
-                                                     hours_better=True) for
-                             f in fields_by_tile.values() if
-                             f in lowz_fields}
-                hours_obs += {f: rAS.hours_observable(cursor, f, local_utc_now,
-                                                      datetime_to=
-                                                      local_utc_now +
-                                                      datetime.timedelta(365),
-                                                      hours_better=True) for
-                              f in fields_by_tile.values() if
-                              f not in lowz_fields}
+                                                             365),
+                                                         hours_better=True) for
+                                 f in fields_by_tile.values() if
+                                 f not in lowz_fields}
+                hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
             else:
                 hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
                                                      datetime_to=midday_end,
