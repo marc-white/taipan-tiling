@@ -767,7 +767,7 @@ if __name__ == '__main__':
     # Execute the simulation based on command-line arguments
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
-            instant_dq=False,
+            instant_dq=True,
             output_loc='.', prep_db=True)
 
     global_end = datetime.datetime.now()
