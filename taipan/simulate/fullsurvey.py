@@ -412,7 +412,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                             for
                             row in scores_array if
                             row['field_id'] in fields_available}
-            fields_by_tile = {row['tile_pk']: row['field_id'] for
+            fields_by_tile = {row['t1ile_pk']: row['field_id'] for
                               row in scores_array if
                               row['field_id'] in fields_available}
             # hours_obs = {f: almanacs_relevant[f].hours_observable(
@@ -470,11 +470,10 @@ def sim_do_night(cursor, date, date_start, date_end,
             # 'Observe' while the remaining time in this dark period is
             # longer than one pointing (slew + obs)
 
-            logging.info('At time %s, going to %s' % (
+            logging.info('At time %s, considering til %s' % (
                 local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
                 dark_end.strftime('%Y-%m-%d %H:%M:%S'),
             ))
-
 
             # Select the best ranked field we can see
             try:

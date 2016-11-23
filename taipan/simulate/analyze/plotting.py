@@ -6,6 +6,11 @@ from src.resources.v0_0_1.readout import readTileObservingInfo as rTOI
 from src.resources.v0_0_1.readout import readAlmanacStats as rAS
 from src.resources.v0_0_1.readout import readCentroids as rC
 from src.resources.v0_0_1.readout import readScienceObservingInfo as rSOI
+from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+    rCBTexec
+from src.resources.v0_0_1.readout.readObservingLog import execute as rOLexec
+from src.resources.v0_0_1.readout.readScienceVisits import execute as rScVexec
+from src.resources.v0_0_1.readout.readScienceTypes import execute as rScTexec
 
 from ..utils.allskymap import AllSkyMap
 
@@ -15,10 +20,13 @@ from ...core import TILE_RADIUS
 
 import matplotlib
 import matplotlib.pyplot
+import matplotlib.dates as mdates
+from matplotlib import cm
 from matplotlib.patches import Circle
 # from mpl_toolkits.basemap import Basemap
 import datetime
 import time
+import sys
 
 MIDDAY = datetime.time(12,0)
 
@@ -319,7 +327,8 @@ def plot_position_histogram(cursor, start_date=None, end_date=None,
 
 
 def plot_observing_sequence(cursor, start_date=None, end_date=None,
-                            rotate=True, pylab_mode=False,
+                            rotate=True,
+                            pylab_mode=False,
                             output_loc='.',
                             output_prefix='obs_seq',
                             output_fmt='png'):
@@ -427,13 +436,31 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
     # Y, X = np.meshgrid(ny, nx)
     # ax1.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H)/4.0)
 
-    H, nx, ny = np.histogram2d(targets_db['ra'],
-                               targets_db['dec'],
-                               bins=[360, 90 - int(np.min(targets_db['dec']))])
+    targets_priority = np.logical_or(targets_db['is_h0_target'],
+                                     targets_db['is_vpec_target'])
+    targets_priority = np.logical_or(targets_priority,
+                                     targets_db['is_lowz_target'])
+
+    H, nx, ny = np.histogram2d(targets_db[targets_priority]['ra'],
+                               targets_db[targets_priority]['dec'],
+                               bins=[360, 90 - int(
+                                   np.min(targets_db[
+                                              targets_priority]['dec']))])
     Y, X = np.meshgrid(ny, nx)
-    mapplot.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H) / 4.0,
+    mapplot.pcolor(X, Y, H, cmap='Greys', vmax=np.max(H),
                    latlon=True,
                    )
+
+    # Plot the KiDS region
+    kids_region = [
+        [329.5, 53.5, 53.5, 329.5, 329.5],
+        [-35.6, -35.6, -25.7, -25.7, -35.6]
+    ]
+
+    for i in range(len(kids_region[0]) - 1):
+        mapplot.geodesic(kids_region[0][i], kids_region[1][i],
+                         kids_region[0][i+1], kids_region[1][i+1],
+                         color='limegreen', lw=1.2, ls='--')
 
     # Get and plot the field centroids
     cents = rC.execute(cursor)
@@ -535,3 +562,462 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
         pass
 
     return fig
+
+
+def plot_target_completeness_time(cursor,
+                                  start_time=None,
+                                  end_time=None,
+                                  pylab_mode=False,
+                                  by_type=True,
+                                  output_loc='.',
+                                  output_prefix='completeness',
+                                  output_fmt='png',
+                                  ):
+    """
+    Plot the completeness of target types as a function of time.
+    Parameters
+    ----------
+    cursor : psycopg2 cursor
+        Cursor for interacting with the database
+    start_time, end_time : datetime.datetime instances, optional
+        UTC datetimes specifying start and end times for the plot. Both default
+        to None, such that the full observing time range in the database will
+        be plotted.
+    pylab_mode : Boolean, optional
+        Denotes whether to run in interactive pylab mode (True) or write output
+        to disk (False). Defaults to False.
+    by_type: Boolean, optional
+        Denotes whether to group targets by their science type (True), or by
+        their priority (False). Defaults to True. Note that grouping by
+        science type will create some overlap, as targets may have multiple
+        science types.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'hrs_bet'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig : matplotlib.pyplot.Figure
+        The Figure instance the plot was made on.
+    """
+
+    lincols = [
+        'black',
+        'green',
+        'red',
+        'gold',
+        'grey',
+        'orange',
+        'purple',
+        'darkgreen',
+        'cyan',
+    ]
+
+    # Read in the observing log from the database, and order it by date_obs
+    obs_log = rOLexec(cursor)
+
+    # Read in the visits/repeats information
+    target_status = rScVexec(cursor)
+
+    if by_type:
+        groups = ['is_h0_target', 'is_vpec_target', 'is_lowz_target']
+    else:
+        groups = list(set(obs_log['priority']))
+
+    # Work out the start and end date if not given
+    if not start_time:
+        start_time = np.min(obs_log['date_obs'])
+    if not end_time:
+        end_time = np.max(obs_log['date_obs'])
+
+    xpts = []
+    ypts_started = {g: [] for g in groups}
+    ypts_done = {g: [] for g in groups}
+    if by_type:
+        ypts_started['Filler'] = []
+        ypts_done['Filler'] = []
+
+    target_visit_mask = np.in1d(obs_log['target_id'],
+                                target_status[np.logical_or(
+                                    target_status['visits'] > 0,
+                                    target_status['repeats'] > 0,
+                                    )]['target_id'])
+    target_done_mask = np.in1d(obs_log['target_id'],
+                               target_status[
+                                   target_status['repeats'] > 0]['target_id'])
+
+    # Make a count of the number of targets in each group
+    sci_types = rScTexec(cursor)
+    sci_types_count = {}
+    if by_type:
+        sci_types_count = {group: np.count_nonzero(sci_types[group]) for
+                           group in groups}
+        sci_types_count['Filler'] = np.count_nonzero(
+            ~(np.logical_or(np.logical_or(sci_types['is_h0_target'],
+                                          sci_types['is_lowz_target'],),
+                            sci_types['is_vpec_target']))
+        )
+    else:
+        sci_types_count = {group:
+                               np.count_nonzero(sci_types['priority'] == group)
+                           for group in groups}
+    print sci_types_count
+
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((9, 6))
+    # Prepare the axes
+    ax = fig.add_subplot(111)
+    ax.set_xlim(start_time, end_time)
+    # ax.set_ylim(0, int(1.1 * np.count_nonzero(target_done_mask)))
+    months = mdates.MonthLocator()
+    mth_fmt = mdates.DateFormatter('%Y-%m')
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(mth_fmt)
+
+    curr_time = start_time
+    leg = None
+    while curr_time <= end_time:
+        print curr_time
+        xpts.append(curr_time)
+
+        if leg:
+            leg.remove()
+        for l in ax.lines[::]:
+            l.remove()
+
+        for group in groups:
+            # Count the number of targets that have been started, and the
+            # number that have completed
+            if by_type:
+                started = np.count_nonzero(np.unique(
+                    obs_log[
+                        np.logical_and(
+                            np.logical_and(
+                                target_visit_mask,
+                                obs_log[group]
+                            ),
+                            obs_log['date_obs'] <= curr_time
+                        )
+                    ]['target_id']))
+                done_ids = np.unique(obs_log[
+                                         np.logical_and(target_done_mask,
+                                                        obs_log[group])
+                                     ]['target_id'])
+                # print done_ids
+                done = np.count_nonzero(~np.in1d(
+                    done_ids,
+                    obs_log[obs_log['date_obs'] > curr_time]['target_id']
+                ))
+            else:
+                started = np.count_nonzero(np.unique(
+                    obs_log[
+                        np.logical_and(
+                            np.logical_and(
+                                target_visit_mask,
+                                obs_log['priority'] == group
+                            ),
+                            obs_log['date_obs'] <= curr_time
+                        )
+                    ]['target_id']))
+                done_ids = np.unique(obs_log[
+                                         np.logical_and(target_done_mask,
+                                                        obs_log[group])
+                                     ]['target_id'])
+                # print done_ids
+                done = np.count_nonzero(~np.in1d(
+                    done_ids,
+                    obs_log[obs_log['date_obs'] > curr_time]['target_id']
+                ))
+            ypts_started[group].append(started)
+            ypts_done[group].append(done)
+        # For the special case of 'filler', we need to do this manually, outside
+        # the groups loop
+        if by_type:
+            started = np.count_nonzero(np.unique(
+                obs_log[
+                    np.logical_and(
+                        np.logical_and(
+                            target_visit_mask,
+                            ~np.logical_or(
+                                np.logical_or(obs_log['is_h0_target'],
+                                              obs_log['is_vpec_target']),
+                                obs_log['is_lowz_target']
+                            )
+                        ),
+                        obs_log['date_obs'] <= curr_time
+                    )
+                ]['target_id']))
+            done_ids = np.unique(obs_log[
+                                     np.logical_and(target_done_mask,
+                                                    ~np.logical_or(
+                                                        np.logical_or(
+                                                            obs_log[
+                                                                'is_h0_target'],
+                                                            obs_log[
+                                                                'is_vpec_target']),
+                                                        obs_log['is_lowz_target']
+                                                    ))
+                                 ]['target_id'])
+            done = np.count_nonzero(~np.in1d(
+                done_ids,
+                obs_log[obs_log['date_obs'] > curr_time]['target_id']
+            ))
+            ypts_started['Filler'].append(started)
+            ypts_done['Filler'].append(done)
+
+        for i in range(len(groups)):
+            ax.plot(xpts, ypts_started[groups[i]], '--', color=lincols[i])
+            ax.plot(xpts, ypts_done[groups[i]], '-', color=lincols[i],
+                    label=str(groups[i]))
+            ax.plot(ax.get_xlim(), [sci_types_count[group]]*2, ':',
+                    color=lincols[i])
+        if by_type:
+            ax.plot(xpts, ypts_started['Filler'], '--',
+                    color=lincols[len(groups)])
+            ax.plot(xpts, ypts_done['Filler'], '-',
+                    color=lincols[len(groups)],
+                    label='Filler')
+            # ax.plot(ax.get_xlim(), [sci_types_count['Filler']] * 2, ':',
+            #         color=lincols[len(groups)])
+
+        leg = ax.legend()
+
+        fig.autofmt_xdate()
+
+        # print '%s, %s: %5d started, %5d done' % (str(group),
+        #                       curr_time.strftime('%Y-%m-%d %H:%M'), started,
+        #                                          done)
+
+        if not pylab_mode:
+            # matplotlib.pyplot.draw()
+            fig.savefig('%s/%s-%s.%s' % (
+                output_loc,
+                output_prefix,
+                curr_time.strftime('%Y-%m-%d-%H-%M-%S'),
+                output_fmt
+            ), fmt=output_fmt, dpi=300)
+
+        curr_time += np.min(
+            obs_log[obs_log['date_obs'] > curr_time]['date_obs']
+        ) - curr_time
+
+        # sys.exit()
+
+    return fig
+
+
+def plot_hours_remain_analysis(cursor,
+                               start_time,
+                               end_time,
+                               rotate=True,
+                               pylab_mode=False,
+                               output_loc='.',
+                               output_prefix='hrs_bet',
+                               output_fmt='png',
+                               prioritize_lowz=True):
+    """
+    Plot an analysis of the hours_remaining parameter for each field in the
+    survey.
+
+    Parameters
+    ----------
+    cursor : psycopg2 cursor
+        For communicating with the database.
+    start_time, end_time: datetime.datetime instances
+        Limiting start and end times for analysis. Both default to None,
+        at which point a value error will be raised
+    rotate: can't remember what this does
+    pylab_mode : Boolean, optional
+        Denotes whether to run in interactive pylab mode (True) or write output
+        to disk (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'hrs_bet'), and the format
+        of the output (defaults to 'png').
+    prioritize_lowz : Boolean, optional
+        Whether or not to prioritize fields with lowz targets by computing
+        the hours_observable for those fields against a set end date, and
+        compute all other fields against a rolling one-year end date.
+        Defaults to True.
+
+    Returns
+    -------
+    fig: matplotlib.pyplot.Figure instance
+        The figure instance the information was plotted to.
+    """
+    # Input checking
+    if start_time is None or end_time is None:
+        raise ValueError('Must specify both a start_date and end_date')
+
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((9, 6))
+
+    # ax1 = fig.add_subplot(
+    #     111,
+    #     projection='mollweide'
+    # )
+    # ax1.grid(True)
+
+    mapplot = AllSkyMap(projection='moll', lon_0=0.)
+    limb = mapplot.drawmapboundary(fill_color='white')
+    mapplot.drawparallels(np.arange(-75, 76, 15), linewidth=0.5, dashes=[1, 2],
+                          labels=[1, 0, 0, 0], fontsize=9)
+    mapplot.drawmeridians(np.arange(30, 331, 30), linewidth=0.5, dashes=[1, 2])
+
+    # Plot the KiDS region
+    kids_region = [
+        [329.5, 53.5, 53.5, 329.5, 329.5],
+        [-35.6, -35.6, -25.7, -25.7, -35.6]
+    ]
+
+    for i in range(len(kids_region[0]) - 1):
+        mapplot.geodesic(kids_region[0][i], kids_region[1][i],
+                         kids_region[0][i + 1], kids_region[1][i + 1],
+                         color='limegreen', lw=1.2, ls='--', zorder=20)
+
+    # Read in the field information
+    fields = rC.execute(cursor)
+    # Turn this into dicts for each of plotting
+    fields_ra = [t.ra for t in fields]
+    fields_dec = [t.dec for t in fields]
+    fields = [t.field_id for t in fields]
+
+    for i in range(len(fields_ra)):
+        if abs(fields_ra[i] - 0.) < 1e-5:
+            fields_ra[i] = 0.1
+        if abs(fields_dec[i] - 0) < 1e-5:
+            fields_dec[i] = 0.1
+
+    # print fields_ra[:30]
+    # print fields_dec[:30]
+    # print fields[:30]
+
+    local_utc_now = start_time
+
+    z_marker = None
+
+    while local_utc_now <= end_time:
+        print local_utc_now.strftime('%Y-%m-%d %H:%M:%S')
+        dark_start, dark_end = rAS.next_night_period(cursor, local_utc_now,
+                                                     limiting_dt=local_utc_now +
+                                                     datetime.timedelta(1),
+                                                     dark=True, grey=False)
+
+        field_periods = {r: rAS.next_observable_period(
+            cursor, r, local_utc_now,
+            datetime_to=dark_end) for
+                         r in fields}
+        # logging.debug('Next observing period for each field:')
+        # logging.debug(field_periods)
+        # logging.info('Next available field will rise at %s' %
+        #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
+        #                    field_periods.itervalues() if
+        #                    v[0] is not None]),)
+        #              )
+        fields_available = [f for f, v in field_periods.iteritems() if
+                            v[0] is not None and v[0] < dark_end]
+        # logging.debug('%d fields available at some point tonight' %
+        #               len(fields_available))
+
+        # Compute the hours_remaining information
+        if prioritize_lowz:
+            lowz_fields = rCBTexec(cursor, 'is_lowz_target',
+                                   unobserved=True)
+            hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
+                                                      local_utc_now,
+                                                      datetime_to=max(
+                                                          end_time,
+                                                          local_utc_now +
+                                                          datetime.
+                                                          timedelta(30.)
+                                                      ),
+                                                      hours_better=True) for
+                              f in fields if
+                              f in lowz_fields}
+            hours_obs_oth = {f: rAS.hours_observable(cursor, f,
+                                                     local_utc_now,
+                                                     datetime_to=
+                                                     local_utc_now +
+                                                     datetime.timedelta(
+                                                         365),
+                                                     hours_better=True) for
+                             f in fields}
+            hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
+        else:
+            hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
+                                                 datetime_to=end_time,
+                                                 hours_better=True) for
+                         f in fields}
+
+
+
+        # Compute and plot the zenith position, removing the old one if known
+        UKST_TELESCOPE.date = local_utc_now
+        z_ra, z_dec = map(np.degrees,
+                          UKST_TELESCOPE.radec_of(0.0, np.radians(90.)))
+        if z_marker:
+            z_marker.remove()
+        z_marker = mapplot.scatter([z_ra] * 3, [z_dec] * 3, s=50,
+                                   marker='x',
+                                   edgecolors='none', facecolors='black',
+                                   latlon=True, zorder=11)
+
+        # for f in hours_obs.keys():
+        #     x = mapplot.tissot(fields_ra[f], fields_dec[f], TILE_RADIUS/3600.,
+        #                        50, lw=0., edgecolor='none',
+        #                        facecolor=cm.jet(max(hours_obs[f] / 600., 1.)))
+        #     polys = polys + x
+        dots = []
+        step = 11
+        for k in range(0, len(fields_ra), step):
+            # print k
+            try:
+                dots = mapplot.scatter(
+                    # [90.]*3, [-45.]*3,
+                    # fields_ra[30:33], fields_dec[30:33],
+                    fields_ra[k:k+step], fields_dec[k:k+step],
+                    s=30, marker='o',
+                    edgecolors='none',
+                    facecolors=
+                    # 'red',
+                    # cm.jet,
+                    # 'red',
+                    [hours_obs[k] for k in range(k, k+step)
+                     if k in hours_obs.keys()],
+                    cmap=cm.jet,
+                    vmin=0.0, vmax=1200.,
+                    latlon=True,
+                    zorder=8,
+                )
+            except ValueError:
+                pass
+
+        fig.suptitle(local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
+
+        if pylab_mode:
+            matplotlib.pyplot.show()
+            matplotlib.pyplot.draw()
+        else:
+            fig.savefig('%s/%s-%s.%s' % (
+                output_loc,
+                output_prefix,
+                local_utc_now.strftime('%Y-%m-%d-%H-%M-%S'),
+                output_fmt
+            ), fmt=output_fmt, dpi=300)
+
+        local_utc_now += datetime.timedelta(minutes=15)
