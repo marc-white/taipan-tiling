@@ -78,7 +78,7 @@ def test_redshift_success(target_types_db, num_visits,
 
     # Split input table into lists
     target_ids = target_types_db['target_id']
-    is_H0 = target_types_db['is_H0_target']
+    is_H0 = target_types_db['is_h0_target']
     is_vpec = target_types_db['is_vpec_target']
     is_lowz = target_types_db['is_lowz_target']
 
