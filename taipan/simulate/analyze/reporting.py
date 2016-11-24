@@ -59,8 +59,8 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     tile_obs.sort(order='date_obs')
     tile_scores = rTSexec(cursor, unobserved_only=False,
                           metrics=['prior_sum'])
-    print('Original tile scores:')
-    print(tile_scores)
+    # print('Original tile scores:')
+    # print(tile_scores)
 
     if midday_end is None:
         midday_end = np.max(tile_obs['date_obs'])
@@ -137,7 +137,9 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
         hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
     else:
         hours_obs = {f: rAS.hours_observable(cursor, f, tile_to_check['date_obs'],
-                                             datetime_to=midday_end,
+                                             datetime_to=tile_to_check['date_obs'] +
+                                                 datetime.timedelta(
+                                                     365),
                                              hours_better=True) for
                      f in tile_scores['field_id']}
 
