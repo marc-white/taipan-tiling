@@ -68,6 +68,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     # Work out which tile was observed at or after the given date
     tile_to_check = tile_obs[tile_obs['date_obs'] >= dt][0]
 
+    print('Date of observation:')
     print(tile_to_check['date_obs'])
 
     # Get the scores of the tiles that were in contention at this point
@@ -82,8 +83,8 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
                                       )]['tile_pk']
                                       )]
 
-    print('Trimmed tile scores:')
-    print(tile_scores)
+    # print('Trimmed tile scores:')
+    # print(tile_scores)
 
     # Work out which fields were observable at this time
     dark_start, dark_end = rAS.next_night_period(cursor,
