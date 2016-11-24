@@ -58,7 +58,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     _, _, targets_completed = rSOIexec(cursor)
     tile_obs.sort(order='date_obs')
     tile_scores = rTSexec(cursor, unobserved_only=False,
-                          metrics=['prior_sum'])
+                          metrics=['prior_sum', 'n_sci_rem'])
     # print('Original tile scores:')
     # print(tile_scores)
 
@@ -145,19 +145,19 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
 
     # This is the hardest part - we need to compute the n_sci_rem for each
     # tile at this point in time
-    n_sci_rem = {}
-    for field in list(set(tile_scores['field_id'])):
-        tgt_this_field = np.asarray([t.idn for t in rScexec(cursor, field_list=[field,])])
-        tgt_rem_this_field = np.logical_and(
-            np.in1d(tgt_this_field,
-                    obs_log[obs_log['date_obs'] < tile_to_check['date_obs']]['target_id']),
-            ~np.in1d(tgt_this_field,
-                    obs_log[obs_log['date_obs'] > tile_to_check['date_obs']]['target_id']),
-        )
-        tgt_rem_this_field = np.logical_and(
-            tgt_rem_this_field, ~np.in1d(tgt_this_field, targets_completed['target_id'])
-        )
-        n_sci_rem[field] = np.count_nonzero(~tgt_rem_this_field)
+    # n_sci_rem = {}
+    # for field in list(set(tile_scores['field_id'])):
+    #     tgt_this_field = np.asarray([t.idn for t in rScexec(cursor, field_list=[field,])])
+    #     tgt_rem_this_field = np.logical_and(
+    #         np.in1d(tgt_this_field,
+    #                 obs_log[obs_log['date_obs'] < tile_to_check['date_obs']]['target_id']),
+    #         ~np.in1d(tgt_this_field,
+    #                 obs_log[obs_log['date_obs'] > tile_to_check['date_obs']]['target_id']),
+    #     )
+    #     tgt_rem_this_field = np.logical_and(
+    #         tgt_rem_this_field, ~np.in1d(tgt_this_field, targets_completed['target_id'])
+    #     )
+    #     n_sci_rem[field] = np.count_nonzero(~tgt_rem_this_field)
 
     # print('Tile scores field id:')
     # print(sorted(tile_scores['field_id']))
@@ -215,10 +215,10 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
             stats[i],
             tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id'],
             tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'],
-            n_sci_rem[tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
+            tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem'],
             hours_obs[
                 tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
-            (tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * n_sci_rem[tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']]) / hours_obs[
+            (tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / hours_obs[
                 tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
         ))
 
