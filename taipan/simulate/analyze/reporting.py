@@ -177,7 +177,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     if prioritize_lowz:
         highest_score_lowz = \
             tile_scores[np.in1d(tile_scores['field_id'], lowz_fields)][::-1][0]
-    highest_n_sci = tile_scores[tile_scores['field_id'] == max(n_sci_rem, key=n_sci_rem.get)][0]
+    highest_n_sci = tile_scores[np.argmax(tile_scores['n_sci_rem'])]
     lowest_hrs = tile_scores[tile_scores['field_id'] == min(hours_obs, key=hours_obs.get)][0]
 
     stat_type = [
