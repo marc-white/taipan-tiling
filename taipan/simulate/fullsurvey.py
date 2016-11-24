@@ -412,7 +412,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                             for
                             row in scores_array if
                             row['field_id'] in fields_available}
-            fields_by_tile = {row['t1ile_pk']: row['field_id'] for
+            fields_by_tile = {row['tile_pk']: row['field_id'] for
                               row in scores_array if
                               row['field_id'] in fields_available}
             # hours_obs = {f: almanacs_relevant[f].hours_observable(

@@ -59,6 +59,8 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     tile_obs.sort(order='date_obs')
     tile_scores = rTSexec(cursor, unobserved_only=False,
                           metrics=['prior_sum'])
+    print('Original tile scores:')
+    print(tile_scores)
 
     if midday_end is None:
         midday_end = np.max(tile_obs['date_obs'])
@@ -66,15 +68,22 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     # Work out which tile was observed at or after the given date
     tile_to_check = tile_obs[tile_obs['date_obs'] >= dt][0]
 
+    print(tile_to_check['date_obs'])
+
     # Get the scores of the tiles that were in contention at this point
     tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
                                       tile_obs[np.logical_and(
-                                          tile_obs['date_config'] <
-                                          tile_to_check['date_obs'],
+                                          tile_obs['date_config'] <=
+                                          max(
+                                              tile_to_check['date_obs'],
+                                              datetime.datetime(2017,4,1,12,1)),
                                           tile_obs['date_obs'] >=
                                           tile_to_check['date_obs']
                                       )]['tile_pk']
                                       )]
+
+    print('Trimmed tile scores:')
+    print(tile_scores)
 
     # Work out which fields were observable at this time
     dark_start, dark_end = rAS.next_night_period(cursor,
@@ -147,10 +156,11 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
         )
         n_sci_rem[field] = np.count_nonzero(~tgt_rem_this_field)
 
-    print('Tile scores field id:')
-    print(sorted(tile_scores['field_id']))
-    print('lowz fields:')
-    print(sorted(lowz_fields))
+    # print('Tile scores field id:')
+    # print(sorted(tile_scores['field_id']))
+    # if prioritize_lowz:
+    #     print('lowz fields:')
+    #     print(sorted(lowz_fields))
 
 
     # Report on the following:
@@ -161,41 +171,46 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     # - The field that was actually selected
     tile_scores.sort(order='prior_sum')
     highest_score = tile_scores[::-1][0]
-    highest_score_lowz = \
-        tile_scores[np.in1d(tile_scores['field_id'], lowz_fields)][::-1][0]
+    if prioritize_lowz:
+        highest_score_lowz = \
+            tile_scores[np.in1d(tile_scores['field_id'], lowz_fields)][::-1][0]
     highest_n_sci = tile_scores[tile_scores['field_id'] == max(n_sci_rem, key=n_sci_rem.get)][0]
     lowest_hrs = tile_scores[tile_scores['field_id'] == min(hours_obs, key=hours_obs.get)][0]
 
     stat_type = [
         'Highest raw score',
-        'Highest raw score (low-z)',
         'Highest n. sci. rem.',
         'Lowest rem. hours obs.',
         'Selected field',
     ]
+    if prioritize_lowz:
+        stat_type.append('Highest raw score (low-z)')
 
     stats = [
         highest_score['tile_pk'],
-        highest_score_lowz['tile_pk'],
         highest_n_sci['tile_pk'],
         lowest_hrs['tile_pk'],
         tile_to_check['tile_pk']
     ]
+    if prioritize_lowz:
+        stats.append(highest_score_lowz['tile_pk'])
 
     print(' TILE SELECTION REPORT ')
     print(' --------------------- ')
-    print(' %s | %s | %s | %s | %s | %s ' % (
+    print(' %s | %s | %s | %s | %s | %s | %s ' % (
         'Tile type'.ljust(25),
         'PK'.ljust(5),
+        'Field',
         'Score',
         'NSciR',
         'hours',
         'Final score',
     ))
     for i in range(len(stats)):
-        print(' %s | %5d | %4.1f | %5d | %4.1f | %4.1f ' % (
+        print(' %s | %5d | %5d | %4.1f | %5d | %4.1f | %4.1f ' % (
             stat_type[i].ljust(25),
             stats[i],
+            tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id'],
             tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'],
             n_sci_rem[tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
             hours_obs[
