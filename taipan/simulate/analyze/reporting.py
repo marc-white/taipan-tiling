@@ -382,7 +382,7 @@ def check_tile_choice(cursor, midday_end=None):
             highest_score_lowz = \
                 tile_scores[np.in1d(tile_scores['field_id'], lowz_fields)][::-1][0]
             prioritize_lowz = True
-        except KeyError:
+        except IndexError:
             prioritize_lowz = False
         highest_n_sci = tile_scores[np.argmax(tile_scores['n_sci_rem'])]
         lowest_hrs = \
@@ -417,3 +417,6 @@ def check_tile_choice(cursor, midday_end=None):
         else:
             no_fails += 1
             print('Possible failure at %s' % dt.strftime('%Y-%m-%d %H:%M:%S'))
+
+    print('Total tiles checked: %d' % no_tiles)
+    print('Number of failures : %d' % no_fails)
