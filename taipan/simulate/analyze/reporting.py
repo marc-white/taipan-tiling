@@ -34,7 +34,8 @@ def generate_report(cursor):
     pass
 
 
-def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
+def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
+                         output=True):
     """
     Generate a report on why a particular tile was chosen at a particular time.
 
@@ -68,8 +69,8 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     # Work out which tile was observed at or after the given date
     tile_to_check = tile_obs[tile_obs['date_obs'] >= dt][0]
 
-    print('Date of observation:')
-    print(tile_to_check['date_obs'])
+    # print('Date of observation:')
+    # print(tile_to_check['date_obs'])
 
     # Get the scores of the tiles that were in contention at this point
     tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
@@ -198,36 +199,74 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None):
     if prioritize_lowz:
         stats.append(highest_score_lowz['tile_pk'])
 
-    print(' TILE SELECTION REPORT ')
-    print(' --------------------- ')
-    print(' %s | %s | %s | %s | %s | %s | %s ' % (
-        'Tile type'.ljust(25),
-        'PK'.ljust(5),
-        'Field',
-        'Score',
-        'NSciR',
-        'hours',
-        'Final score',
-    ))
-    for i in range(len(stats)):
-        print(' %s | %5d | %5d | %4.1f | %5d | %4.1f | %4.1f ' % (
-            stat_type[i].ljust(25),
-            stats[i],
-            tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id'],
-            tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'],
-            tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem'],
-            hours_obs[
-                tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
-            (tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / hours_obs[
-                tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
+    if output:
+        print(' TILE SELECTION REPORT ')
+        print(' --------------------- ')
+        print(' %s | %s | %s | %s | %s | %s | %s ' % (
+            'Tile type'.ljust(25),
+            'PK'.ljust(5),
+            'Field',
+            'Score',
+            'NSciR',
+            'hours',
+            'Final score',
         ))
+        for i in range(len(stats)):
+            print(' %s | %5d | %5d | %4.1f | %5d | %4.1f | %4.1f ' % (
+                stat_type[i].ljust(25),
+                stats[i],
+                tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id'],
+                tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'],
+                tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem'],
+                hours_obs[
+                    tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
+                (tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / hours_obs[
+                    tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
+            ))
 
-    # print highest_score
-    # print highest_score_lowz
-    # print highest_n_sci
-    # print lowest_hrs
-    # print tile_to_check
+    scores = []
+    for i in range(len(stats)):
+        scores.append((tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / hours_obs[
+                tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']])
 
-    # print(hours_obs)
+    # Return True if the best possible tile was picked; return False otherwise
+    if scores[3] == np.max(scores):
+        return True
+    else:
+        return False
 
-    return tile_to_check
+
+def check_tile_choice(cursor, midday_end=None):
+    """
+    Check all
+    Parameters
+    ----------
+    cursor
+    midday_end
+
+    Returns
+    -------
+
+    """
+    # Read in tile observation info
+    tile_obs = rTOIexec(cursor)
+    tile_obs.sort(order='date_obs')
+    no_tiles = len(tile_obs)
+
+    fails = 0
+    for dt in tile_obs['date_obs']:
+        # print(dt)
+        # See if the best tile was selected
+        try:
+            success = generate_tile_choice(cursor, dt, prioritize_lowz=True, output=False,
+                                           midday_end=midday_end)
+        except:
+            success = generate_tile_choice(cursor, dt, prioritize_lowz=False, output=False,
+                                           midday_end=midday_end)
+        if not success:
+            print 'Possible failure at %s' % dt.strftime('%Y-%m-%d %H:%M:%s')
+            fails += 1
+
+    print('%d tiles, %d failures' % (no_tiles, fails))
+
+    return
