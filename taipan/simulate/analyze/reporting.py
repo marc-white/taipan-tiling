@@ -255,7 +255,7 @@ def check_tile_choice(cursor, midday_end=None):
 
     fails = 0
     for dt in tile_obs['date_obs']:
-        # print(dt)
+        print(dt.strftime('%Y-%m-%d %H:%M:%s'))
         # See if the best tile was selected
         try:
             success = generate_tile_choice(cursor, dt, prioritize_lowz=True, output=False,
