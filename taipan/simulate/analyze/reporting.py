@@ -408,10 +408,13 @@ def check_tile_choice(cursor, midday_end=None):
 
         scores = []
         for i in range(len(stats)):
-            scores.append((tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] *
-                           tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / \
-                          hours_obs[
-                              tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']])
+            try:
+                scores.append((tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] *
+                               tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / \
+                              hours_obs[
+                                  tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']])
+            except IndexError:
+                pass
         if scores[3] == np.max(scores):
             pass
         else:
