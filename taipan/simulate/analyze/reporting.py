@@ -376,7 +376,7 @@ def check_tile_choice(cursor, midday_end=None):
         # - The field with the highest n_sci_rem
         # - The field with lowest hours_obs
         # - The field that was actually selected
-        print tile_scores
+        # print tile_scores
 
         tile_scores.sort(order='prior_sum')
         highest_score = tile_scores[::-1][0]
@@ -407,16 +407,14 @@ def check_tile_choice(cursor, midday_end=None):
         ]
         if prioritize_lowz:
             stats.append(highest_score_lowz['tile_pk'])
+        print(stats)
 
         scores = []
         for i in range(len(stats)):
-            try:
-                scores.append((tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] *
-                               tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / \
-                              hours_obs[
-                                  tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']])
-            except IndexError:
-                pass
+            scores.append((tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] *
+                           tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / \
+                          hours_obs[
+                              tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']])
         if scores[3] == np.max(scores):
             pass
         else:
