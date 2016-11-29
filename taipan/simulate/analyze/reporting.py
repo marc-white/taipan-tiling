@@ -253,7 +253,7 @@ def check_tile_choice(cursor, midday_end=None):
     tile_obs = rTOIexec(cursor)
     _, _, targets_completed = rSOIexec(cursor)
     tile_obs.sort(order='date_obs')
-    tile_scores = rTSexec(cursor, unobserved_only=False,
+    tile_scores_orig = rTSexec(cursor, unobserved_only=False,
                           metrics=['prior_sum', 'n_sci_rem'])
     # print('Original tile scores:')
     # print(tile_scores)
@@ -266,6 +266,9 @@ def check_tile_choice(cursor, midday_end=None):
 
     for dt in tile_obs['date_obs']:
         print(dt.strftime('%Y-%m-%d %H:%M:%S'))
+
+        tile_scores = tile_scores_orig[::]
+
         # Work out which tile was observed at or after the given date
         tile_to_check = tile_obs[tile_obs['date_obs'] >= dt][0]
 
