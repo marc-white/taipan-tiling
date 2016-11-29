@@ -376,6 +376,8 @@ def check_tile_choice(cursor, midday_end=None):
         # - The field with the highest n_sci_rem
         # - The field with lowest hours_obs
         # - The field that was actually selected
+        print tile_scores
+
         tile_scores.sort(order='prior_sum')
         highest_score = tile_scores[::-1][0]
         try:
