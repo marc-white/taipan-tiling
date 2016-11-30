@@ -338,7 +338,8 @@ def sim_do_night(cursor, date, date_start, date_end,
     #                                                      limiting_dt=midday +
     #                                                      datetime.timedelta(1))
     dark_start, dark_end = rAS.next_night_period(cursor, midday,
-                                                 limiting_dt=midday_end,
+                                                 limiting_dt=
+                                                 midday + datetime.timedelta(1),
                                                  dark=True, grey=False)
     end = datetime.datetime.now()
     delta = end - start
