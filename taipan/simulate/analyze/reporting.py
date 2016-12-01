@@ -440,10 +440,6 @@ if __name__ == '__main__':
     # will raise if too few/many args or unsupported options used
     args = parser.parse_args()
 
-    logging.debug('Getting connection')
-    conn = get_connection()
-    cursor = conn.cursor()
-
     # Set the logging to write to terminal AND file
     logging.basicConfig(
         level=logging.INFO,
@@ -456,6 +452,10 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
+
+    logging.debug('Getting connection')
+    conn = get_connection()
+    cursor = conn.cursor()
 
     if args.tilechoice:
         check_tile_choice(cursor,
