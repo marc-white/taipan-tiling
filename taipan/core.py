@@ -1419,8 +1419,6 @@ class TaipanTile(object):
         self._fibres[fibre] = None
         return removed_target
 
-
-
     def compute_fibre_posn(self, fibre):
         """
         Compute a fibre position.
