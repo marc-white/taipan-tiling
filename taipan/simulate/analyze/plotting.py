@@ -5,6 +5,7 @@ import numpy as np
 from src.resources.v0_0_1.readout import readTileObservingInfo as rTOI
 from src.resources.v0_0_1.readout import readAlmanacStats as rAS
 from src.resources.v0_0_1.readout import readCentroids as rC
+from src.resources.v0_0_1.readout import readFibrePosns as rFP
 from src.resources.v0_0_1.readout import readScienceObservingInfo as rSOI
 from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
     rCBTexec
@@ -16,7 +17,8 @@ from ..utils.allskymap import AllSkyMap
 
 from ...scheduling import localize_utc_dt, utc_local_dt, POINTING_TIME, \
     UKST_TELESCOPE
-from ...core import TILE_RADIUS
+from ...core import TILE_RADIUS, BUGPOS_MM, dist_points, PATROL_RADIUS, \
+    ARCSEC_PER_MM
 
 import matplotlib
 import matplotlib.pyplot
@@ -27,6 +29,7 @@ from matplotlib.patches import Circle
 import datetime
 import time
 import sys
+import logging
 
 MIDDAY = datetime.time(12,0)
 
@@ -1021,3 +1024,119 @@ def plot_hours_remain_analysis(cursor,
             ), fmt=output_fmt, dpi=300)
 
         local_utc_now += datetime.timedelta(minutes=15)
+
+
+def plot_fibre_stretch(cursor,
+                       pylab_mode=False,
+                       output_loc='.',
+                       output_prefix='fibre_stretch',
+                       output_fmt='png',
+                       ):
+    """
+    Compute and plot the fibre 'stretch' (i.e. the distance the fibres had
+    to travel from their home position) for this observation set.
+
+    Parameters
+    ----------
+    cursor : psycopg2 cursor
+        cursor for communication with the database
+    pylab_mode : Boolean, optional
+        Denotes whether to run in interactive pylab mode (True) or write output
+        to disk (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'hrs_bet'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig: matplotlib.pyplot.Figure instance
+        The figure instance the information was plotted to.
+    """
+
+    # Read in *all* the tiles
+    # This is because anything in the DB could conceivably be observed
+    fibre_posns = rFP.execute(cursor)
+    logging.info('Found %d target assignments' % len(fibre_posns))
+    # Read the field centroid positions
+    field_cents = rC.execute(cursor)
+    # Convert the field centroids into a dict for easy lookup
+    field_cents = {t.field_id: t for t in field_cents}
+
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((22, 12))
+
+    # Generate a dictionary to hold the stats for each fibre
+    stretch = {f: [] for f in BUGPOS_MM.keys()}
+
+    i = 0
+    for row in fibre_posns:
+        # Calculate the home position
+        home_pos_ra, home_pos_dec = field_cents[
+            row['field_id']].compute_fibre_posn(row['bug_id'])
+        dist = dist_points(home_pos_ra, home_pos_dec, row['ra'], row['dec'])
+        stretch[row['bug_id']].append(dist)
+        i += 1
+        if (i % 10000) == 0:
+            logging.info('Completed calcs for %6d / %8d assignments' %
+                         (i, len(fibre_posns), ))
+
+    ax2 = fig.add_subplot(111)
+    ax = ax2.twinx()
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position('right')
+    ax.yaxis.tick_left()
+    ax.yaxis.set_label_position('left')
+    # ax.set_zorder(1)
+    ax.set_title('Fibre travel distances')
+    ax.set_xlabel('Fibre no.')
+    ax.set_ylabel('Dist (")')
+
+    ax.boxplot([stretch[f] for f in sorted(BUGPOS_MM.keys())],
+               positions=[f for f in sorted(BUGPOS_MM.keys())],
+               whis=[2., 98.], sym='b.')
+
+    # Show where the patrol radius limit is
+    ax.plot(ax.get_xlim(), [PATROL_RADIUS]*2,
+            'r--', lw=3)
+
+    # Rotate the x-tick labels
+    ax2.set_xticklabels(ax2.xaxis.get_majorticklabels(), rotation=90.)
+
+    ax2.set_ylabel('No. of fibre assigns')
+    # ax2.set_zorder(10)
+    # ax2.set_ylim(map(lambda x: x / ARCSEC_PER_MM, ax.get_ylim()))
+    # ax2.set_ylabel('Dist (mm)')
+
+    # Instead of converting to mm, let's plot the number of assignments per
+    # fibre in the background
+    ax2.bar([f-0.5 for f in sorted(BUGPOS_MM.keys())],
+            [np.count_nonzero(fibre_posns['bug_id'] == f)
+             for f in sorted(BUGPOS_MM.keys())],
+            bottom=0, width=1., color='lightgrey',
+            linewidth=0)
+
+    # ax.set_zorder(ax2.get_zorder() + 1)
+    # ax.patch.set_visible(False)
+
+    matplotlib.pyplot.tight_layout()
+
+    if pylab_mode:
+        matplotlib.pyplot.show()
+        matplotlib.pyplot.draw()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    return fig
+
