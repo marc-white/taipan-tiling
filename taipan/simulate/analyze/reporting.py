@@ -11,10 +11,14 @@ from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
 import src.resources.v0_0_1.readout.readAlmanacStats as rAS
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
 
+from src.scripts.connection import get_connection
+
 import taipan.scheduling as ts
 
 import numpy as np
 import datetime
+import argparse
+import logging
 
 
 def generate_report(cursor):
@@ -265,7 +269,7 @@ def check_tile_choice(cursor, midday_end=None):
     no_fails = 0
 
     for dt in tile_obs['date_obs']:
-        print(dt.strftime('%Y-%m-%d %H:%M:%S'))
+        logging.debug(dt.strftime('%Y-%m-%d %H:%M:%S'))
 
         tile_scores = tile_scores_orig[::]
 
@@ -410,7 +414,7 @@ def check_tile_choice(cursor, midday_end=None):
         ]
         if prioritize_lowz:
             stats.append(highest_score_lowz['tile_pk'])
-        print(stats)
+        # print(stats)
 
         scores = []
         for i in range(len(stats)):
@@ -419,10 +423,38 @@ def check_tile_choice(cursor, midday_end=None):
                           hours_obs[
                               tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']])
         if scores[3] == np.max(scores):
-            pass
+            logging.info('Probably correct choice at %s' % dt.strftime('%Y-%m-%d %H:%M:%S'))
         else:
             no_fails += 1
-            print('Possible failure at %s' % dt.strftime('%Y-%m-%d %H:%M:%S'))
+            logging.info('Possible failure at %s' % dt.strftime('%Y-%m-%d %H:%M:%S'))
 
-    print('Total tiles checked: %d' % no_tiles)
-    print('Number of failures : %d' % no_fails)
+    logging.info('Total tiles checked: %d' % no_tiles)
+    logging.info('Number of failures : %d' % no_fails)
+
+
+if __name__ == '__main__':
+    # When executed as a script
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-tilechoice', action='store_true',
+                        help='run check_tile_choice')
+    # will raise if too few/many args or unsupported options used
+    args = parser.parse_args()
+
+    logging.debug('Getting connection')
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        filename='./reporting-%s' % (
+            datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        ),
+        filemode='w'
+    )
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    if args.tilechoice:
+        check_tile_choice(cursor,
+                          midday_end=ts.utc_local_dt(
+                              datetime.datetime(2018, 4, 1, 12, 0)))
