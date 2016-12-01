@@ -453,6 +453,8 @@ if __name__ == '__main__':
     )
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
 
     if args.tilechoice:
         check_tile_choice(cursor,
