@@ -444,10 +444,11 @@ if __name__ == '__main__':
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Set the logging to write to terminal AND file
     logging.basicConfig(
         level=logging.INFO,
-        filename='./reporting-%s' % (
-            datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        filename='./reporting_%s.log' % (
+            datetime.datetime.now().strftime('%Y%m%d-%H%M'),
         ),
         filemode='w'
     )
