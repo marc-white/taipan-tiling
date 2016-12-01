@@ -1445,6 +1445,29 @@ class TaipanTile(object):
             (fibre_offset[1] + self.pa) % 360.) # Account for tile PA
         return pos
 
+    def compute_fibre_travel(self, fibre):
+        """
+        Compute the distance a fibre is from it's home position
+
+        Parameters
+        ----------
+        fibre : integer
+            Fibre number
+
+        Returns
+        -------
+        dist : float, in arcsecs
+            The number of arcsecs the fibre is from home. Returns np.nan if this
+            can't be computed (e.g. sky fibre).
+        """
+        fibre_pos = self.compute_fibre_posn(fibre)
+        if isinstance(self.fibres[fibre], TaipanTarget):
+            move_dist = dist_points(fibre_pos[0], fibre_pos[1],
+                                    self.fibres[fibre].ra,
+                                    self.fibres[fibre].dec)
+            return move_dist
+        return np.nan
+
 
     def get_assigned_targets(self, return_dict=False):
         """
