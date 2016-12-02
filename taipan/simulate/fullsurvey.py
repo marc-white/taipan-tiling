@@ -11,7 +11,6 @@ from utils.tiling import retile_fields
 from utils.bugfail import simulate_bugfails
 
 import pickle
-
 import numpy as np
 import atpy
 import ephem
@@ -140,6 +139,8 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
     target_ids = np.asarray(rSTiexec(cursor, tiles_observed))
 
     # Add in small probability of uncategorized 'bug failure'
+    # Note that we do this here so that targets where the bug has failed *don't*
+    # get their visits number incremented - after all, we'd get no data at all!
     target_ids = target_ids[simulate_bugfails([True] * len(target_ids),
                                               prob=prob_bugfail)]
 
@@ -148,6 +149,11 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         target_types_db = rSTyexec(cursor, target_ids=target_ids)
         # Get an array with the number of visits and repeats of these
         visits_repeats = rSVexec(cursor, target_ids=target_ids)
+
+        # Sort these arrays by target_id to make sure they correspond with
+        # one another
+        target_types_db.sort(order='target_id')
+        visits_repeats.sort(order='target_id')
 
         # Form an array showing the type of those targets
         # target_types = np.asarray(list(['' for _ in target_types_db]))

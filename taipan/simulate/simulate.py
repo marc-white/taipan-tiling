@@ -50,11 +50,11 @@ def test_redshift_success(target_types_db, num_visits,
     # Input checking
     # Make sure we have lists, not single values
     try:
-        burn = target_types_db[0]
+        _ = target_types_db[0]
     except TypeError:
         target_types_db = [target_types_db, ]
     try:
-        burn = num_visits[0]
+        _ = num_visits[0]
     except TypeError:
         num_visits = [num_visits, ]
 
