@@ -210,9 +210,9 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
             'Tile type'.ljust(25),
             'PK'.ljust(5),
             'Field',
-            'Score',
+            'Score'.ljust(6),
             'NSciR',
-            'hours',
+            'hours'.ljust(6),
             'Final score',
         ))
         for i in range(len(stats)):
