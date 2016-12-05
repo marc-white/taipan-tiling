@@ -486,9 +486,23 @@ def sim_do_night(cursor, date, date_start, date_end,
             try:
                 # logging.debug('Next observing period for each field:')
                 # logging.debug(field_periods)
-                tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
-                                                    key=lambda x: -1. * x[1]
-                                                    ) if
+                # Generator pattern
+                # tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
+                #                                     key=lambda x: -1. * x[1]
+                #                                     ) if
+                #                field_periods[fields_by_tile[t]][0] is not
+                #                None and
+                #                field_periods[fields_by_tile[t]][1] is not
+                #                None and
+                #                field_periods[fields_by_tile[t]][0] -
+                #                datetime.timedelta(seconds=ts.SLEW_TIME) <
+                #                local_utc_now and
+                #                field_periods[fields_by_tile[t]][1] >
+                #                local_utc_now +
+                #                datetime.timedelta(
+                #                    seconds=ts.POINTING_TIME)).next()
+                # Full dict pattern
+                tile_to_obs = {t for t, v in tiles_scores.items() if
                                field_periods[fields_by_tile[t]][0] is not
                                None and
                                field_periods[fields_by_tile[t]][1] is not
@@ -499,8 +513,10 @@ def sim_do_night(cursor, date, date_start, date_end,
                                field_periods[fields_by_tile[t]][1] >
                                local_utc_now +
                                datetime.timedelta(
-                                   seconds=ts.POINTING_TIME)).next()
-            except StopIteration:
+                                   seconds=ts.POINTING_TIME)}
+                tile_to_obs = max(tile_to_obs, key=tile_to_obs.get)
+            # except StopIteration:
+            except ValueError:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
