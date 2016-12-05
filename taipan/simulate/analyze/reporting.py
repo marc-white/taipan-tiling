@@ -216,7 +216,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
             'Final score',
         ))
         for i in range(len(stats)):
-            print(' %s | %5d | %5d | %4.1f | %5d | %4.1f | %4.1f ' % (
+            print(' %s | %5d | %5d | %6.1f | %5d | %6.1f | %6.1f ' % (
                 stat_type[i].ljust(25),
                 stats[i],
                 tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id'],
