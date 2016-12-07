@@ -150,10 +150,15 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         # Get an array with the number of visits and repeats of these
         visits_repeats = rSVexec(cursor, target_ids=target_ids)
 
+        if len(target_types_db) != len(visits_repeats):
+            raise RuntimeError('Arrays of target types and visits do not '
+                               'match in length!')
+
         # Sort these arrays by target_id to make sure they correspond with
         # one another
         target_types_db.sort(order='target_id')
         visits_repeats.sort(order='target_id')
+        target_ids.sort()
 
         # Form an array showing the type of those targets
         # target_types = np.asarray(list(['' for _ in target_types_db]))
@@ -167,6 +172,7 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         # Note function needs the 'updated' value of target visits, which
         # won't be pushed to the database until after the result of this
         # function is implemented
+        # Note that test_redshift_success preserves the list ordering
         success_targets = test_redshift_success(target_types_db,
                                                 visits_repeats['visits'] + 1,
                                                 prob_vpec_first=prob_vpec_first,
