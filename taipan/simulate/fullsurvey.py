@@ -508,7 +508,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                 #                datetime.timedelta(
                 #                    seconds=ts.POINTING_TIME)).next()
                 # Full dict pattern
-                tile_to_obs = {t for t, v in tiles_scores.items() if
+                tile_to_obs = {t: v for t, v in tiles_scores.items() if
                                field_periods[fields_by_tile[t]][0] is not
                                None and
                                field_periods[fields_by_tile[t]][1] is not
