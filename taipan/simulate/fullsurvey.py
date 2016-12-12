@@ -544,7 +544,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                          seconds=ts.POINTING_TIME)],
                     dtype={
                         'names': ['tile_pk', 'final_score'],
-                        'types': ['int', 'float64'],
+                        'formats': ['int', 'float64'],
                     }
                 )
                 tile_to_obs.sort(order='final_score')
