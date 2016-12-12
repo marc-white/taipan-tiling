@@ -457,7 +457,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                          hours_better=True) for
                                  f in fields_by_tile.values() if
                                  f not in lowz_fields}
-                hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
+                # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
+                hours_obs = hours_obs_lowz.copy()
+                hours_obs.update(hours_obs_oth)
             else:
                 hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
                                                      datetime_to=midday_end,
@@ -521,8 +523,35 @@ def sim_do_night(cursor, date, date_start, date_end,
                                datetime.timedelta(
                                    seconds=ts.POINTING_TIME)}
                 tile_to_obs = max(tile_to_obs, key=tile_to_obs.get)
+                # Structured array pattern
+                tile_to_obs = np.asarray(
+                    [(t, v, )
+                     for t, v in tiles_scores.items() if
+                     field_periods[
+                         fields_by_tile[t]][0] is not
+                     None and
+                     field_periods[
+                         fields_by_tile[t]][1] is not
+                     None and
+                     field_periods[
+                         fields_by_tile[t]][0] -
+                     datetime.timedelta(
+                         seconds=ts.SLEW_TIME) <
+                     local_utc_now and
+                     field_periods[fields_by_tile[t]][1] >
+                     local_utc_now +
+                     datetime.timedelta(
+                         seconds=ts.POINTING_TIME)],
+                    dtype={
+                        'names': ['tile_pk', 'final_score'],
+                        'types': ['int', 'float64'],
+                    }
+                )
+                tile_to_obs.sort(order='final_score')
+                tile_to_obs = tile_to_obs['tile_pk'][-1]
             # except StopIteration:
-            except ValueError:
+            # except ValueError:
+            except IndexError:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
@@ -757,8 +786,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                      instant_dq=instant_dq,
                      commit=True)
         curr_date += datetime.timedelta(1.)
-        # if curr_date == datetime.date(2017,5,1):
-        #     break
+        if curr_date == datetime.date(2017, 4, 5):
+            break
 
     logging.info('----------')
     logging.info('OBSERVING COMPLETE')

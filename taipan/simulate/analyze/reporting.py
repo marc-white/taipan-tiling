@@ -77,6 +77,8 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
     # print(tile_to_check['date_obs'])
 
     # Get the scores of the tiles that were in contention at this point
+    # Note that tiles which were never observed will *not* appear in this list;
+    # this is a current limitation of our read-out functions
     tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
                                       tile_obs[np.logical_and(
                                           tile_obs['date_config'] <=
