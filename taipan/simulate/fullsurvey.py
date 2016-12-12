@@ -786,8 +786,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                      instant_dq=instant_dq,
                      commit=True)
         curr_date += datetime.timedelta(1.)
-        if curr_date == datetime.date(2017, 4, 5):
-            break
+        # if curr_date == datetime.date(2017, 4, 5):
+        #     break
 
     logging.info('----------')
     logging.info('OBSERVING COMPLETE')
