@@ -81,7 +81,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
     # this is a current limitation of our read-out functions
     tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
                                       tile_obs[np.logical_and(
-                                          tile_obs['date_config'] <=
+                                          tile_obs['date_config'] <
                                           max(
                                               tile_to_check['date_obs'],
                                               datetime.datetime(2017,4,1,12,1)),
