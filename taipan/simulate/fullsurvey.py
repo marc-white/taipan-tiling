@@ -380,11 +380,11 @@ def select_best_tile(cursor, dt, per_end,
     except IndexError:
         tile_to_obs = None
 
-    return tile_to_obs, tiles_scores, scores_array, \
+    return tile_to_obs, fields_available, tiles_scores, scores_array, \
            field_periods, fields_by_tile, hours_obs
 
 
-def check_tile_choice(cursor, dt, tile_to_obs,
+def check_tile_choice(cursor, dt, tile_to_obs, fields_available,
                       scores_array, field_periods, fields_by_tile, hours_obs,
                       abort=False):
     """
@@ -420,7 +420,8 @@ def check_tile_choice(cursor, dt, tile_to_obs,
     # Find the tile with the highest raw score (prior_sum), compute its
     # adjusted score, and check against that chosen
     scores_array.sort(order='prior_sum')
-    highest_score = scores_array[-1]
+    highest_score = scores_array[np.in1d(scores_array['field_id'],
+                                         fields_available)][-1]
     highest_calib_score = highest_score['prior_sum'] * highest_score[
         'n_sci_rem']
     highest_calib_score /= hours_obs[highest_score['field_id']]
@@ -437,7 +438,8 @@ def check_tile_choice(cursor, dt, tile_to_obs,
     # Find the tile with the highest n_sci_rem score (prior_sum), compute its
     # adjusted score, and check against that chosen
     scores_array.sort(order='n_sci_rem')
-    highest_score = scores_array[-1]
+    highest_score = scores_array[np.in1d(scores_array['field_id'],
+                                         fields_available)][-1]
     highest_calib_score = highest_score['prior_sum'] * highest_score[
         'n_sci_rem']
     highest_calib_score /= hours_obs[highest_score['field_id']]
@@ -852,7 +854,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             #     continue
 
             # Pick the best tile
-            tile_to_obs, tiles_scores, scores_array, \
+            tile_to_obs, fields_available, tiles_scores, scores_array, \
             field_periods, fields_by_tile, \
             hours_obs = select_best_tile(
                 cursor, local_utc_now,
