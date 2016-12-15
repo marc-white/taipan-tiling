@@ -384,7 +384,7 @@ def select_best_tile(cursor, dt, per_end,
            field_periods, fields_by_tile, hours_obs
 
 
-def check_tile_choice(cursor, dt, tile_to_obs, fields_available,
+def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
                       scores_array, field_periods, fields_by_tile, hours_obs,
                       abort=False):
     """
