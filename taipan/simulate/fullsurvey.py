@@ -380,7 +380,98 @@ def select_best_tile(cursor, dt, per_end,
     except IndexError:
         tile_to_obs = None
 
-    return tile_to_obs, tiles_scores, field_periods, fields_by_tile
+    return tile_to_obs, tiles_scores, scores_array, \
+           field_periods, fields_by_tile, hours_obs
+
+
+def check_tile_choice(cursor, dt, tile_to_obs,
+                      tiles_scores, field_periods, fields_by_tile, hours_obs,
+                      abort=False):
+    """
+    Do some simple checking of the selection made by select_best_tile
+
+    Parameters
+    ----------
+    cursor : psycopg2 cursor
+        For interacting with the database
+    dt : datetime.datetime object
+        Current datetime (should be naive, but in UTC)
+    tile_to_obs : int
+        The PK of the tile that has been selected
+    tiles_scores, field_periods, fields_by_tile, hours_obs : numpy arrays
+        Arrays of numpy data. These match those arrays output by
+        select_best_tile
+    abort : Boolean, optional
+        Boolean value denoting whether to abort the run if a failure is
+        detected. If true, diagnostic information will be dumped to the logging
+        system, the cursor will commit to the database, and then sys.exit() will
+        be called.
+
+    Returns
+    -------
+    likely_correct : Boolean
+        Returns True if the tile choice is likely to be correct, False if not.
+
+    """
+    row_chosen = tiles_scores[tiles_scores['tile_pk'] == tile_to_obs][0]
+    ref_score = row_chosen['prior_sum'] * row_chosen['n_sci_rem']
+    ref_score /= hours_obs[row_chosen['field_id']]
+
+    # Find the tile with the highest raw score (prior_sum), compute its
+    # adjusted score, and check against that chosen
+    tiles_scores.sort(order='prior_sum')
+    highest_score = tiles_scores[-1]
+    highest_calib_score = highest_score['prior_sum'] * highest_score[
+        'n_sci_rem']
+    highest_calib_score /= hours_obs[highest_score['field_id']]
+    if highest_calib_score > ref_score:
+        if abort:
+            logging.warning('TILE SELECTION FAILURE')
+            logging.warning('Tile %d was selected (score %f)' % (tile_to_obs,
+                                                                 ref_score, ))
+            logging.warning('Found tile %d, score %f' %
+                            (highest_score['tile_pk'], highest_calib_score))
+            sys.exit()
+        return False
+
+    # Find the tile with the highest n_sci_rem score (prior_sum), compute its
+    # adjusted score, and check against that chosen
+    tiles_scores.sort(order='n_sci_rem')
+    highest_score = tiles_scores[-1]
+    highest_calib_score = highest_score['prior_sum'] * highest_score[
+        'n_sci_rem']
+    highest_calib_score /= hours_obs[highest_score['field_id']]
+    if highest_calib_score > ref_score:
+        if abort:
+            logging.warning('TILE SELECTION FAILURE')
+            logging.warning(
+                'Tile %d was selected (score %f)' % (tile_to_obs,
+                                                     ref_score,))
+            logging.warning('Found tile %d, score %f' %
+                            (highest_score['tile_pk'], highest_calib_score))
+            sys.exit()
+        return False
+
+    # Find the tile with the lowest hours_rem, compute its adjusted score,
+    # then check against that chosen
+    min_hrs = min([v for v in hours_obs.values()])
+    min_hrs_field = [f for f, v in hours_obs.items() if v == min_hrs][0]
+    for row in tiles_scores[tiles_scores['field_id'] == min_hrs_field]:
+        highest_calib_score = row['prior_sum'] * row['n_sci_rem']
+        highest_calib_score /= hours_obs[row['field_id']]
+        if highest_calib_score > ref_score:
+            if abort:
+                logging.warning('TILE SELECTION FAILURE')
+                logging.warning(
+                    'Tile %d was selected (score %f)' % (tile_to_obs,
+                                                         ref_score,))
+                logging.warning('Found tile %d, score %f' %
+                                (highest_score['tile_pk'], highest_calib_score))
+                sys.exit()
+            return False
+
+    # All good to here, so return True
+    return True
 
 
 def sim_do_night(cursor, date, date_start, date_end,
@@ -761,11 +852,12 @@ def sim_do_night(cursor, date, date_start, date_end,
             #     continue
 
             # Pick the best tile
-            tile_to_obs, tiles_scores, field_periods, fields_by_tile = \
-                select_best_tile(
-                    cursor, local_utc_now,
-                    dark_end, midday_end,
-                    prioritize_lowz=prioritize_lowz)
+            tile_to_obs, tiles_scores, scores_array, \
+            field_periods, fields_by_tile, \
+            hours_obs = select_best_tile(
+                cursor, local_utc_now,
+                dark_end, midday_end,
+                prioritize_lowz=prioritize_lowz)
             if tile_to_obs is None:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
