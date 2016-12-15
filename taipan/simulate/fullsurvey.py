@@ -774,7 +774,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                                      field_periods.items()
                                      if v[0] is not None and
                                      v[1] if not None and
-                                     v[0] > local_utc_now]
+                                     v[0] > local_utc_now])
                 if local_utc_now is None:
                     logging.info('There appears to be no valid observing time '
                                  'remaining out to the end_date')
