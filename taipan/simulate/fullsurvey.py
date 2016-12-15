@@ -855,8 +855,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
             # Pick the best tile
             tile_to_obs, fields_available, tiles_scores, scores_array, \
-            field_periods, fields_by_tile, \
-            hours_obs = select_best_tile(
+            field_periods, fields_by_tile, hours_obs = select_best_tile(
                 cursor, local_utc_now,
                 dark_end, midday_end,
                 prioritize_lowz=prioritize_lowz)
@@ -881,8 +880,10 @@ def sim_do_night(cursor, date, date_start, date_end,
                 continue
             else:
                 _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
+                                      fields_available, tiles_scores,
                                       scores_array, field_periods,
-                                      fields_by_tile, hours_obs, abort=True)
+                                      fields_by_tile, hours_obs,
+                                      abort=True)
 
             # 'Observe' the field
             logging.info('Observing tile %d (score: %.1f), field %d at '
