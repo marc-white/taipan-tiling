@@ -878,7 +878,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                 #     ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue
             else:
-                _ = check_tile_choice(cursor, local_utc_now,
+                _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
                                       scores_array, field_periods,
                                       fields_by_tile, hours_obs, abort=True)
 
