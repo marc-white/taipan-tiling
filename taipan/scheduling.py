@@ -166,7 +166,7 @@ def utc_local_dt(dt, tz=UKST_TIMEZONE):
     Returns
     -------
     dt_utc:
-        A naive timezone, but cast into the 'local' timezone.
+        A naive timezone, but cast into UTC timezone.
     """
     dt_utc = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
     return dt_utc
