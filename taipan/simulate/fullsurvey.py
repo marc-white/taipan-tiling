@@ -417,11 +417,16 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
     ref_score = row_chosen['prior_sum'] * row_chosen['n_sci_rem']
     ref_score /= hours_obs[row_chosen['field_id']]
 
+    # fields_available is those fields available this dark period - we
+    # need a list of fields available *now*
+    fields_actually_available = [f for f in fields_available
+                                 if field_periods[f][0] <= dt]
+
     # Find the tile with the highest raw score (prior_sum), compute its
     # adjusted score, and check against that chosen
     scores_array.sort(order='prior_sum')
     highest_score = scores_array[np.in1d(scores_array['field_id'],
-                                         fields_available)][-1]
+                                         fields_actually_available)][-1]
     highest_calib_score = highest_score['prior_sum'] * highest_score[
         'n_sci_rem']
     highest_calib_score /= hours_obs[highest_score['field_id']]
@@ -439,7 +444,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
     # adjusted score, and check against that chosen
     scores_array.sort(order='n_sci_rem')
     highest_score = scores_array[np.in1d(scores_array['field_id'],
-                                         fields_available)][-1]
+                                         fields_actually_available)][-1]
     highest_calib_score = highest_score['prior_sum'] * highest_score[
         'n_sci_rem']
     highest_calib_score /= hours_obs[highest_score['field_id']]
@@ -469,6 +474,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
                                                          ref_score,))
                 logging.warning('Found tile %d, score %f' %
                                 (highest_score['tile_pk'], highest_calib_score))
+                cursor.connection.commit()
                 sys.exit()
             return False
 
