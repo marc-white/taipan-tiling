@@ -50,7 +50,7 @@ EPHEM_TO_MJD = 15019.5
 EPHEM_DT_STRFMT = '%Y/%m/%d %H:%M:%S'
 
 # Observing constants
-SLEW_TIME = 5. * 60.  # seconds
+SLEW_TIME = (5. * 60.) + (1.8 * 60.)  # seconds
 OBS_TIME = 15. * 60.  # seconds
 POINTING_TIME = (SLEW_TIME + OBS_TIME) / SECONDS_PER_DAY  # days
 
