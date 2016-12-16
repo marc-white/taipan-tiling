@@ -200,7 +200,11 @@ def select_best_tile(cursor, dt, per_end,
                      midday_end,
                      prioritize_lowz=True):
     """
-    Select the best tile to observe at the current datetime
+    Select the best tile to observe at the current datetime.
+
+    Note that the function will analyse observability at the given time with
+    no interest in configure time etc. - users should therefore pass the time
+    when the observation (of length ts.POINTING_TIME) starts.
 
     Parameters
     ----------
@@ -285,7 +289,7 @@ def select_best_tile(cursor, dt, per_end,
                                                  hours_better=True) for
                          f in fields_by_tile.values() if
                          f not in lowz_fields}
-        # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
+        # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
         hours_obs = hours_obs_lowz.copy()
         hours_obs.update(hours_obs_oth)
     else:
@@ -362,14 +366,12 @@ def select_best_tile(cursor, dt, per_end,
                  fields_by_tile[t]][1] is not
              None and
              field_periods[
-                 fields_by_tile[t]][0] -
-             datetime.timedelta(
-                 seconds=ts.SLEW_TIME) <
+                 fields_by_tile[t]][0] <
              dt and
              field_periods[fields_by_tile[t]][1] >
              dt +
              datetime.timedelta(
-                 seconds=ts.POINTING_TIME)],
+                 seconds=ts.OBS_TIME)],
             dtype={
                 'names': ['tile_pk', 'final_score'],
                 'formats': ['int', 'float64'],
@@ -420,7 +422,12 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
     # fields_available is those fields available this dark period - we
     # need a list of fields available *now*
     fields_actually_available = [f for f in fields_available
-                                 if field_periods[f][0] <= dt]
+                                 if field_periods[f][0] +
+                                 datetime.timedelta(seconds=ts.SLEW_TIME) <=
+                                 dt and
+                                 field_periods[f][1] >= dt +
+                                 datetime.timedelta(seconds=
+                                                    ts.OBS_TIME)]
 
     # Find the tile with the highest raw score (prior_sum), compute its
     # adjusted score, and check against that chosen
@@ -674,190 +681,6 @@ def sim_do_night(cursor, date, date_start, date_end,
                     local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
                 ))
                 continue
-
-            # Get the next observing period for all fields being considered
-            # field_periods = {r['field_id']: almanacs_relevant[
-            #     r['field_id']
-            # ].next_observable_period(
-            #     local_time_now - (datetime.timedelta(
-            #         almanacs_relevant[r['field_id']].resolution *
-            #         60. / ts.SECONDS_PER_DAY)),
-            #     datetime_to=ts.localize_utc_dt(ts.ephem_to_dt(dark_end))) for
-            #                  r in scores_array}
-
-            # # Get the latest scores_array
-            # scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
-            #                                         'n_sci_rem'],
-            #                        ignore_zeros=True)
-            #
-            # field_periods = {r['field_id']: rAS.next_observable_period(
-            #     cursor, r['field_id'], local_utc_now,
-            #     datetime_to=dark_end) for
-            #                  r in scores_array}
-            # logging.debug('Next observing period for each field:')
-            # logging.debug(field_periods)
-            # logging.info('Next available field will rise at %s' %
-            #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
-            #                    field_periods.itervalues() if
-            #                    v[0] is not None]),)
-            #              )
-            # fields_available = [f for f, v in field_periods.iteritems() if
-            #                     v[0] is not None and v[0] < dark_end]
-            # logging.debug('%d fields available at some point tonight' %
-            #               len(fields_available))
-            #
-            # # Rank the available fields
-            # logging.info('Computing field scores')
-            # start = datetime.datetime.now()
-            # tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
-            #                 for
-            #                 row in scores_array if
-            #                 row['field_id'] in fields_available}
-            # fields_by_tile = {row['tile_pk']: row['field_id'] for
-            #                   row in scores_array if
-            #                   row['field_id'] in fields_available}
-            # # hours_obs = {f: almanacs_relevant[f].hours_observable(
-            # #     local_time_now,
-            # #     datetime_to=midday_end,
-            # #     dark_almanac=dark_almanac,
-            # #     hours_better=True
-            # # ) for f in fields_by_tile.values()}
-            # if prioritize_lowz:
-            #     lowz_fields = rCBTexec(cursor, 'is_lowz_target',
-            #                            unobserved=True)
-            #     hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
-            #                                               local_utc_now,
-            #                                               datetime_to=max(
-            #                                                   midday_end,
-            #                                                   local_utc_now +
-            #                                                   datetime.
-            #                                                   timedelta(30.)
-            #                                               ),
-            #                                               hours_better=True) for
-            #                       f in fields_by_tile.values() if
-            #                       f in lowz_fields}
-            #     hours_obs_oth = {f: rAS.hours_observable(cursor, f,
-            #                                              local_utc_now,
-            #                                              datetime_to=
-            #                                              local_utc_now +
-            #                                              datetime.timedelta(
-            #                                                  365),
-            #                                              hours_better=True) for
-            #                      f in fields_by_tile.values() if
-            #                      f not in lowz_fields}
-            #     # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
-            #     hours_obs = hours_obs_lowz.copy()
-            #     hours_obs.update(hours_obs_oth)
-            # else:
-            #     hours_obs = {f: rAS.hours_observable(cursor, f, local_utc_now,
-            #                                          datetime_to=midday_end,
-            #                                          hours_better=True) for
-            #                  f in fields_by_tile.values()}
-            # # hours_obs = {h['field_id']: h['count'] for h in
-            # #              rAS.hours_observable_bulk(cursor,
-            # #                                        fields_by_tile.values(),
-            # #                                        local_utc_now,
-            # #                                        datetime_to=midday_end,
-            # #                                        hours_better=True)}
-            # # Modulate scores by hours remaining
-            # tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
-            #                 t, v in tiles_scores.iteritems()}
-            # logging.debug('Tiles scores: ')
-            # logging.debug(tiles_scores)
-            # end = datetime.datetime.now()
-            # delta = end - start
-            # logging.info('Computed tile scores/hours remaining in %d:%2.1f' %
-            #              (delta.total_seconds() / 60,
-            #               delta.total_seconds() % 60.))
-            #
-            # # 'Observe' while the remaining time in this dark period is
-            # # longer than one pointing (slew + obs)
-            #
-            # logging.info('At time %s, considering til %s' % (
-            #     local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
-            #     dark_end.strftime('%Y-%m-%d %H:%M:%S'),
-            # ))
-            #
-            # # Select the best ranked field we can see
-            # try:
-            #     # logging.debug('Next observing period for each field:')
-            #     # logging.debug(field_periods)
-            #     # Generator pattern
-            #     # tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
-            #     #                                     key=lambda x: -1. * x[1]
-            #     #                                     ) if
-            #     #                field_periods[fields_by_tile[t]][0] is not
-            #     #                None and
-            #     #                field_periods[fields_by_tile[t]][1] is not
-            #     #                None and
-            #     #                field_periods[fields_by_tile[t]][0] -
-            #     #                datetime.timedelta(seconds=ts.SLEW_TIME) <
-            #     #                local_utc_now and
-            #     #                field_periods[fields_by_tile[t]][1] >
-            #     #                local_utc_now +
-            #     #                datetime.timedelta(
-            #     #                    seconds=ts.POINTING_TIME)).next()
-            #     # Full dict pattern
-            #     # tile_to_obs = {t: v for t, v in tiles_scores.items() if
-            #     #                field_periods[fields_by_tile[t]][0] is not
-            #     #                None and
-            #     #                field_periods[fields_by_tile[t]][1] is not
-            #     #                None and
-            #     #                field_periods[fields_by_tile[t]][0] -
-            #     #                datetime.timedelta(seconds=ts.SLEW_TIME) <
-            #     #                local_utc_now and
-            #     #                field_periods[fields_by_tile[t]][1] >
-            #     #                local_utc_now +
-            #     #                datetime.timedelta(
-            #     #                    seconds=ts.POINTING_TIME)}
-            #     # tile_to_obs = max(tile_to_obs, key=tile_to_obs.get)
-            #     # Structured array pattern
-            #     tile_to_obs = np.asarray(
-            #         [(t, v, )
-            #          for t, v in tiles_scores.items() if
-            #          field_periods[
-            #              fields_by_tile[t]][0] is not
-            #          None and
-            #          field_periods[
-            #              fields_by_tile[t]][1] is not
-            #          None and
-            #          field_periods[
-            #              fields_by_tile[t]][0] -
-            #          datetime.timedelta(
-            #              seconds=ts.SLEW_TIME) <
-            #          local_utc_now and
-            #          field_periods[fields_by_tile[t]][1] >
-            #          local_utc_now +
-            #          datetime.timedelta(
-            #              seconds=ts.POINTING_TIME)],
-            #         dtype={
-            #             'names': ['tile_pk', 'final_score'],
-            #             'formats': ['int', 'float64'],
-            #         }
-            #     )
-            #     tile_to_obs.sort(order='final_score')
-            #     tile_to_obs = tile_to_obs['tile_pk'][-1]
-            # # except StopIteration:
-            # # except ValueError:
-            # except IndexError:
-            #     # This triggers if fields will be available later tonight,
-            #     # but none are up right now. What we do now is advance time_now
-            #     # to the first time when any field becomes available
-            #     local_utc_now = min([v[0] for f, v in
-            #                          field_periods.iteritems()
-            #                          if v[0] is not None and
-            #                          v[1] if not None and
-            #                          v[0] > local_utc_now])
-            #     if local_utc_now is None:
-            #         logging.info('There appears to be no valid observing time '
-            #                      'remaining out to the end_date')
-            #         return
-            #
-            #     logging.info('No fields up - advancing time to %s' %
-            #                  local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
-            #     # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
-            #     #     ephem_time_now, ts.EPHEM_DT_STRFMT))
-            #     continue
 
             # Pick the best tile
             tile_to_obs, fields_available, tiles_scores, scores_array, \
