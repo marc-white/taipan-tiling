@@ -405,8 +405,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
     # fields_available is those fields available this dark period - we
     # need a list of fields available *now*
     fields_actually_available = [f for f in fields_available
-                                 if field_periods[f][0] +
-                                 datetime.timedelta(seconds=ts.SLEW_TIME) <=
+                                 if field_periods[f][0] <=
                                  dt and
                                  field_periods[f][1] >= dt +
                                  datetime.timedelta(seconds=
@@ -702,8 +701,12 @@ def sim_do_night(cursor, date, date_start, date_end,
         #         minutes=15.),
         #     limiting_dt=midday + datetime.timedelta(1))
         dark_start, dark_end = rAS.next_night_period(cursor,
-            local_utc_now + datetime.timedelta(ts.POINTING_TIME),
-            limiting_dt=midday + datetime.timedelta(1))
+                                                     local_utc_now +
+                                                     datetime.timedelta(
+                                                         ts.POINTING_TIME),
+                                                     limiting_dt=
+                                                     midday +
+                                                     datetime.timedelta(1))
 
     try:
         _ = local_utc_now
