@@ -702,8 +702,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         #         minutes=15.),
         #     limiting_dt=midday + datetime.timedelta(1))
         dark_start, dark_end = rAS.next_night_period(cursor,
-            local_utc_now + datetime.timedelta(
-                minutes=15.),
+            local_utc_now + datetime.timedelta(ts.POINTING_TIME),
             limiting_dt=midday + datetime.timedelta(1))
 
     try:
@@ -711,10 +710,10 @@ def sim_do_night(cursor, date, date_start, date_end,
     except (NameError, UnboundLocalError, ):
         # This means that there was no dark period at all tonight.
         # So, we need to set local_time_now to be a reasonable time the
-        # following morning (say 9am local)
+        # following morning (say 10am local)
         local_utc_now = ts.utc_local_dt(
             datetime.datetime.combine(date + datetime.timedelta(1),
-                                      datetime.time(9, 0, 0)))
+                                      datetime.time(10, 0, 0)))
 
     end = datetime.datetime.now()
     delta = end - start
