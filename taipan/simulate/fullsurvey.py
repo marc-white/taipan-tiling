@@ -161,13 +161,7 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         visits_repeats.sort(order='target_id')
         target_ids.sort()
 
-        # Form an array showing the type of those targets
-        # target_types = np.asarray(list(['' for _ in target_types_db]))
-        # for ttype in ['is_H0_target', 'is_vpec_target', 'is_lowz_target']:
-        #     target_types[
-        #         np.asarray([_[ttype] is True for _ in target_types_db],
-        #                    dtype=bool)
-        #     ] = ttype
+
         # Calculate a success/failure rate for each target
         # Compute target success based on target type(s)
         # Note function needs the 'updated' value of target visits, which
@@ -260,12 +254,7 @@ def select_best_tile(cursor, dt, per_end,
     fields_by_tile = {row['tile_pk']: row['field_id'] for
                       row in scores_array if
                       row['field_id'] in fields_available}
-    # hours_obs = {f: almanacs_relevant[f].hours_observable(
-    #     local_time_now,
-    #     datetime_to=midday_end,
-    #     dark_almanac=dark_almanac,
-    #     hours_better=True
-    # ) for f in fields_by_tile.values()}
+
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
                                unobserved=True)
@@ -297,13 +286,7 @@ def select_best_tile(cursor, dt, per_end,
                                              datetime_to=midday_end,
                                              hours_better=True) for
                      f in fields_by_tile.values()}
-    # hours_obs = {h['field_id']: h['count'] for h in
-    #              rAS.hours_observable_bulk(cursor,
-    #                                        fields_by_tile.values(),
-    #                                        local_utc_now,
-    #                                        datetime_to=midday_end,
-    #                                        hours_better=True)}
-    # Modulate scores by hours remaining
+
     tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
                     t, v in tiles_scores.iteritems()}
     logging.debug('Tiles scores: ')
@@ -585,53 +568,6 @@ def sim_do_night(cursor, date, date_start, date_end,
     logging.debug('Scores array info:')
     logging.debug(scores_array)
 
-    # Make sure we have an almanac for every field in the scores_array for the
-    # correct date
-    # If we don't, we'll need to make one
-    # Note that, because of the way Python's scoping is set up, this will
-    # permanently add the almanac to the input dictionary
-    # logging.debug('Checking all necessary almanacs are present')
-    # almanacs_existing = almanac_dict.keys()
-    # almanacs_relevant = {row['field_id']: None for row in scores_array}
-    # for row in scores_array:
-    #     if row['field_id'] not in almanacs_existing:
-    #         almanac_dict[row['field_id']] = [ts.Almanac(row['ra'], row['dec'],
-    #                                                     date_start, date_end), ]
-    #         if save_new_almanacs:
-    #             almanac_dict[row['field_id']][0].save()
-    #         almanacs_existing.append(row['field_id'])
-    #
-    #     # Now, make sure that the almanacs actually cover the correct date range
-    #     # If not, replace any existing almanacs with one super Almanac for the
-    #     # entire range requested
-    #     try:
-    #         almanacs_relevant[
-    #             row['field_id']] = (a for a in almanac_dict[row['field_id']] if
-    #                                 a.start_date <= date <= a.end_date).next()
-    #     except KeyError:
-    #         # This catches when no almanacs satisfy the condition in the
-    #         # list constructor above
-    #         almanac_dict[row['field_id']] = [
-    #             ts.Almanac(row['ra'], row['dec'],
-    #                        date_start, date_end), ]
-    #         if save_new_almanacs:
-    #             almanac_dict[row['field_id']][0].save()
-    #         almanacs_relevant[
-    #                 row['field_id']] = almanac_dict[row['field_id']][0]
-    #
-    # # Check that the dark almanac spans the relevant dates; if not,
-    # # regenerate it
-    # if dark_almanac is None or (dark_almanac.start_date > date or
-    #                             dark_almanac.end_date < date):
-    #     dark_almanac = ts.DarkAlmanac(date_start, end_date=date_end)
-    #     if save_new_almanacs:
-    #         dark_almanac.save()
-    #
-    # end = datetime.datetime.now()
-    # delta = end - start
-    # logging.info('Completed (nightly) almanac prep in %d:%2.1f' %
-    #              (delta.total_seconds() / 60, delta.total_seconds() % 60.))
-
     logging.info('Finding first block of dark time for this evening')
     start = datetime.datetime.now()
     # Compute the times for the first block of dark time tonight
@@ -640,9 +576,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     midday_end = ts.utc_local_dt(datetime.datetime.combine(date_end,
                                                            datetime.time(12, 0,
                                                                          0)))
-    # dark_start, dark_end = dark_almanac.next_dark_period(midday,
-    #                                                      limiting_dt=midday +
-    #                                                      datetime.timedelta(1))
+
     dark_start, dark_end = rAS.next_night_period(cursor, midday,
                                                  limiting_dt=
                                                  midday + datetime.timedelta(1),
