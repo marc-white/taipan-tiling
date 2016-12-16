@@ -1140,3 +1140,184 @@ def plot_fibre_stretch(cursor,
 
     return fig
 
+
+def plot_hours_better(cursor,
+                      pylab_mode=False,
+                      output_loc='.',
+                      output_prefix='hours_obs',
+                      output_fmt='png',
+                      ):
+    """
+    Plot the values of hours_better (i.e. observability) used during the
+    simulation
+
+    Parameters
+    ----------
+    cursor
+    pylab_mode
+    output_loc
+    output_prefix
+    output_fmt
+
+    Returns
+    -------
+
+    """
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((9, 6))
+
+
+    # Read in the observing data
+    tile_obs_log = rTOI.execute(cursor)
+    tile_obs_log.sort(order='date_obs')
+    lowz_fields = rCBTexec(cursor, 'is_lowz_target', unobserved=False)
+
+    hours_used = []
+    airmass_at = []
+
+    # Compute the data to be plotted
+    for row in tile_obs_log:
+        if row['field_id'] in lowz_fields:
+            hb = rAS.hours_observable(cursor, row['field_id'], row['date_obs'],
+                                      datetime_to=max(
+                                          datetime.datetime(2018, 4, 1, 2, 0),
+                                          row['date_obs'] +
+                                          datetime.timedelta(30)
+                                      ), hours_better=True)
+        else:
+            hb = rAS.hours_observable(cursor, row['field_id'], row['date_obs'],
+                                      datetime_to=max(
+                                          datetime.datetime(2018, 4, 1, 2, 0),
+                                          row['date_obs'] +
+                                          datetime.timedelta(30)
+                                      ), hours_better=True)
+        am = rAS.get_airmass(cursor, row['field_id'], row['date_obs'])[0][1]
+        hours_used.append((row['date_obs'], row['dec'], hb,
+                           am,
+                           ))
+
+    hours_used = np.array(hours_used,
+                          dtype={
+                              'names': ['date_obs', 'dec', 'hb',
+                                        'airmass'],
+                              'formats': [datetime.datetime, 'f8',
+                                          'float', 'float']
+                          })
+
+    # Make the hours_better plot
+    ax1 = fig.add_subplot(211)
+    ax1.scatter(hours_used['date_obs'], hours_used['hb'])
+
+    ax2 = fig.add_subplot(212)
+    ax2.scatter(hours_used['dec'], hours_used['hb'])
+
+    matplotlib.pyplot.tight_layout()
+
+    if pylab_mode:
+        matplotlib.pyplot.show()
+        matplotlib.pyplot.draw()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    return fig
+
+
+def plot_airmass(cursor,
+                 pylab_mode=False,
+                 output_loc='.',
+                 output_prefix='hours_obs',
+                 output_fmt='png',
+                      ):
+    """
+    Plot the values of hours_better (i.e. observability) used during the
+    simulation
+
+    Parameters
+    ----------
+    cursor
+    pylab_mode
+    output_loc
+    output_prefix
+    output_fmt
+
+    Returns
+    -------
+
+    """
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        matplotlib.pyplot.clf()
+        fig = matplotlib.pyplot.gcf()
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((9, 6))
+
+
+    # Read in the observing data
+    tile_obs_log = rTOI.execute(cursor)
+    tile_obs_log.sort(order='date_obs')
+    lowz_fields = rCBTexec(cursor, 'is_lowz_target', unobserved=False)
+
+    hours_used = []
+    airmass_at = []
+
+    # Compute the data to be plotted
+    for row in tile_obs_log:
+        if row['field_id'] in lowz_fields:
+            hb = rAS.hours_observable(cursor, row['field_id'], row['date_obs'],
+                                      datetime_to=max(
+                                          datetime.datetime(2018, 4, 1, 2, 0),
+                                          row['date_obs'] +
+                                          datetime.timedelta(30)
+                                      ), hours_better=True)
+        else:
+            hb = rAS.hours_observable(cursor, row['field_id'], row['date_obs'],
+                                      datetime_to=max(
+                                          datetime.datetime(2018, 4, 1, 2, 0),
+                                          row['date_obs'] +
+                                          datetime.timedelta(30)
+                                      ), hours_better=True)
+        am = rAS.get_airmass(cursor, row['field_id'], row['date_obs'])[0][1]
+        hours_used.append((row['date_obs'], row['dec'], hb,
+                           am,
+                           ))
+
+    hours_used = np.array(hours_used,
+                          dtype={
+                              'names': ['date_obs', 'dec', 'hb',
+                                        'airmass'],
+                              'formats': [datetime.datetime, 'f8',
+                                          'float', 'float']
+                          })
+
+    # Make the hours_better plot
+    ax1 = fig.add_subplot(211)
+    ax1.scatter(hours_used['date_obs'], hours_used['airmass'])
+
+    ax2 = fig.add_subplot(212)
+    ax2.scatter(hours_used['dec'], hours_used['airmass'])
+
+    matplotlib.pyplot.tight_layout()
+
+    if pylab_mode:
+        matplotlib.pyplot.show()
+        matplotlib.pyplot.draw()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    return fig
