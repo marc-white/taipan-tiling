@@ -879,6 +879,15 @@ if __name__ == '__main__':
     sim_end = datetime.date(2018, 4, 1)
     global_start = datetime.datetime.now()
 
+    # Override the sys.excepthook behaviour to log any errors
+    # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
+    def excepthook_override(exctype, value, tb):
+        logging.error('My Error Information')
+        logging.error('Type:', exctype)
+        logging.error('Value:', value)
+        logging.error('Traceback:', tb)
+    sys.excepthook = excepthook_override
+
     # Set the logging to write to terminal AND file
     logging.basicConfig(
         level=logging.INFO,
