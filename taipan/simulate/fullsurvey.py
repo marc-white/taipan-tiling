@@ -192,7 +192,8 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
 
 def select_best_tile(cursor, dt, per_end,
                      midday_end,
-                     prioritize_lowz=True):
+                     prioritize_lowz=True,
+                     resolution=15.):
     """
     Select the best tile to observe at the current datetime.
 
@@ -216,6 +217,8 @@ def select_best_tile(cursor, dt, per_end,
         the hours_observable for those fields against a set end date, and
         compute all other fields against a rolling one-year end date.
         Defaults to True.
+    resolution: float, optional, representing minutes
+        Denotes the resolution of the almanacs being used. Defaults to 15.
 
     Returns
     -------
@@ -286,6 +289,13 @@ def select_best_tile(cursor, dt, per_end,
                                              datetime_to=midday_end,
                                              hours_better=True) for
                      f in fields_by_tile.values()}
+
+    # Need to replace any points where hours_obs=0 with the almanac resolution;
+    # otherwise, 0 hours fields will be forcibly observed, even if their score
+    # does not warrant it
+    for f in hours_obs.keys():
+        if hours_obs[f] < resolution / 60.:
+            hours_obs[f] = resolution / 60.
 
     tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
                     t, v in tiles_scores.iteritems()}
@@ -424,7 +434,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
             logging.warning('TILE SELECTION FAILURE')
             logging.warning('Tile %d was selected (score %f)' % (tile_to_obs,
                                                                  ref_score, ))
-            logging.warning('Found tile %d, score %f' %
+            logging.warning('Found tile %d, score %f (highest raw score)' %
                             (highest_score['tile_pk'], highest_calib_score))
             sys.exit()
         return False
@@ -443,7 +453,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
             logging.warning(
                 'Tile %d was selected (score %f)' % (tile_to_obs,
                                                      ref_score,))
-            logging.warning('Found tile %d, score %f' %
+            logging.warning('Found tile %d, score %f (highest n_sci_rem)' %
                             (highest_score['tile_pk'], highest_calib_score))
             sys.exit()
         return False
@@ -461,7 +471,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
                 logging.warning(
                     'Tile %d was selected (score %f)' % (tile_to_obs,
                                                          ref_score,))
-                logging.warning('Found tile %d, score %f' %
+                logging.warning('Found tile %d, score %f (lowest hours_obs)' %
                                 (highest_score['tile_pk'], highest_calib_score))
                 cursor.connection.commit()
                 sys.exit()
