@@ -1,6 +1,6 @@
 Taipan Tiling API
 =================
 
-.. currentmodule:: taipan.core
-.. autoclass:: TaipanTile
+.. automodule:: taipan.core
     :members:
+
