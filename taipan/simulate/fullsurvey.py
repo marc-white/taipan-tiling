@@ -655,7 +655,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                                       fields_available, tiles_scores,
                                       scores_array, field_periods,
                                       fields_by_tile, hours_obs,
-                                      abort=True)
+                                      abort=False)
 
             # 'Observe' the field
             logging.info('Observing tile %d (score: %.1f), field %d at '
