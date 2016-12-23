@@ -6,6 +6,7 @@
 # Last modified: Marc White, 2016-01-19
 
 import numpy as np
+import csv
 import os
 import math
 import random

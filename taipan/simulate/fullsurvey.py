@@ -430,12 +430,12 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
         'n_sci_rem']
     highest_calib_score /= hours_obs[highest_score['field_id']]
     if highest_calib_score > ref_score:
+        logging.warning('TILE SELECTION FAILURE')
+        logging.warning('Tile %d was selected (score %f)' % (tile_to_obs,
+                                                             ref_score,))
+        logging.warning('Found tile %d, score %f (highest raw score)' %
+                        (highest_score['tile_pk'], highest_calib_score))
         if abort:
-            logging.warning('TILE SELECTION FAILURE')
-            logging.warning('Tile %d was selected (score %f)' % (tile_to_obs,
-                                                                 ref_score, ))
-            logging.warning('Found tile %d, score %f (highest raw score)' %
-                            (highest_score['tile_pk'], highest_calib_score))
             sys.exit()
         return False
 
@@ -448,13 +448,13 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
         'n_sci_rem']
     highest_calib_score /= hours_obs[highest_score['field_id']]
     if highest_calib_score > ref_score:
+        logging.warning('TILE SELECTION FAILURE')
+        logging.warning(
+            'Tile %d was selected (score %f)' % (tile_to_obs,
+                                                 ref_score,))
+        logging.warning('Found tile %d, score %f (highest n_sci_rem)' %
+                        (highest_score['tile_pk'], highest_calib_score))
         if abort:
-            logging.warning('TILE SELECTION FAILURE')
-            logging.warning(
-                'Tile %d was selected (score %f)' % (tile_to_obs,
-                                                     ref_score,))
-            logging.warning('Found tile %d, score %f (highest n_sci_rem)' %
-                            (highest_score['tile_pk'], highest_calib_score))
             sys.exit()
         return False
 
@@ -466,13 +466,13 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
         highest_calib_score = row['prior_sum'] * row['n_sci_rem']
         highest_calib_score /= hours_obs[row['field_id']]
         if highest_calib_score > ref_score:
+            logging.warning('TILE SELECTION FAILURE')
+            logging.warning(
+                'Tile %d was selected (score %f)' % (tile_to_obs,
+                                                     ref_score,))
+            logging.warning('Found tile %d, score %f (lowest hours_obs)' %
+                            (highest_score['tile_pk'], highest_calib_score))
             if abort:
-                logging.warning('TILE SELECTION FAILURE')
-                logging.warning(
-                    'Tile %d was selected (score %f)' % (tile_to_obs,
-                                                         ref_score,))
-                logging.warning('Found tile %d, score %f (lowest hours_obs)' %
-                                (highest_score['tile_pk'], highest_calib_score))
                 cursor.connection.commit()
                 sys.exit()
             return False
