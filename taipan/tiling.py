@@ -16,7 +16,7 @@ import math
 import numpy as np
 import copy
 import logging
-
+import line_profiler
 
 # ------
 # UTILITY FUNCTIONS
@@ -277,15 +277,18 @@ def tiling_consolidate(tile_list):
     targets_moved = 0
     while len(tile_list) > 0:
         logging.info('Remaining tiles to consolidate: %d' % len(tile_list))
-        # Grab the targets out of the lowest-completeness tile
+        
+        # Grab the targets out of the lowest-completeness tile. Don't
+        # include science targets that are also standards.
         targets_to_redo = tile_list[-1].get_assigned_targets_science(
-            return_dict=True)
+            return_dict=True, include_science_standards=False)
         # Try to assign these targets to another, more-complete tile
         # Be sure not to try re-assignment to the current worst tile!
         for (fibre, target) in targets_to_redo.iteritems():
             tiles_to_try = [t for t in tile_list[:-1] 
                 if target.dist_point((t.ra, t.dec)) < tp.TILE_RADIUS]
             target_reassigned = False
+            
             while len(tiles_to_try) > 0 and target_reassigned == False:
                 # Attempt to assign target to tile
                 targets_returned, removed_targets = tiles_to_try[0].assign_tile(
@@ -301,15 +304,77 @@ def tiling_consolidate(tile_list):
                 else:
                     # Remove the top-ranked candidate tile and go again
                     removed_tile = tiles_to_try.pop(0)
+        
+        # Instead of the duplicate_obs below, we could just look for 
+        targets_left = tile_list[-1].get_assigned_targets_science(
+            return_dict=True, include_science_standards=False)
+        
+        # Only continue for standards if we have no targets left. NB this next piece of
+        # code is mostly cut-and-paste so is bad coding practice!
+        if len(targets_left)==0:
+            # Grab the targets out of the lowest-completeness tile. Now only 
+            # include science targets that are also standards. Note that for 
+            # the Taipan Galaxy survey, this should be an empty dictionary.
+            targets_to_redo = tile_list[-1].get_assigned_targets_science(
+                return_dict=True, only_science_standards=True)
+            
+            # Try to assign these target standards to another, more-complete tile
+            # Be sure not to try re-assignment to the current worst tile!
+            n_standards_left = len(targets_to_redo)
+            print "Starting new loop..." #!!!
+            for (fibre, target) in targets_to_redo.iteritems():
+                tiles_to_try = [t for t in tile_list[:-1] 
+                    if target.dist_point((t.ra, t.dec)) < tp.TILE_RADIUS]
+                target_reassigned = False
+                
+                #If this is a science target already on another tile, don't try to 
+                #re-assign it. 
+                duplicate_standards = [atile for atile in tiles_to_try if \
+                    target in atile.get_assigned_targets_science()]
+                if len(duplicate_standards) > 0:
+                    target_reassigned = True
+                while len(tiles_to_try) > 0 and target_reassigned == False:
+                    # Attempt to assign target to tile
+                    targets_returned, removed_targets = tiles_to_try[0].assign_tile(
+                        [target], check_tile_radius=False, 
+                        recompute_difficulty=False,
+                        overwrite_existing=False,
+                        method='priority')
+                    if len(targets_returned) == 0:
+                        # Target has been re-assigned
+                        target_reassigned = True
+                        targets_moved += 1
+                        removed_target = tile_list[-1].unassign_fibre(fibre)
+                    else:
+                        # Remove the top-ranked candidate tile and go again
+                        removed_tile = tiles_to_try.pop(0)
+                if target_reassigned:
+                    n_standards_left -= 1
+                else:
+                    print "A standard can't be reassigned..." #!!!
+        else:
+            n_standards_left = -1 #!!! Debug
+                    
         # We have now been through all the targets to try and re-assign from
         # this tile. There are now two options:
-        # If all science targets have been re-assigned, we can burn this tile
-        # Otherwise, the tile needs to be added to the consolidated_list
-        if tile_list[-1].count_assigned_targets_science() == 0:
+        # If all unassigned science targets are assigned to another tile, we can 
+        # burn this tile. Otherwise, the tile needs to be added to the consolidated_list
+        targets_left = tile_list[-1].get_assigned_targets_science()
+        all_reassigned = True
+        for t in targets_left:
+            duplicate_obs = [atile for atile in tile_list[:-1] if t in atile.get_assigned_targets_science()]
+            if len(duplicate_obs)==0:
+                all_reassigned = False
+                break            
+        if all_reassigned:
             clipped_tile = tile_list.pop(-1)
             tiles_removed += 1
+            if n_standards_left != 0:
+                raise UserWarning #Something is wrong!
         else:
             consolidated_list.append(tile_list.pop(-1))
+            if n_standards_left == 0:
+                raise UserWarning #Something is wrong!
 
     logging.info('%d targets shifted, %d tiles removed' % (targets_moved,
                                                            tiles_removed, ))
@@ -837,7 +902,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         if len(candidate_targets) != before_targets_len - len(assigned_targets):
             logging.warning('### WARNING: Discrepancy found '
                             'in target list reduction')
-            logging.warning('Best tile had %d targets; only '
+            logging.warning('Best tile had %d science targets; only '
                             '%d removed from list' %
                             (len(assigned_targets),
                              before_targets_len - len(candidate_targets)))
@@ -923,7 +988,8 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
     return tile_list, final_completeness, candidate_targets
 
-
+#Uncomment the following line for FunnelWeb line_profile.
+@profile
 def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               guide_targets,
                               completeness_target = 1.0,
@@ -1054,7 +1120,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         tile).
     """
     
-    tile_list = []
+    tile_lists = []
 
     # Input checking
     TILING_METHODS = [
@@ -1086,9 +1152,13 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     no_submitted_targets = len(candidate_targets_master)
     if no_submitted_targets == 0:
         raise ValueError('Attempting to generate a tiling with no targets!')
-        
+    
+    #XXX
+    #print '1', [aa for aa in candidate_targets if aa=='02260685-0433118']
     #Loop over magnitude ranges.
+    disqualify_below_min_range = disqualify_below_min
     for range_ix, mag_range in enumerate(mag_ranges):
+        tile_list = []
         logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0],
                                                            mag_range[1]))
         try:
@@ -1103,6 +1173,24 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             for t in candidate_targets_range:
                 if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
                     t.priority += prioritise_extra
+        #Also find the standards in the correct magnitude range.
+        standard_targets_range = [t for t in standard_targets 
+            if mag_range[0] <= t.mag < mag_range[1]]
+        
+                    
+        #Find the guides that are not candidate targets only. These have to be copied, 
+        #because the same target will be a guide for one field and not a guide for 
+        #another field.
+        non_candidate_guide_targets = []
+        for potential_guide in guide_targets:
+            if potential_guide not in candidate_targets_range:
+                aguide = copy.copy(potential_guide)
+                aguide.guide=True
+                #WARNING: We have to set the standard and science flags as well, as this error
+                #checking isn't done in core.py
+                aguide.standard=False
+                aguide.science=False
+                non_candidate_guide_targets.append(aguide)
         
         if recompute_difficulty:
             logging.info("Computing difficulties...")
@@ -1119,21 +1207,23 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         
         for tile in candidate_tiles:
             # print 'inter: %d' % len(candidate_targets)
-            burn = tile.unpick_tile(candidate_targets_range, standard_targets, 
-                guide_targets,
+            #PARALLEL - the following loop doesn't chance variables and could run many 
+            #versions together.
+            burn = tile.unpick_tile(candidate_targets_range, standard_targets_range, 
+                non_candidate_guide_targets,
                 overwrite_existing=True, check_tile_radius=True,
                 recompute_difficulty=False,
                 method=tile_unpick_method, combined_weight=combined_weight,
                 sequential_ordering=sequential_ordering,
                 rank_supplements=rank_supplements, 
                 repick_after_complete=repick_after_complete,
-                consider_removed_targets=False)
+                consider_removed_targets=False, allow_standard_targets=True)
             i += 1
             logging.info('Created %d / %d tiles' % (i, len(candidate_tiles)))
 
         # Compute initial rankings for all of the tiles
         ranking_list = [tile.calculate_tile_score(method=ranking_method,
-            disqualify_below_min=disqualify_below_min) for tile in candidate_tiles]
+            disqualify_below_min=disqualify_below_min_range) for tile in candidate_tiles]
         # print ranking_list
 
         # Define a helper function
@@ -1146,15 +1236,19 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         # While we are below our completeness criteria AND the
         # highest-ranked tile
         # is not empty, perform the greedy algorithm
-        logging.info('Starting greedy tiling allocation...')
+        logging.info('Starting greedy/Funnelweb tiling allocation...')
         i = 0
-        no_priority_targets = 0
+        n_priority_targets = 0
         for t in candidate_targets_range:
             if t.priority >= completeness_priority:
-                no_priority_targets += 1
-        remaining_priority_targets = no_priority_targets
-        while ((float(no_priority_targets - remaining_priority_targets) 
-            / float(no_priority_targets)) < completeness_target) and (
+                n_priority_targets += 1
+        if n_priority_targets == 0:
+            raise ValueError('Require some priority targets in each mag range!')
+        remaining_priority_targets = n_priority_targets
+        #PARALLEL - the following loop could copy tile_list, and run many versions of
+        #this together. 
+        while ((float(n_priority_targets - remaining_priority_targets) 
+            / float(n_priority_targets)) < completeness_target) and (
             max(ranking_list) > 0.05): # !!! Warning: 0.05 is hardwirded here
             # - what does it mean??? It a simple proxy for max > 0
 
@@ -1167,46 +1261,36 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             best_ra = tile_list[-1].ra
             best_dec = tile_list[-1].dec
 
-            # Force a wait here to see if it solves the target problem
-            # time.sleep(5)
-
             # Strip the now-assigned targets out of the candidate_targets list,
             # then recalculate difficulties for affected remaning targets
             logging.info('Re-computing target list...')
-            # print 'c : %d' % len(candidate_targets)
-            # ERROR: Something goes wrong here with the target reduction -- not all
-            # of the assigned targets appear to be removed from candidate_targets
-            # It works correctly for the first pass or two, and then start to not
-            # work correctly
-            # What's odd is that all of these variations on stripping the assigned
-            # targets fail, but in the return test_tiling, ALL of the objects
-            # within the tiling are members of the originally passed master
-            # list of targets
             assigned_targets = tile_list[-1].get_assigned_targets_science()
-            # targets_not_in_cands = [t for t in assigned_targets if t not in
-            #   candidate_targets]
 
             # print assigned_targets
             before_targets_len = len(candidate_targets)
+            reobserved_standards = []
             for t in assigned_targets:
-                candidate_targets.pop(candidate_targets.index(t))
-                candidate_targets_range.pop(candidate_targets_range.index(t))
-                if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
-                    t.priority -= prioritise_extra
+                if t in candidate_targets:
+                    candidate_targets.pop(candidate_targets.index(t))
+                    candidate_targets_range.pop(candidate_targets_range.index(t))
+                    if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
+                        t.priority -= prioritise_extra
+                elif t.standard:
+                    reobserved_standards.append(t)
+                    logging.info('Re-allocating standard ' + t.idn + ' that is also a science target.')
+                else:
+                    logging.warning('### WARNING: Assigned a target that is neigher a candidate target nor a standard!')
 
             if len(set(assigned_targets)) != len(assigned_targets):
                 logging.warning('### WARNING: target duplication detected')
-            if len(candidate_targets) != before_targets_len - len(assigned_targets):
+            if len(candidate_targets) != before_targets_len - len(assigned_targets) + len(reobserved_standards):
                 logging.warning('### WARNING: Discrepancy found '
                                 'in target list reduction')
                 logging.warning('Best tile had %d targets; '
                                 'only %d removed from list' %
                                 (len(assigned_targets),
                                  before_targets_len - len(candidate_targets)))
-                logging.warning('I have %d assigned targets apparently '
-                                'not in master list' %
-                                (len(targets_not_in_cands)))
-            #!!! Warning - difficulty here is computed for all targets...
+            #!!! WARNING - difficulty here is computed for all targets...
             # not just in-range targets. Maybe OK...
             if recompute_difficulty:
                 logging.info('Re-computing target difficulties...')
@@ -1222,28 +1306,38 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             j = 0
             logging.info('Re-picking affected tiles...')
             # print 'f : %d' % len(candidate_targets)
-            affected_tiles = [t for t in candidate_tiles
-                if np.any(map(lambda x: x in t.get_assigned_targets_science(),
-                    assigned_targets))]
+            #This is  a big n_targets x n_assigned operation XXX
+            
+            #affected_tiles = [[atile for atile in tiles_to_try if \
+            #        target in atile.get_assigned_targets_science()] for target in assigned_targets]
+            #for target in assigned_targets:
+            #    for atile in candidate_tiles:
+            #        if target in atile.get_assigned_targets_science()
+            
+            affected_tiles = list({atile for atile in candidate_tiles for t in assigned_targets if t in atile.get_assigned_targets_science()})
+            #affected_tiles = [t for t in candidate_tiles
+            #    if np.any(map(lambda x: x in t.get_assigned_targets_science(),
+            #        assigned_targets))]
+            
             # This won't cause the new tile to be re-picked,
             # so manually add that
             affected_tiles.append(candidate_tiles[-1])
             for tile in affected_tiles:
                 # print 'inter: %d' % len(candidate_targets)
-                burn = tile.unpick_tile(candidate_targets_range, standard_targets, 
-                    guide_targets,
+                burn = tile.unpick_tile(candidate_targets_range, standard_targets_range, 
+                    non_candidate_guide_targets,
                     overwrite_existing=True, check_tile_radius=True,
                     recompute_difficulty=False,
                     method=tile_unpick_method, combined_weight=combined_weight,
                     sequential_ordering=sequential_ordering,
                     rank_supplements=rank_supplements, 
                     repick_after_complete=repick_after_complete,
-                    consider_removed_targets=False)
+                    consider_removed_targets=False, allow_standard_targets=True)
                 j += 1
                 logging.info('Completed %d / %d' % (j, len(affected_tiles)))
             # print 'g : %d' % len(candidate_targets)
             ranking_list = [tile.calculate_tile_score(method=ranking_method,
-                disqualify_below_min=disqualify_below_min) 
+                disqualify_below_min=disqualify_below_min_range) 
                 for tile in candidate_tiles]
             # print ranking_list
             # print [len(t.get_assigned_targets_science()) for t in candidate_tiles]
@@ -1258,8 +1352,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             logging.info('Completeness achieved: %1.4f' %
                          (float(no_submitted_targets - len(candidate_targets)) / float(no_submitted_targets)))
             logging.info('Remaining targets: %d' % len(candidate_targets))
-            logging.info('Remaining guides & standards: %d, %d' %
-                         (len(guide_targets), len(standard_targets)))
+            logging.info('Remaining guides & standards (this mag range): %d, %d' %
+                         (len(non_candidate_guide_targets), len(standard_targets_range)))
                 
             # Add the magnitude range information
             tile_list[-1].mag_min = mag_range[0]
@@ -1267,10 +1361,10 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
 
             # If the max of the ranking_list is now 0, try switching off 
             # the disqualify flag
-            if max(ranking_list) < 0.05 and disqualify_below_min:
+            if max(ranking_list) < 0.05 and disqualify_below_min_range:
                 logging.info('Detected no remaining legal tiles - '
                              'relaxing requirements')
-                disqualify_below_min = False
+                disqualify_below_min_range = False
                 ranking_list = [tile.calculate_tile_score(
                     method=ranking_method,
                     disqualify_below_min=disqualify_below_min) 
@@ -1282,10 +1376,20 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             for t in candidate_targets_range:
                 if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
                     t.priority -= prioritise_extra
+        #Log where we're up to:
+        logging.info('** For mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], mag_range_prioritise[1]))
+        logging.info('Total Tiles so far = {0:d}'.format(len(tile_list)))
 
-    # Consolidate the tiling
-    tile_list = tiling_consolidate(tile_list)
-    # print ranking_list
+        # Consolidate the tiling. For FunnelWeb, we only do this for separate magnitude ranges.
+        #!!! This doesn't seem to do much.
+        tile_list = tiling_consolidate(tile_list)
+        # print ranking_list
+        tile_lists.append(tile_list)
+    
+    #Put all tiles in one big list now.
+    tile_list=[]
+    for l in tile_lists:
+        tile_list.extend(l)
 
     # Return the tiling, the completeness factor and the remaining targets
     final_completeness = float(no_submitted_targets 
