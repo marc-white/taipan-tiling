@@ -28,9 +28,9 @@ except:
 	all_targets = [tp.TaipanTarget(str(r[0]), r[4], r[5],
 		priority=random.randint(1,8)) for r in tabdata ]
 		# if r[1] > 40 and r[1] < 53 and r[2] > -34 and r[2] < -26]
-	print 'Computing UC position for all targets...'
+	print 'Computing US position for all targets...'
 	for target in all_targets:
-		target.compute_ucposn()
+		target.compute_usposn()
 	no_targets = len(all_targets)
 	end = datetime.datetime.now()
 	delta = end - start
