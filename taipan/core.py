@@ -587,12 +587,12 @@ def compute_target_difficulties(target_list, full_target_list=None,
     if verbose:
         logging.debug('Forming Cartesian positions...')
     # Calculate UC positions if they haven't been done already
-    burn = [t.compute_ucposn() for t in target_list if t.ucposn is None]
-    cart_targets = np.asarray([t.ucposn for t in target_list])
+    burn = [t.compute_usposn() for t in target_list if t.usposn is None]
+    cart_targets = np.asarray([t.usposn for t in target_list])
     if full_target_list:
-        burn = [t.compute_ucposn() for t in full_target_list 
-            if t.ucposn is None]
-        full_cart_targets = np.asarray([t.ucposn for t in full_target_list])
+        burn = [t.compute_usposn() for t in full_target_list 
+            if t.usposn is None]
+        full_cart_targets = np.asarray([t.usposn for t in full_target_list])
     else:
         full_cart_targets = np.copy(cart_targets)
     
@@ -674,7 +674,7 @@ def targets_in_range(ra, dec, target_list, dist,
     else:
         # Do KDTree computation
         logging.debug('Generating KDTree with leafsize %d' % leafsize)
-        cart_targets = np.asarray([t.ucposn for t in target_list])
+        cart_targets = np.asarray([t.usposn for t in target_list])
         # logging.debug(cart_targets)
         tree = cKDTree(cart_targets, leafsize=leafsize)
         logging.debug('Querying tree')
@@ -719,7 +719,7 @@ def targets_in_range_multi(ra_dec_list, target_list, dist,
     if len(target_list) == 0:
         return [[]] * len(ra_dec_list)
 
-    cart_targets = np.asarray([t.ucposn for t in target_list])
+    cart_targets = np.asarray([t.usposn for t in target_list])
     tree = cKDTree(cart_targets, leafsize=leafsize)
     inds = [tree.query_ball_point(polar2cart(radec),
                                   dist_euclidean(dist / 3600.))
@@ -769,9 +769,9 @@ class TaipanTarget(object):
     """
 
     # Initialisation & input-checking
-    def __init__(self, idn, ra, dec, ucposn=None, priority=1, standard=False,
+    def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
-                 h0=False, vpec=False, lowz=False):
+                 h0=False, vpec=False, lowz=False, science=True, assign_science=True):
         """
         Parameters
         ----------
@@ -796,16 +796,23 @@ class TaipanTarget(object):
         h0, vpec, lowz : Boolean, optional
             Booleans denoting if a target is an H0 target, a low-redshift (lowz)
             target, or a peculiar velocity (vpec) target. All default to False.
+        science : Boolean, optional
+            Denotes this target as a science target. defaults to True
+        assign_science : Boolean, optional
+            Do we automatically assign the science flag based on standard and guide 
+            flags? Defaults to True
         """
         self._idn = None
         self._ra = None
         self._dec = None
-        self._ucposn = None
+        self._usposn = None
         self._priority = None
         self._standard = None
         self._guide = None
+        self._science = None
         self._difficulty = None
         self._mag = None
+
         # Taipan-specific fields
         self._h0 = None
         self._vpec = None
@@ -817,15 +824,22 @@ class TaipanTarget(object):
         self.idn = idn
         self.ra = ra
         self.dec = dec
-        self.ucposn = ucposn
+        self.usposn = usposn
         self.priority = priority
         self.standard = standard
+        self.science = science
         self.guide = guide
         self.difficulty = difficulty
         self.mag = mag
         self.h0 = h0
         self.vpec = vpec
         self.lowz = lowz
+        
+        # A default useful for Taipan (FunnelWeb will override, as it takes its standards
+        # largely from the science targets, and these are not mutually exclusive)
+        if assign_science:
+            if self.standard or self.guide:
+                self.science=False
 
     def __repr__(self):
         return 'TP TGT %s' % str(self._idn)
@@ -889,17 +903,17 @@ class TaipanTarget(object):
         self._dec = d
 
     @property
-    def ucposn(self):
+    def usposn(self):
         """Target position on the unit sphere, should be 3-list or 3-tuple"""
-        return self._ucposn
+        return self._usposn
 
-    @ucposn.setter
-    def ucposn(self, value):
+    @usposn.setter
+    def usposn(self, value):
         if value is None:
-            self._ucposn = None
+            self._usposn = None
             return
         if len(value) != 3:
-            raise Exception('ucposn must be a 3-list or 3-tuple')
+            raise Exception('usposn must be a 3-list or 3-tuple')
         if value[0] < -1. or value[0] > 1.:
             raise Exception('x value %f outside allowed bounds (-1 <= x <= 1)'
                 % value[0])
@@ -910,12 +924,12 @@ class TaipanTarget(object):
             raise Exception('z value %f outside allowed bounds (-1 <= x <= 1)'
                 % value[2])
         if abs(value[0]**2 + value[1]**2 + value[2]**2 - 1.0) > 0.001:
-            raise Exception('ucposn must lie on unit sphere '
+            raise Exception('usposn must lie on unit sphere '
                             '(x^2 + y^2 + z^2 = 1.0 - error of %f '
                             '(%f, %f, %f) )'
                             % (value[0]**2 + value[1]**2 + value[2]**2,
                                value[0], value[1], value[2]))
-        self._ucposn = list(value)
+        self._usposn = list(value)
     
 
     @property
@@ -940,6 +954,16 @@ class TaipanTarget(object):
     def standard(self, b):
         b = bool(b)
         self._standard = b
+
+    @property
+    def science(self):
+        """Is this target a science target"""
+        return self._science
+
+    @science.setter
+    def science(self, b):
+        b = bool(b)
+        self._science = b
 
     @property
     def guide(self):
@@ -1021,20 +1045,26 @@ class TaipanTarget(object):
             X - science
             G - guide
             S - standard
+            T - standard and science
+            Z - an inconsistent target type!
         """
 
-        if self.standard:
+        if self.standard and self.science:
+            code = 'T'
+        elif self.standard:
             code = 'S'
         elif self.guide:
             code = 'G'
-        else:
+        elif self.science:
             code = 'X'
+        else:
+            code = 'Z'
 
         return code
 
-    def compute_ucposn(self):
+    def compute_usposn(self):
         """
-        Compute the position of this target on the unit circle from its
+        Compute the position of this target on the unit sphere from its
         RA and Dec values.
 
         Parameters
@@ -1042,9 +1072,9 @@ class TaipanTarget(object):
         Nil.
         """
         if self.ra is None or self.dec is None:
-            raise Exception('Cannot compute ucposn because'
+            raise Exception('Cannot compute usposn because'
                 ' RA and/or Dec is None!')
-        self.ucposn = polar2cart((self.ra, self.dec))
+        self.usposn = polar2cart((self.ra, self.dec))
         return
 
     def dist_point(self, radec):
@@ -1330,7 +1360,7 @@ class TaipanTile(object):
     Holds information and convenience functions for a TAIPAN tile configuration
     """
 
-    def __init__(self, ra, dec, field_id=None, pk=None, ucposn=None,
+    def __init__(self, ra, dec, field_id=None, pk=None, usposn=None,
                  pa=0.0, mag_min=None, mag_max=None):
         """
         Parameters
@@ -1355,7 +1385,7 @@ class TaipanTile(object):
         # self._fibres = self.fibres(fibre_init)
         self._ra = None
         self._dec = None
-        self._ucposn = None
+        self._usposn = None
         self._field_id = None
         self._pk = None
         self._mag_min = None
@@ -1367,7 +1397,7 @@ class TaipanTile(object):
         # called, which provides error checking
         self.ra = ra
         self.dec = dec
-        self.ucposn = ucposn
+        self.usposn = usposn
         self.field_id = field_id
         self.pk = pk
         self.pa = pa
@@ -1424,17 +1454,17 @@ class TaipanTile(object):
         self._dec = d
 
     @property
-    def ucposn(self):
+    def usposn(self):
         """Target position on the unit sphere, should be 3-list or 3-tuple"""
-        return self._ucposn
+        return self._usposn
 
-    @ucposn.setter
-    def ucposn(self, value):
+    @usposn.setter
+    def usposn(self, value):
         if value is None:
-            self._ucposn = None
+            self._usposn = None
             return
         if len(value) != 3:
-            raise Exception('ucposn must be a 3-list or 3-tuple')
+            raise Exception('usposn must be a 3-list or 3-tuple')
         if value[0] < -1. or value[0] > 1.:
             raise Exception('x value %f outside allowed bounds (-1 <= x <= 1)'
                             % value[0])
@@ -1445,12 +1475,12 @@ class TaipanTile(object):
             raise Exception('z value %f outside allowed bounds (-1 <= x <= 1)'
                             % value[2])
         if abs(value[0] ** 2 + value[1] ** 2 + value[2] ** 2 - 1.0) > 0.001:
-            raise Exception('ucposn must lie on unit sphere '
+            raise Exception('usposn must lie on unit sphere '
                             '(x^2 + y^2 + z^2 = 1.0 - error of %f'
                             ' (%f, %f, %f) )'
                             % (value[0] ** 2 + value[1] ** 2 + value[2] ** 2,
                                value[0], value[1], value[2]))
-        self._ucposn = list(value)
+        self._usposn = list(value)
 
     @property
     def pa(self):
@@ -1653,7 +1683,8 @@ class TaipanTile(object):
             return assigned_targets
         return assigned_targets.values()
 
-    def get_assigned_targets_science(self, return_dict=False):
+    def get_assigned_targets_science(self, return_dict=False, \
+        include_science_standards=True, only_science_standards=False):
         """
         Return a list of science TaipanTargets currently assigned to this tile.
 
@@ -1663,6 +1694,12 @@ class TaipanTile(object):
             Boolean value denoting whether to return the result as
             a dictionary with keys corresponding to fibre number (True), or
             a simple list of targets (False). Defaults to False.
+            
+        include_science_standards :
+            Do we include here any targets that happen to be both science and standards?
+    
+        include_science_standards :
+            Only include here any targets that happen to be both science and standards.
 
         Returns
         -------    
@@ -1672,15 +1709,29 @@ class TaipanTile(object):
         """
         assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
                             if isinstance(t, TaipanTarget)}
-        assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
-                            if not t.guide and not t.standard}
+        if include_science_standards:
+            assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+                if t.science}
+        elif only_science_standards:
+            assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+                if t.science and t.standard}
+        else:
+            assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+                if t.science and not t.standard}
         if return_dict:
             return assigned_targets
         return assigned_targets.values()
 
-    def count_assigned_targets_science(self):
+
+    def count_assigned_targets_science(self, include_science_standards=True):
         """
         Count the number of science targets assigned to this tile.
+
+        Parameters
+        ----------    
+
+        include_science_standards :
+            Do we include here any targets that happen to be both science and standards?
 
         Returns
         -------    
@@ -1688,7 +1739,7 @@ class TaipanTile(object):
             The number of science targets assigned to this
             tile.
         """
-        no_assigned_targets = len(self.get_assigned_targets_science())
+        no_assigned_targets = len(self.get_assigned_targets_science(include_science_standards=include_science_standards))
         return no_assigned_targets
 
     def get_assigned_targets_standard(self, return_dict=False):
@@ -2637,7 +2688,8 @@ class TaipanTile(object):
                     sequential_ordering=(1,2),
                     rank_supplements=False,
                     repick_after_complete=True,
-                    consider_removed_targets=True):
+                    consider_removed_targets=True,
+                    allow_standard_targets=False):
         """
         Unpick this tile, i.e. make a full allocation of targets, guides etc.
 
@@ -2782,7 +2834,7 @@ class TaipanTile(object):
         if consider_removed_targets:
             removed_candidates = [t for t in removed_targets
                 if isinstance(t, TaipanTarget) 
-                and not t.guide and not t.standard]
+                and t.science]
             candidate_targets_return = list(set(
                 candidate_targets_return) | set(removed_candidates))
         # Re-blank the removed_targets list
@@ -2834,11 +2886,16 @@ class TaipanTile(object):
         # First, assign the science targets to the tile
         # This step will only fill TARGET_PER_TILE fibres; that is, it assumes
         # that we will want an optimal number of standards, guides and skies
+        
+        # For FunnelWeb, some of the targets are also standards. This is fine - 
+        # as long as the same target isn't passed twice, the following algorithm
+        # will work.
         logging.debug('Assigning targets...')
         assigned_tgts = len([t for t in self._fibres.values() 
             if isinstance(t, TaipanTarget)
-            and not t.guide and not t.standard])
-        while assigned_tgts < TARGET_PER_TILE and len(
+            and t.science])
+        extra_standard_targets = 0
+        while assigned_tgts < TARGET_PER_TILE + extra_standard_targets and len(
             candidates_this_tile) > 0:
             # Search for the best target according to the criterion
             i = np.argmax(ranking_list)
@@ -2876,6 +2933,9 @@ class TaipanTile(object):
                         candidate_targets_return.index(tgt))
                     candidate_found = True
                     assigned_tgts += 1
+                    if allow_standard_targets and (extra_standard_targets < STANDARDS_PER_TILE) \
+                        and tgt.standard:
+                        extra_standard_targets += 1
                     # print 'Done!'
                 else:
                     permitted_fibres.pop(0)
@@ -2901,9 +2961,9 @@ class TaipanTile(object):
         # Put any science targets back in candidate_targets, and any standards
         # back in standards_this_tile
         candidates_this_tile += [t for t in removed_for_guides 
-            if isinstance(t, TaipanTarget) and not t.guide and not t.standard]
+            if isinstance(t, TaipanTarget) and t.science]
         candidate_targets_return += [t for t in removed_for_guides 
-            if isinstance(t, TaipanTarget) and not t.guide and not t.standard]
+            if isinstance(t, TaipanTarget) and t.science]
         standards_this_tile += [t for t in removed_for_guides 
             if isinstance(t, TaipanTarget) and t.standard
             and not t in standards_this_tile]
@@ -2999,7 +3059,7 @@ class TaipanTile(object):
         # the candidate_targets list
 
         candidate_targets_return += [t for t in removed_targets
-            if isinstance(t, TaipanTarget) and not t.standard and not t.guide]
+            if isinstance(t, TaipanTarget) and t.science]
         removed_targets = []
 
         if len([f for f in self._fibres if self._fibres[f]
