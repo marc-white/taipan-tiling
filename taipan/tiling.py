@@ -989,7 +989,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     return tile_list, final_completeness, candidate_targets
 
 #Uncomment the following line for FunnelWeb line_profile.
-@profile
+#@profile
 def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               guide_targets,
                               completeness_target = 1.0,
