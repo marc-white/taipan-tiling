@@ -50,11 +50,11 @@ def test_redshift_success(target_types_db, num_visits,
     # Input checking
     # Make sure we have lists, not single values
     try:
-        burn = target_types_db[0]
+        _ = target_types_db[0]
     except TypeError:
         target_types_db = [target_types_db, ]
     try:
-        burn = num_visits[0]
+        _ = num_visits[0]
     except TypeError:
         num_visits = [num_visits, ]
 
@@ -78,7 +78,7 @@ def test_redshift_success(target_types_db, num_visits,
 
     # Split input table into lists
     target_ids = target_types_db['target_id']
-    is_H0 = target_types_db['is_H0_target']
+    is_H0 = target_types_db['is_h0_target']
     is_vpec = target_types_db['is_vpec_target']
     is_lowz = target_types_db['is_lowz_target']
 
@@ -91,13 +91,13 @@ def test_redshift_success(target_types_db, num_visits,
     # is_vpec = (target_types_db == 'is_vpec_target')
     # success for 20% vpec targets on first visit
     prob = np.where(np.logical_and(is_vpec, num_visits == 1),
-                    prob_vpec_first, prob)
+                    [prob_vpec_first] * len(prob), prob)
     # success for 70% of vpec targets after two visits
     prob = np.where(np.logical_and(is_vpec, num_visits == 2),
     #                 (
     #     prob_vpec_second - prob_vpec_first
     # ) / (1. - prob_vpec_first),
-                    prob_vpec_second,
+                    [prob_vpec_second] * len(prob),
                     prob)
     # success for 100% of vpec targets after two visits
     prob = np.where(np.logical_and(is_vpec, num_visits >= 3), 1., prob)

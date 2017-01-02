@@ -50,8 +50,8 @@ EPHEM_TO_MJD = 15019.5
 EPHEM_DT_STRFMT = '%Y/%m/%d %H:%M:%S'
 
 # Observing constants
-SLEW_TIME = 5. * 60.  # seconds
-OBS_TIME = 15. * 60.  # seconds
+SLEW_TIME = (5. * 60.) + (0.8 * 60)  # seconds, configure + calibrations
+OBS_TIME = (15. * 60.) + (1. * 60.)  # seconds, obs + readout
 POINTING_TIME = (SLEW_TIME + OBS_TIME) / SECONDS_PER_DAY  # days
 
 
@@ -166,7 +166,7 @@ def utc_local_dt(dt, tz=UKST_TIMEZONE):
     Returns
     -------
     dt_utc:
-        A naive timezone, but cast into the 'local' timezone.
+        A naive timezone, but cast into UTC timezone.
     """
     dt_utc = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
     return dt_utc
