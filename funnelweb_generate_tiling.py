@@ -115,7 +115,7 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelw
     tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
     combined_weight=combined_weight,
     rank_supplements=False, repick_after_complete=True,
-    recompute_difficulty=True, disqualify_below_min=True)
+    recompute_difficulty=True, disqualify_below_min=True, multithread=True)
 end = datetime.datetime.now()
 
 # Analysis
