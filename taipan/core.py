@@ -390,6 +390,21 @@ def dist_euclidean(dist_ang):
     """
     return 2. * np.sin(np.radians(dist_ang/2.))
 
+def dist_angular(dist_euclidean):
+    """
+    Compute an angular distance from an euclidean distance
+
+    Parameters
+    ----------
+    dist_euclidean : float, degrees
+        Euclidean distance to be considered
+
+    Returns
+    -------
+    dist_ang: float
+        Corresponding angular distance
+    """
+    return 2. * np.degrees(np.arcsin(dist_euclidean/2.))
 
 def polar2cart(radec):
     """
@@ -641,7 +656,7 @@ def targets_in_range(ra, dec, target_list, dist,
     """
     Return the subset of target_list within dist of (ra, dec).
 
-    Computes the subset of targets within range of the given (ra, dec)
+    Computes the subset of targets/tiles within range of the given (ra, dec)
     coordinates.
 
     Parameters
@@ -649,8 +664,8 @@ def targets_in_range(ra, dec, target_list, dist,
     ra, dec : floats
         The RA and Dec of the position to be investigated, in decimal
         degrees.
-    target_list : list of :class:`TaipanTarget`
-        The list of TaipanTarget objects to consider.
+    target_list : list of :class:`TaipanPoint`
+        The list of TaipanPoint child objects to consider.
     dist : float
         The distance to test against, in *arcseconds*.
     leafsize : int, optional
@@ -659,8 +674,8 @@ def targets_in_range(ra, dec, target_list, dist,
 
     Returns
     -------
-    targets_in_range : list of :class:`TaipanTarget`
-        The list of input targets which are within dist of
+    targets_in_range : list of :class:`TaipanPoint`
+        The list of input targets/tiles which are within dist of
         (ra, dec).
     """
 
@@ -688,7 +703,7 @@ def targets_in_range(ra, dec, target_list, dist,
 def targets_in_range_multi(ra_dec_list, target_list, dist,
                            leafsize=BREAKEVEN_KDTREE):
     """
-    Return the number of targets in target_list
+    Return the number of targets/tiles in target_list
     within each position specified in ra_dec_list.
 
     Computes the subset of targets within range of the given (ra, dec)
@@ -705,9 +720,9 @@ def targets_in_range_multi(ra_dec_list, target_list, dist,
 
     Returns
     -------
-    targets_in_range : list of :class:`TaipanTarget`
-        A list of lists of TaipanTargets. Each sublist contains the targets
-        within dist of the corresponding (ra, dec) in ra_dec_list.
+    targets_in_range : list of :class:`TaipanPoint`
+        A list of lists of TaipanPoint child objects. Each sublist contains the 
+        targets/tiles within dist of the corresponding (ra, dec) in ra_dec_list.
     """
 
     # Make sure ra_dec_list is an iterable
@@ -729,18 +744,18 @@ def targets_in_range_multi(ra_dec_list, target_list, dist,
     return targets
 
 
-def targets_in_range_tiles(tile_list, target_list,
+def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS, \
                            leafsize=BREAKEVEN_KDTREE):
     """
     Alias to targets_in_range_multi for use when passing a list of
-    TaipanTile objects.
+    TaipanPoint child objects (typically tiles).
 
     Parameters
     ----------
-    tile_list : list of :class:`TaipanTile`
-        List of TaipanTiles.
-    target_list : list of :class:`TaipanTarget`
-        List of TaipanTargets to consider.
+    tile_list : list of :class:`TaipanPoint`
+        List of TaipanPoint objects (typically TaipanTiles).
+    target_list : list of :class:`TaipanPoint`
+        List of TaipanPoint objects (typically TaipanTargets) to consider.
     leafsize : int, optional
         Optional. Leafsize of the constructed KDTree. Defaults to
         BREAKEVEN_KDTREE.
@@ -753,7 +768,7 @@ def targets_in_range_tiles(tile_list, target_list,
     return targets_in_range_multi(
         [(t.ra, t.dec) for t in tile_list],
         target_list,
-        TILE_RADIUS,
+        dist,
         leafsize=leafsize
     )
 
@@ -761,123 +776,31 @@ def targets_in_range_tiles(tile_list, target_list,
 # TILING OBJECTS
 # ------
 
-
-class TaipanTarget(object):
+class TaipanPoint(object):
     """
-    Holds information and convenience functions for a TAIPAN
-    observing target.
+    A root class for TaipanTarget and TaipanTile, including RA, Dec and associated
+    convenience functions.
     """
-
-    # Initialisation & input-checking
-    def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
-                 guide=False, difficulty=0, mag=None,
-                 h0=False, vpec=False, lowz=False, science=True, assign_science=True):
+    def __init__(self, ra, dec, usposn=None):
         """
         Parameters
         ----------
-        idn : int
-            Unique target ID
-        ra, dec: float, degrees
-            RA, Dec position of target
-        ucposn : 3-tuple of floats , optional
-            Target (x, y, z) position on the unit sphere. Defaults to None,
-            at which point the position will be calculated internally and
-            stored
-        priority : int, optional
-            Target priority value. Defaults to 1
-        standard : Boolean, optional
-            Denotes this target as a standard. Defaults to False.
-        guide : Boolean, optional
-            Denotes this target as a guide. Defaults to False.
-        difficulty : int, optional
-            Number of targets that this target would exclude. Defaults to 0.
-        mag : float, optional
-            Target magnitude. Defaults to None.
-        h0, vpec, lowz : Boolean, optional
-            Booleans denoting if a target is an H0 target, a low-redshift (lowz)
-            target, or a peculiar velocity (vpec) target. All default to False.
-        science : Boolean, optional
-            Denotes this target as a science target. defaults to True
-        assign_science : Boolean, optional
-            Do we automatically assign the science flag based on standard and guide 
-            flags? Defaults to True
+        ra, dec : float, degrees
+            Target RA, Dec in degrees
+        usposn : 3-tuple of floats, optional
+            Tile position in (x,y,z) on the unit sphere, defaults to None.
         """
-        self._idn = None
         self._ra = None
         self._dec = None
         self._usposn = None
-        self._priority = None
-        self._standard = None
-        self._guide = None
-        self._science = None
-        self._difficulty = None
-        self._mag = None
-
-        # Taipan-specific fields
-        self._h0 = None
-        self._vpec = None
-        self._lowz = None
-
-        # Insert given values
-        # This causes the setter functions to be called, which does
-        # error checking
-        self.idn = idn
+        
+        # Insert the passed values
+        # Doing it like this forces the setter functions to be
+        # called, which provides error checking
         self.ra = ra
         self.dec = dec
         self.usposn = usposn
-        self.priority = priority
-        self.standard = standard
-        self.science = science
-        self.guide = guide
-        self.difficulty = difficulty
-        self.mag = mag
-        self.h0 = h0
-        self.vpec = vpec
-        self.lowz = lowz
         
-        # A default useful for Taipan (FunnelWeb will override, as it takes its standards
-        # largely from the science targets, and these are not mutually exclusive)
-        if assign_science:
-            if self.standard or self.guide:
-                self.science=False
-
-    def __repr__(self):
-        return 'TP TGT %s' % str(self._idn)
-
-    def __str__(self):
-        return 'TP TGT %s' % str(self._idn)
-
-    # Uncomment to have target equality decided on ID
-    # WARNING - make sure your IDs are unique!
-    # def __eq__(self, other):
-    #   if isinstance(other, self.__class__):
-    #       return (self.idn == other.idn) and (self.standard 
-    #           == other.standard) and (self.guide == other.guide)
-    #   return False
-
-    # def __ne__(self, other):
-    #   if isinstance(other, self.__class__):
-    #       return not((self.idn == other.idn) and (self.standard 
-    #           == other.standard) and (self.guide == other.guide))
-    #   return True
-
-    # def __cmp__(self, other):
-    #   if isinstance(other, self.__class__):
-    #       if (self.idn == other.idn) and (self.standard 
-    #           == other.standard) and (self.guide == other.guide):
-    #           return 0
-    #   return 1
-
-    @property
-    def idn(self):
-        """TAIPAN target ID"""
-        return self._idn
-
-    @idn.setter
-    def idn(self, d):
-        if not d: raise Exception('ID may not be empty')
-        self._idn = d
-
     @property
     def ra(self):
         """Target RA"""
@@ -930,137 +853,6 @@ class TaipanTarget(object):
                             % (value[0]**2 + value[1]**2 + value[2]**2,
                                value[0], value[1], value[2]))
         self._usposn = list(value)
-    
-
-    @property
-    def priority(self):
-        return self._priority
-
-    @priority.setter
-    def priority(self, p):
-        # Make sure priority is an int
-        p = int(p)
-        if p < TARGET_PRIORITY_MIN or p > TARGET_PRIORITY_MAX:
-            raise ValueError('Target priority must be %d < p < %d' 
-                % (TARGET_PRIORITY_MIN, TARGET_PRIORITY_MAX, ))
-        self._priority = p
-
-    @property
-    def standard(self):
-        """Is this target a standard"""
-        return self._standard
-
-    @standard.setter
-    def standard(self, b):
-        b = bool(b)
-        self._standard = b
-
-    @property
-    def science(self):
-        """Is this target a science target"""
-        return self._science
-
-    @science.setter
-    def science(self, b):
-        b = bool(b)
-        self._science = b
-
-    @property
-    def guide(self):
-        """Is this target a guide"""
-        return self._guide
-
-    @guide.setter
-    def guide(self, b):
-        b = bool(b)
-        self._guide = b
-
-    @property
-    def difficulty(self):
-        """Difficulty, i.e. number of targets within FIBRE_EXCLUSION_RADIUS"""
-        return self._difficulty
-
-    @difficulty.setter
-    def difficulty(self, d):
-        d = int(d)
-        if d < 0:
-            raise ValueError('Difficulty must be >= 0')
-        self._difficulty = d
-
-    @property
-    def mag(self):
-        """Target Magnitude"""
-        return self._mag
-
-    @mag.setter
-    def mag(self, m):
-        if m:
-            assert (m > -10 and m < 30), "mag outside valid range"
-        self._mag = m
-
-    @property
-    def h0(self):
-        """Is this a h0 target?"""
-        return self._h0
-
-    @h0.setter
-    def h0(self, b):
-        b = bool(b)
-        self._h0 = b
-
-    @property
-    def lowz(self):
-        """Is this a lowz target?"""
-        return self._lowz
-
-    @lowz.setter
-    def lowz(self, b):
-        b = bool(b)
-        self._lowz = b
-
-    @property
-    def vpec(self):
-        """Is this a vpec (peculiar velocity) target?"""
-        return self._vpec
-
-    @vpec.setter
-    def vpec(self, b):
-        b = bool(b)
-        self._vpec = b
-
-    def return_target_code(self):
-        """
-        Return a single-character string based on the type of TaipanTarget passed
-        as a function argument.
-
-        Parameters
-        ----------
-        Nil.
-
-        Returns
-        -------
-        code : str
-            A single-character string, denoting the type of TaipanTarget passed in.
-            Codes are currently:
-            X - science
-            G - guide
-            S - standard
-            T - standard and science
-            Z - an inconsistent target type!
-        """
-
-        if self.standard and self.science:
-            code = 'T'
-        elif self.standard:
-            code = 'S'
-        elif self.guide:
-            code = 'G'
-        elif self.science:
-            code = 'X'
-        else:
-            code = 'Z'
-
-        return code
 
     def compute_usposn(self):
         """
@@ -1076,6 +868,31 @@ class TaipanTarget(object):
                 ' RA and/or Dec is None!')
         self.usposn = polar2cart((self.ra, self.dec))
         return
+
+    def ranked_index(self, usposns, maxdist):
+        """Given a list of positions on the unit sphere, find a ranked list of indices
+        to these points within a maximum distance. NOTE - this can be sped up even
+        more in an obvious way !!!
+        
+        Parameters
+        ----------
+        usposns: numpy (npoints,3) array
+            The unit sphere positions we're to compute distances to
+        
+        maxdist: float
+            A maximum distance for which we care about the distance.
+        
+        Returns
+        -------
+        ix: numpy int array
+        """
+        #distance vectors. A numpy way for speed.
+        fibre_dists = usposns - np.tile(self.usposn, len(usposns)).reshape(usposns.shape)
+        #Convert to arcsec, for the magnitude of the vector
+        fibre_dists = dist_angular(np.sqrt(np.sum(fibre_dists**2,1)))*3600.
+        #Consider the closest points/fibers only.
+        permitted_ix = np.where(fibre_dists < PATROL_RADIUS)[0]
+        return permitted_ix[np.argsort(fibre_dists[permitted_ix])]
 
     def dist_point(self, radec):
         """
@@ -1206,6 +1023,250 @@ class TaipanTarget(object):
         """
 
         return self.dist_point_mixed((tgt.ra, tgt.dec), dec_cut=dec_cut)
+
+ 
+class TaipanTarget(TaipanPoint):
+    """
+    Holds information and convenience functions for a TAIPAN
+    observing target.
+    """
+
+    # Initialisation & input-checking
+    def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
+                 guide=False, difficulty=0, mag=None,
+                 h0=False, vpec=False, lowz=False, science=True, assign_science=True):
+        """
+        Parameters
+        ----------
+        idn : int
+            Unique target ID
+        ra, dec: float, degrees
+            RA, Dec position of target
+        ucposn : 3-tuple of floats , optional
+            Target (x, y, z) position on the unit sphere. Defaults to None,
+            at which point the position will be calculated internally and
+            stored
+        priority : int, optional
+            Target priority value. Defaults to 1
+        standard : Boolean, optional
+            Denotes this target as a standard. Defaults to False.
+        guide : Boolean, optional
+            Denotes this target as a guide. Defaults to False.
+        difficulty : int, optional
+            Number of targets that this target would exclude. Defaults to 0.
+        mag : float, optional
+            Target magnitude. Defaults to None.
+        h0, vpec, lowz : Boolean, optional
+            Booleans denoting if a target is an H0 target, a low-redshift (lowz)
+            target, or a peculiar velocity (vpec) target. All default to False.
+        science : Boolean, optional
+            Denotes this target as a science target. defaults to True
+        assign_science : Boolean, optional
+            Do we automatically assign the science flag based on standard and guide 
+            flags? Defaults to True
+        """
+        #Initialise the base class
+        TaipanPoint.__init__(self, ra, dec, usposn)
+        
+        self._idn = None
+        self._priority = None
+        self._standard = None
+        self._guide = None
+        self._science = None
+        self._difficulty = None
+        self._mag = None
+
+        # Taipan-specific fields
+        self._h0 = None
+        self._vpec = None
+        self._lowz = None
+
+        # Insert given values
+        # This causes the setter functions to be called, which does
+        # error checking
+        self.idn = idn
+        self.priority = priority
+        self.standard = standard
+        self.science = science
+        self.guide = guide
+        self.difficulty = difficulty
+        self.mag = mag
+        self.h0 = h0
+        self.vpec = vpec
+        self.lowz = lowz
+        
+        # A default useful for Taipan (FunnelWeb will override, as it takes its standards
+        # largely from the science targets, and these are not mutually exclusive)
+        if assign_science:
+            if self.standard or self.guide:
+                self.science=False
+
+    def __repr__(self):
+        return 'TP TGT %s' % str(self._idn)
+
+    def __str__(self):
+        return 'TP TGT %s' % str(self._idn)
+
+    # Uncomment to have target equality decided on ID
+    # WARNING - make sure your IDs are unique!
+    # def __eq__(self, other):
+    #   if isinstance(other, self.__class__):
+    #       return (self.idn == other.idn) and (self.standard 
+    #           == other.standard) and (self.guide == other.guide)
+    #   return False
+
+    # def __ne__(self, other):
+    #   if isinstance(other, self.__class__):
+    #       return not((self.idn == other.idn) and (self.standard 
+    #           == other.standard) and (self.guide == other.guide))
+    #   return True
+
+    # def __cmp__(self, other):
+    #   if isinstance(other, self.__class__):
+    #       if (self.idn == other.idn) and (self.standard 
+    #           == other.standard) and (self.guide == other.guide):
+    #           return 0
+    #   return 1
+
+    @property
+    def idn(self):
+        """TAIPAN target ID"""
+        return self._idn
+
+    @idn.setter
+    def idn(self, d):
+        if not d: raise Exception('ID may not be empty')
+        self._idn = d   
+
+    @property
+    def priority(self):
+        return self._priority
+
+    @priority.setter
+    def priority(self, p):
+        # Make sure priority is an int
+        p = int(p)
+        if p < TARGET_PRIORITY_MIN or p > TARGET_PRIORITY_MAX:
+            raise ValueError('Target priority must be %d < p < %d' 
+                % (TARGET_PRIORITY_MIN, TARGET_PRIORITY_MAX, ))
+        self._priority = p
+
+    @property
+    def standard(self):
+        """Is this target a standard"""
+        return self._standard
+
+    @standard.setter
+    def standard(self, b):
+        b = bool(b)
+        self._standard = b
+
+    @property
+    def science(self):
+        """Is this target a science target"""
+        return self._science
+
+    @science.setter
+    def science(self, b):
+        b = bool(b)
+        self._science = b
+
+    @property
+    def guide(self):
+        """Is this target a guide"""
+        return self._guide
+
+    @guide.setter
+    def guide(self, b):
+        b = bool(b)
+        self._guide = b
+
+    @property
+    def difficulty(self):
+        """Difficulty, i.e. number of targets within FIBRE_EXCLUSION_RADIUS"""
+        return self._difficulty
+
+    @difficulty.setter
+    def difficulty(self, d):
+        d = int(d)
+        if d < 0:
+            raise ValueError('Difficulty must be >= 0')
+        self._difficulty = d
+
+    @property
+    def mag(self):
+        """Target Magnitude"""
+        return self._mag
+
+    @mag.setter
+    def mag(self, m):
+        if m:
+            assert (m > -10 and m < 30), "mag outside valid range"
+        self._mag = m
+
+    @property
+    def h0(self):
+        """Is this a h0 target?"""
+        return self._h0
+
+    @h0.setter
+    def h0(self, b):
+        b = bool(b)
+        self._h0 = b
+
+    @property
+    def lowz(self):
+        """Is this a lowz target?"""
+        return self._lowz
+
+    @lowz.setter
+    def lowz(self, b):
+        b = bool(b)
+        self._lowz = b
+
+    @property
+    def vpec(self):
+        """Is this a vpec (peculiar velocity) target?"""
+        return self._vpec
+
+    @vpec.setter
+    def vpec(self, b):
+        b = bool(b)
+        self._vpec = b
+
+    def return_target_code(self):
+        """
+        Return a single-character string based on the type of TaipanTarget passed
+        as a function argument.
+
+        Parameters
+        ----------
+        Nil.
+
+        Returns
+        -------
+        code : str
+            A single-character string, denoting the type of TaipanTarget passed in.
+            Codes are currently:
+            X - science
+            G - guide
+            S - standard
+            T - standard and science
+            Z - an inconsistent target type!
+        """
+
+        if self.standard and self.science:
+            code = 'T'
+        elif self.standard:
+            code = 'S'
+        elif self.guide:
+            code = 'G'
+        elif self.science:
+            code = 'X'
+        else:
+            code = 'Z'
+
+        return code
 
     def excluded_targets(self, tgts):
         """
@@ -1355,7 +1416,7 @@ class TaipanTarget(object):
         return False
 
 
-class TaipanTile(object):
+class TaipanTile(TaipanPoint):
     """
     Holds information and convenience functions for a TAIPAN tile configuration
     """
@@ -1371,7 +1432,7 @@ class TaipanTile(object):
             field_id this tile belongs to, defaults to None.
         pk : int, optional
             Tile primary key (from database), defaults to None.
-        ucposn : 3-tuple of floats, optional
+        usposn : 3-tuple of floats, optional
             Tile position in (x,y,z) on the unit sphere, defaults to None.
         pa : float
             Position angle of tile. Defaults to 0.0.
@@ -1379,13 +1440,17 @@ class TaipanTile(object):
             Minimum and maximum magnitudes of targets to be assigned to this
             tile, mostly for the benefit of FunnelWeb. Defaults to None.
         """
+        #Initialise the base class
+        TaipanPoint.__init__(self, ra, dec, usposn)
+        #NB this should probably *always* happen as part of TaipanPoint
+        #!!! Ask Marc why not?
+        if self.usposn is None:
+            self.compute_usposn()
+        
         self._fibres = {}
         for i in range(1, FIBRES_PER_TILE+1):
             self._fibres[i] = None
         # self._fibres = self.fibres(fibre_init)
-        self._ra = None
-        self._dec = None
-        self._usposn = None
         self._field_id = None
         self._pk = None
         self._mag_min = None
@@ -1395,9 +1460,6 @@ class TaipanTile(object):
         # Insert the passed values
         # Doing it like this forces the setter functions to be
         # called, which provides error checking
-        self.ra = ra
-        self.dec = dec
-        self.usposn = usposn
         self.field_id = field_id
         self.pk = pk
         self.pa = pa
@@ -1428,59 +1490,6 @@ class TaipanTile(object):
                                 str(sorted([i for i in BUGPOS_MM])), )
                             )
         self._fibres = d
-
-    @property
-    def ra(self):
-        """Target RA"""
-        return self._ra
-
-    @ra.setter
-    def ra(self, r):
-        r = float(r)
-        if r < 0.0 or r >= 360.0: 
-            raise Exception('RA outside valid range')
-        self._ra = r
-
-    @property
-    def dec(self):
-        """Target dec"""
-        return self._dec
-
-    @dec.setter
-    def dec(self, d):
-        d = float(d)
-        if d < -90.0 or d > 90.0:
-            raise Exception('Dec outside valid range')
-        self._dec = d
-
-    @property
-    def usposn(self):
-        """Target position on the unit sphere, should be 3-list or 3-tuple"""
-        return self._usposn
-
-    @usposn.setter
-    def usposn(self, value):
-        if value is None:
-            self._usposn = None
-            return
-        if len(value) != 3:
-            raise Exception('usposn must be a 3-list or 3-tuple')
-        if value[0] < -1. or value[0] > 1.:
-            raise Exception('x value %f outside allowed bounds (-1 <= x <= 1)'
-                            % value[0])
-        if value[1] < -1. or value[1] > 1.:
-            raise Exception('y value %f outside allowed bounds (-1 <= x <= 1)'
-                            % value[1])
-        if value[2] < -1. or value[2] > 1.:
-            raise Exception('z value %f outside allowed bounds (-1 <= x <= 1)'
-                            % value[2])
-        if abs(value[0] ** 2 + value[1] ** 2 + value[2] ** 2 - 1.0) > 0.001:
-            raise Exception('usposn must lie on unit sphere '
-                            '(x^2 + y^2 + z^2 = 1.0 - error of %f'
-                            ' (%f, %f, %f) )'
-                            % (value[0] ** 2 + value[1] ** 2 + value[2] ** 2,
-                               value[0], value[1], value[2]))
-        self._usposn = list(value)
 
     @property
     def pa(self):
@@ -1636,6 +1645,23 @@ class TaipanTile(object):
                                                                       # PA
                                   )
         return pos
+        
+    def compute_fibre_usposn(self, fibre):
+        """
+        Compute a fibre position on the unit sphere.
+
+        Parameters
+        ----------    
+        fibre : int
+            The fibre to compute the position of.
+
+        Returns
+        -------    
+        [x,y,z] : float
+            The position of the fibre on the sky on the unit sphere.
+        """
+        radec = self.compute_fibre_posn(fibre)
+        return polar2cart(radec)
 
     def compute_fibre_travel(self, fibre):
         """
@@ -2421,6 +2447,8 @@ class TaipanTile(object):
 
             # Identify the closest fibre to this target
             # print 'Finding available fibres...'
+            # PARALLEL: The following lines take up 25% of this routine. Shouldn't use
+            # the GIL if possible for threading.
             fibre_dists = {fibre: tgt.dist_point(fibre_posns[fibre])
                 for fibre in fibre_posns}
             permitted_fibres = sorted([fibre for fibre in fibre_dists
@@ -2679,7 +2707,8 @@ class TaipanTile(object):
                 burn = guides_this_tile.pop(i)
 
         return removed_targets
-    
+
+    #@profile
     def unpick_tile(self, candidate_targets,
                     standard_targets, guide_targets,
                     overwrite_existing=False,
@@ -2825,9 +2854,12 @@ class TaipanTile(object):
                 self._fibres[f] = None
 
         # Calculate rest positions for all non-guide fibres
-        fibre_posns = {fibre: self.compute_fibre_posn(fibre) 
+        fibre_usposns = {fibre: self.compute_fibre_usposn(fibre) 
             for fibre in BUGPOS_MM if fibre in FIBRES_NORMAL}
-
+        # More messy but FAST
+        fibre_usposns_values = np.asarray(fibre_usposns.values())
+        fibre_usposns_keys = np.asarray(fibre_usposns.keys())
+        
         candidate_targets_return = candidate_targets[:]
 
         # Return the removed targets to the master candidates lists
@@ -2910,15 +2942,9 @@ class TaipanTile(object):
                 continue
             # print 'Done!'
 
-            # Identify the closest fibre to this target
-            # print 'Finding available fibres...'
-            fibre_dists = {fibre: tgt.dist_point(fibre_posns[fibre])
-                for fibre in fibre_posns}
-            permitted_fibres = sorted([fibre for fibre in fibre_dists
-                if fibre_dists[fibre] < PATROL_RADIUS],
-                key=lambda x: fibre_dists[x])
-            # print 'Done!'
-
+            # Identify the closest fibres to this target
+            permitted_fibres = fibre_usposns_keys[tgt.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
+            
             # Attempt to make assignment
             candidate_found = False
             while not(candidate_found) and len(permitted_fibres) > 0:
@@ -2982,11 +3008,7 @@ class TaipanTile(object):
 
             # Identify the closest fibre to this target
             # print 'Finding available fibres...'
-            fibre_dists = {fibre: std.dist_point(fibre_posns[fibre])
-                for fibre in fibre_posns}
-            permitted_fibres = sorted([fibre for fibre in fibre_dists
-                if fibre_dists[fibre] < PATROL_RADIUS],
-                key=lambda x: fibre_dists[x])
+            permitted_fibres = fibre_usposns_keys[std.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
 
             # Attempt to make assignment
             candidate_found = False
@@ -3122,6 +3144,7 @@ class TaipanTile(object):
 
         return candidate_targets_return, removed_targets
 
+    #@profile
     def repick_tile(self):
         """
         Re-assign targets to avoid unnecessary cross-over between bugs.

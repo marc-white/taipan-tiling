@@ -17,6 +17,7 @@ import numpy as np
 import copy
 import logging
 import line_profiler
+from threading import Thread, Lock
 
 # ------
 # UTILITY FUNCTIONS
@@ -321,7 +322,6 @@ def tiling_consolidate(tile_list):
             # Try to assign these target standards to another, more-complete tile
             # Be sure not to try re-assignment to the current worst tile!
             n_standards_left = len(targets_to_redo)
-            print "Starting new loop..." #!!!
             for (fibre, target) in targets_to_redo.iteritems():
                 tiles_to_try = [t for t in tile_list[:-1] 
                     if target.dist_point((t.ra, t.dec)) < tp.TILE_RADIUS]
@@ -350,8 +350,6 @@ def tiling_consolidate(tile_list):
                         removed_tile = tiles_to_try.pop(0)
                 if target_reassigned:
                     n_standards_left -= 1
-                else:
-                    print "A standard can't be reassigned..." #!!!
         else:
             n_standards_left = -1 #!!! Debug
                     
@@ -989,6 +987,8 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     return tile_list, final_completeness, candidate_targets
 
 #Uncomment the following line for FunnelWeb line_profile.
+#kernprof -l funnelweb_generate_tiling.py
+#python -m line_profiler funnelweb_generate_tiling.py.lprof
 #@profile
 def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               guide_targets,
@@ -1011,7 +1011,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               combined_weight=1.0,
                               sequential_ordering=(1,2), rank_supplements=False,
                               repick_after_complete=True,
-                              recompute_difficulty=True):
+                              recompute_difficulty=True, multithread=True):
     """
     Generate a tiling based on the greedy algorithm operating on a set of magnitude 
     ranges sequentially. Within each magnitude range, a complete set of tiles are 
@@ -1153,8 +1153,6 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     if no_submitted_targets == 0:
         raise ValueError('Attempting to generate a tiling with no targets!')
     
-    #XXX
-    #print '1', [aa for aa in candidate_targets if aa=='02260685-0433118']
     #Loop over magnitude ranges.
     disqualify_below_min_range = disqualify_below_min
     for range_ix, mag_range in enumerate(mag_ranges):
@@ -1204,22 +1202,37 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         # Therefore, we'll assign the output of the function to a dummy variable
         logging.info('Creating initial tile unpicks...')
         i = 0
-        
-        for tile in candidate_tiles:
-            # print 'inter: %d' % len(candidate_targets)
-            #PARALLEL - the following loop doesn't chance variables and could run many 
-            #versions together.
-            burn = tile.unpick_tile(candidate_targets_range, standard_targets_range, 
-                non_candidate_guide_targets,
-                overwrite_existing=True, check_tile_radius=True,
-                recompute_difficulty=False,
-                method=tile_unpick_method, combined_weight=combined_weight,
-                sequential_ordering=sequential_ordering,
-                rank_supplements=rank_supplements, 
-                repick_after_complete=repick_after_complete,
-                consider_removed_targets=False, allow_standard_targets=True)
-            i += 1
-            logging.info('Created %d / %d tiles' % (i, len(candidate_tiles)))
+        if multithread:
+            output_lock = Lock() #Not yet used!!!
+            threads = []
+            for tile in candidate_tiles:
+                threads.append(Thread(target=tile.unpick_tile, \
+                    args=(candidate_targets_range, standard_targets_range, 
+                    non_candidate_guide_targets), \
+                    kwargs={'overwrite_existing':True, 'check_tile_radius':True,
+                    'recompute_difficulty':False,
+                    'method':tile_unpick_method, 'combined_weight':combined_weight,
+                    'sequential_ordering':sequential_ordering,
+                    'rank_supplements':rank_supplements, 
+                    'repick_after_complete':repick_after_complete,
+                    'consider_removed_targets':False, 'allow_standard_targets':True}))
+                threads[-1].start()
+            logging.info('Creating {0:d} tiles in separate threads'.format(len(threads)))
+            for athread in threads:
+                athread.join()
+        else:         
+            for tile in candidate_tiles:   
+                burn = tile.unpick_tile(candidate_targets_range, standard_targets_range, 
+                    non_candidate_guide_targets,
+                    overwrite_existing=True, check_tile_radius=True,
+                    recompute_difficulty=False,
+                    method=tile_unpick_method, combined_weight=combined_weight,
+                    sequential_ordering=sequential_ordering,
+                    rank_supplements=rank_supplements, 
+                    repick_after_complete=repick_after_complete,
+                    consider_removed_targets=False, allow_standard_targets=True)
+                i += 1
+                logging.info('Created %d / %d tiles' % (i, len(candidate_tiles)))
 
         # Compute initial rankings for all of the tiles
         ranking_list = [tile.calculate_tile_score(method=ranking_method,
@@ -1299,26 +1312,20 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                     tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_RADIUS))
             # print 'e : %d' % len(candidate_targets)
 
-            # Replace the removed tile in candidate_targets, repick any tiles
+            # Replace the removed tile in candidate_tiles, repick any tiles
             # within 2 * TILE_RADIUS of it, and then add to the ranking_list
             candidate_tiles.append(tp.TaipanTile(best_ra, best_dec, pa=gen_pa(
                 randomise_pa)))
             j = 0
             logging.info('Re-picking affected tiles...')
             # print 'f : %d' % len(candidate_targets)
-            #This is  a big n_targets x n_assigned operation XXX
-            
-            #affected_tiles = [[atile for atile in tiles_to_try if \
-            #        target in atile.get_assigned_targets_science()] for target in assigned_targets]
-            #for target in assigned_targets:
-            #    for atile in candidate_tiles:
-            #        if target in atile.get_assigned_targets_science()
-            
-            affected_tiles = list({atile for atile in candidate_tiles for t in assigned_targets if t in atile.get_assigned_targets_science()})
-            #affected_tiles = [t for t in candidate_tiles
-            #    if np.any(map(lambda x: x in t.get_assigned_targets_science(),
-            #        assigned_targets))]
-            
+            # This is  a big n_tiles x n_assigned operation - lets make it faster by 
+            # considering only the nearby candidate tiles (within 2 * TILE_RADIUS)
+            nearby_candidate_tiles = \
+                tp.targets_in_range(tile_list[-1].ra, tile_list[-1].dec, candidate_tiles, 2*tp.TILE_RADIUS)         
+            affected_tiles = list({atile for atile in nearby_candidate_tiles for t in assigned_targets \
+                                    if t in atile.get_assigned_targets_science()})
+           
             # This won't cause the new tile to be re-picked,
             # so manually add that
             affected_tiles.append(candidate_tiles[-1])
