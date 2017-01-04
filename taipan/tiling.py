@@ -1011,7 +1011,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               combined_weight=1.0,
                               sequential_ordering=(1,2), rank_supplements=False,
                               repick_after_complete=True,
-                              recompute_difficulty=True, multithread=True):
+                              recompute_difficulty=True, nthreads=0):
     """
     Generate a tiling based on the greedy algorithm operating on a set of magnitude 
     ranges sequentially. Within each magnitude range, a complete set of tiles are 
@@ -1202,11 +1202,12 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         # Therefore, we'll assign the output of the function to a dummy variable
         logging.info('Creating initial tile unpicks...')
         i = 0
-        if multithread:
+        if nthreads>0:
+            logging.info('Creating {0:d} tiles in separate threads'.format(nthreads))
             output_lock = Lock() #Not yet used!!!
-            threads = []
-            for tile in candidate_tiles:
-                threads.append(Thread(target=tile.unpick_tile, \
+            threads = [None for i in range(nthreads)]
+            for t_ix, tile in enumerate(candidate_tiles):
+                threads[t_ix % nthreads] = Thread(target=tile.unpick_tile, \
                     args=(candidate_targets_range, standard_targets_range, 
                     non_candidate_guide_targets), \
                     kwargs={'overwrite_existing':True, 'check_tile_radius':True,
@@ -1215,9 +1216,12 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                     'sequential_ordering':sequential_ordering,
                     'rank_supplements':rank_supplements, 
                     'repick_after_complete':repick_after_complete,
-                    'consider_removed_targets':False, 'allow_standard_targets':True}))
-                threads[-1].start()
-            logging.info('Creating {0:d} tiles in separate threads'.format(len(threads)))
+                    'consider_removed_targets':False, 'allow_standard_targets':True})
+                threads[t_ix % nthreads].start()
+                if (t_ix % nthreads) == (nthreads-1):
+                    for athread in threads:
+                        athread.join()
+            #Join any left-over threads
             for athread in threads:
                 athread.join()
         else:         
