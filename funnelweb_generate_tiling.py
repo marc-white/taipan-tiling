@@ -14,7 +14,7 @@ import sys
 import datetime
 import logging
 import numpy as np
-plotit = False
+plotit = True
 if plotit:
     import matplotlib.pyplot as plt
 logging.basicConfig(filename='funnelweb_generate_tiling.log',level=logging.INFO)
@@ -36,6 +36,21 @@ de_lims = [-34,-26]
 ra_lims = [20,60] 
 de_lims = [-40,0]
 
+guide_range=[8,10.5]
+gal_lat_limit = 10 #For Gaia data only
+
+infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='2mass'
+mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]]
+mag_ranges = [[7.5,9],[8.5,10]]
+
+infile = '/Users/mireland/tel/funnelweb/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
+mag_ranges_prioritise = [[5,7],[7,9],[9,11]]
+mag_ranges = [[5,8],[7,10],[9,12]]
+
+#Randomly choose this fraction of stars as standards. In practice, we will use colour cuts
+#to choose B and A stars
+standard_frac = 0.1 
+
 try:
     if all_targets and guide_targets and standard_targets:
         pass
@@ -45,19 +60,26 @@ except NameError:
     #It is important not to duplicate targets, i.e. if a science targets is a guide and
     #a standard, then it should become a single instance of a TaipanTarget, appearing in
     #all lists.
-    tabdata = Table.read('/Users/mireland/tel/funnelweb/'
-        '2mass_AAA_i7-10_offplane.csv')
+    tabdata = Table.read(infile)
     print 'Generating targets...'
-    all_targets = [tp.TaipanTarget(str(r['mainid']), r['raj2000'], r['dej2000'], 
-        priority=1, mag=r['imag'],difficulty=1) for r in tabdata 
-        if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
+    if tabtype == '2mass':
+        all_targets = [tp.TaipanTarget(str(r['mainid']), r['raj2000'], r['dej2000'], 
+            priority=1, mag=r['imag'],difficulty=1) for r in tabdata 
+            if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
+    elif tabtype == 'gaia':
+        all_targets = [tp.TaipanTarget(str(r['source_id']), r['ra'], r['dec'], 
+            priority=1, mag=r['phot_g_mean_mag'],difficulty=1) for r in tabdata 
+            if ra_lims[0] < r['ra'] < ra_lims[1] and de_lims[0] < r['dec'] < de_lims[1] 
+            and np.abs(r['b']) > gal_lat_limit]
+    else: 
+        raise UserWarning("Unknown table type")
     #Take standards from the science targets, and assign the standard property to True
     for t in all_targets:
-        if np.random.random() < 0.1:
+        if np.random.random() < standard_frac:
             t.standard=True
     #    if t.mag > 8:
     #        t.guide=True
-    guide_targets = [t for t in all_targets if t.mag>8]
+    guide_targets = [t for t in all_targets if guide_range[0]<t.mag<guide_range[1]]
     standard_targets = [t for t in all_targets if t.standard==True]
     end = datetime.datetime.now()
     delta = end - start
@@ -102,10 +124,10 @@ print 'Commencing tiling...'
 start = datetime.datetime.now()
 test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelweb(
     candidate_targets, standard_targets, guide_targets,
-    mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]],
+    mag_ranges_prioritise = mag_ranges_prioritise,
     prioritise_extra = 4,
     completeness_priority = 4,
-    mag_ranges = [[7.5,9],[8.5,10]],
+    mag_ranges = mag_ranges,
     completeness_target=completeness_target,
     ranking_method=ranking_method,
     tiling_method=tiling_method, randomise_pa=True, 
@@ -115,7 +137,7 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelw
     tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
     combined_weight=combined_weight,
     rank_supplements=False, repick_after_complete=True,
-    recompute_difficulty=True, disqualify_below_min=True, multithread=True)
+    recompute_difficulty=True, disqualify_below_min=True, nthreads=0)
 end = datetime.datetime.now()
 
 # Analysis

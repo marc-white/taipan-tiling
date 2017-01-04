@@ -894,6 +894,22 @@ class TaipanPoint(object):
         permitted_ix = np.where(fibre_dists < PATROL_RADIUS)[0]
         return permitted_ix[np.argsort(fibre_dists[permitted_ix])]
 
+    def dist_usposn(self, usposn):
+        """Given a unit sphere position, find the distance to this target
+        
+        Parameters
+        ----------
+        usposn: numpy (3) float array
+            The unit sphere position we want to find the distance to.
+        
+        Returns
+        -------
+        dist: float, arcsecond
+            Distance in arcsec
+        """
+        fibre_dist = dist_angular(np.sqrt(np.sum( (usposn - np.asarray(self.usposn))**2)))*3600.
+        return fibre_dist
+
     def dist_point(self, radec):
         """
         Compute the distance between this target and a given position
@@ -3144,6 +3160,30 @@ class TaipanTile(TaipanPoint):
 
         return candidate_targets_return, removed_targets
 
+    def worst_fibre(self, fibres_to_check, usposns):
+        """Look for the worst fiber (i.e. distance from home position) 
+        based on unit sphere positions.
+        
+        Parameters
+        ----------
+        fibres_to_check: list
+            List of fibres 
+            
+        usposns: dict
+            Dictionary of {fiber index, unit sphere position}
+        
+        """
+        #distance vectors. A numpy way for speed.
+        try:
+            current_usposns_array = np.asarray([self._fibres[ix].usposn for ix in fibres_to_check])
+        except:
+            raise ValueError("Indexing the fibre array with un-allocated fibre indices!")
+        
+        fibre_dists = np.asarray([usposns[f] for f in fibres_to_check]) - current_usposns_array
+        
+        #Find the maximum magnitude of the vector, and return the fiber index of this.
+        return fibres_to_check[np.argmax(np.sum(fibre_dists**2,1))]
+
     #@profile
     def repick_tile(self):
         """
@@ -3163,9 +3203,16 @@ class TaipanTile(TaipanPoint):
 
         # Do unpicking separately for guides and science/standards/skies
         for fibres_list in [FIBRES_NORMAL, FIBRES_GUIDE]:
+            # Calculate rest positions for all fibres ZZZ remove ZZZ
+            #fibre_posns = {fibre: self.compute_fibre_posn(fibre) 
+            #    for fibre in fibres_list}
+            
             # Calculate rest positions for all fibres
-            fibre_posns = {fibre: self.compute_fibre_posn(fibre) 
+            fibre_usposns = {fibre: self.compute_fibre_usposn(fibre) 
                 for fibre in fibres_list}
+            # More messy but FAST
+            fibre_usposns_values = np.asarray(fibre_usposns.values())
+            fibre_usposns_keys = np.asarray(fibre_usposns.keys())
             # print fibre_posns
 
             # Step through the fibres in reverse order of rest position-target
@@ -3173,7 +3220,7 @@ class TaipanTile(TaipanPoint):
             # the rest position-target distance for both candidates).
             # Identify the fibres with targets assigned
             # Do NOT include the guides in this procedure
-            fibres_assigned_targets = [fibre for fibre in fibre_posns
+            fibres_assigned_targets = [fibre for fibre in fibre_usposns_keys
                 if isinstance(self._fibres[fibre], TaipanTarget)]
             # print fibres_assigned_targets
 
@@ -3181,18 +3228,37 @@ class TaipanTile(TaipanPoint):
             # fibres_assigned_targets list for having no better options
             while len(fibres_assigned_targets) > 0:
                 # print 'Within reassign loop'
-                fibre_dists = {fibre: self._fibres[fibre].dist_point(
-                    fibre_posns[fibre]) 
-                    for fibre in fibres_assigned_targets}
+                #ZZZ remove ZZZ
+                #fibre_dists = {fibre: self._fibres[fibre].dist_point(
+                #    fibre_posns[fibre]) 
+                #    for fibre in fibres_assigned_targets}
+                
+                wf = self.worst_fibre(fibres_assigned_targets, fibre_usposns)
+                
                 # ID the 'worst' remaining assigned fibre
-                wf = max(fibre_dists.iteritems(),
-                    key=operator.itemgetter(1))[0]
+                
+                #ZZZ remove ZZZ
+                #wfold = max(fibre_dists.iteritems(),
+                #    key=operator.itemgetter(1))[0]
+                #if wfold != wf:
+                #    import pdb; pdb.set_trace()
+                
                 i = fibres_assigned_targets.index(wf)
-                tgt_wf = self._fibres[wf]
-                dist_wf = tgt_wf.dist_point(fibre_posns[wf])
+                tgt_wf = self._fibres[wf]                
+                
+                dist_wf = tgt_wf.dist_usposn(fibre_usposns[wf])
+                
+                #ZZZ remove ZZZ (checked)
+                #dist_wfold = tgt_wf.dist_point(fibre_posns[wf])
+                
                 # ID any other fibres that could potentially take this target
-                candidate_fibres = [fibre for fibre in fibre_posns 
-                    if tgt_wf.dist_point(fibre_posns[fibre]) < PATROL_RADIUS]
+                # Identify the closest fibre to this target
+                # print 'Finding available fibres...'
+                candidate_fibres = fibre_usposns_keys[tgt_wf.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
+            
+                #candidate_fibres = [fibre for fibre in fibre_posns 
+                #    if tgt_wf.dist_point(fibre_posns[fibre]) < PATROL_RADIUS] #ZZZ
+                    
                 # print 'Candidates for shifting: %d' % len(candidate_fibres)
                 # ID which of these fibres would
                 # be a better match to the 'worst'
@@ -3205,12 +3271,12 @@ class TaipanTile(TaipanPoint):
                 candidate_fibres_better = [fibre for fibre in candidate_fibres
                     if (self._fibres[fibre] is None 
                         or self._fibres[fibre] == 'sky')
-                        and tgt_wf.dist_point(fibre_posns[fibre]) < dist_wf]
+                        and tgt_wf.dist_usposn(fibre_usposns[fibre]) < dist_wf]
                 candidate_fibres_better += [fibre for fibre in candidate_fibres
                     if isinstance(self._fibres[fibre], TaipanTarget)
-                    and tgt_wf.dist_point(fibre_posns[fibre]) < dist_wf
-                    and self._fibres[fibre].dist_point(
-                        fibre_posns[wf]) < dist_wf]
+                    and tgt_wf.dist_usposn(fibre_usposns[fibre]) < dist_wf
+                    and self._fibres[fibre].dist_usposn(
+                        fibre_usposns[wf]) < dist_wf]
                 # print candidate_fibres_better
                 # print 'Refined candidates: %d' % len(candidate_fibres_better)
                 if len(candidate_fibres_better) == 0:
@@ -3218,16 +3284,17 @@ class TaipanTile(TaipanPoint):
                     # can't be improved
                     fibres_assigned_targets.pop(i)
                 else:
-                    candidate_fibres_better.sort(
-                        key=lambda x: tgt_wf.dist_point(fibre_posns[x])
-                    )
+                    #ZZZ As candidate_fibres was sorted, candidate_fibres_better is also sorted!
+                    #candidate_fibres_better.sort(
+                    #    key=lambda x: tgt_wf.dist_point(fibre_posns[x])
+                    #)
                     # Do the swap
                     swap_to = candidate_fibres_better[0]
                     self._fibres[wf] = self._fibres[swap_to]
                     self._fibres[swap_to] = tgt_wf
                     # print 'Swapped %d and %d' % (wf, swap_to, )
-                    fibres_assigned_targets = [fibre for fibre in fibre_posns
-                    if isinstance(self._fibres[fibre], TaipanTarget)]
+                    fibres_assigned_targets = [fibre for fibre in fibre_usposns
+                        if isinstance(self._fibres[fibre], TaipanTarget)]
 
     def save_to_file(self, save_path='', return_filename=False):
         """
