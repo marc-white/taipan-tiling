@@ -16,6 +16,8 @@ import logging
 from matplotlib.cbook import flatten
 from scipy.spatial import KDTree, cKDTree
 from sklearn.neighbors import KDTree as skKDTree
+#XXX
+#import matplotlib.pyplot as plt
 
 # -------
 # CONSTANTS
@@ -1948,7 +1950,7 @@ class TaipanTile(TaipanPoint):
         return available_targets
 
     def calculate_tile_score(self, method='completeness',
-                             combined_weight=1.0, disqualify_below_min=True):
+                             combined_weight=1.0, disqualify_below_min=True, exp_base=3.0):
         """
         Compute a ranking score for this tile.
 
@@ -1967,6 +1969,9 @@ class TaipanTile(TaipanPoint):
         'difficulty-prod' -- The difficulty product of assigned targets.
         
         'priority-sum' -- The cumulative priority of the assigned targets.
+        
+        'priority-expsum' -- The cumulative priority of the assigned targets, raised
+        to an exponential power
         
         'priority-prod' -- The priority product of the assigned targets.
         
@@ -1991,6 +1996,9 @@ class TaipanTile(TaipanPoint):
             rank tiles with a nubmer of guides below GUIDES_PER_TILE_MIN or
             a number of standards below STANDARDS_PER_TILE_MIN a score of
             0. Defaults to True.
+            
+        exp_base : float, optional 
+            Defaults to 2.0.
 
         Returns
         -------    
@@ -2004,6 +2012,7 @@ class TaipanTile(TaipanPoint):
             'difficulty-sum',
             'difficulty-prod',
             'priority-sum',
+            'priority-expsum',
             'priority-prod',
             'combined-weighted-sum',
             'combined-weighted-prod',
@@ -2034,6 +2043,8 @@ class TaipanTile(TaipanPoint):
             ranking_score = prod([t.difficulty for t in targets_sci])
         elif method == 'priority-sum':
             ranking_score = sum([t.priority for t in targets_sci])
+        elif method == 'priority-expsum':
+            ranking_score = sum([exp_base**t.priority for t in targets_sci])
         elif method == 'priority-prod':
             ranking_score = prod([t.priority for t in targets_sci])
         elif 'combined-weighted' in method:
@@ -2989,6 +3000,21 @@ class TaipanTile(TaipanPoint):
                 # print 'Candidate not possible!'
                 ranking_list.pop(i)
                 candidates_this_tile.pop(i)
+                
+        #XXX Something was going very wrong with target allocation - issues were in
+        #the funnelWeb code in the end, but here are some good lines for debugging.
+        if False: #assigned_tgts < 20:         
+            cra = np.asarray([t.ra for t in candidate_targets])
+            cdec = np.asarray([t.dec for t in candidate_targets])
+            cmag = np.array([t.mag for t in candidate_targets])
+            ara = np.asarray([t.ra for t in self.get_assigned_targets()])
+            adec = np.asarray([t.dec for t in self.get_assigned_targets()])
+            amag = np.asarray([t.mag for t in self.get_assigned_targets()])
+            plt.clf()
+            plt.plot(cra, cdec, 'b.')
+            plt.plot(ara, adec, 'gx')
+            plt.pause(0.001)
+            #import pdb; pdb.set_trace()
 
         # Assign guides to this tile
         logging.debug('Assigning guides...')

@@ -18,11 +18,19 @@ import copy
 import logging
 import line_profiler
 from threading import Thread, Lock
+#XXX
+#import matplotlib.pyplot as plt
 
 # ------
 # UTILITY FUNCTIONS
 # ------
 
+def gen_pa(randomise_pa):
+    """Helper function to handle randomising PAs if tile generation
+    doesn't already have it built in"""
+    if randomise_pa:
+        return random.uniform(0., 360.)
+    return 0.
 
 def compute_bounds(ra_min, ra_max, dec_min, dec_max):
     """
@@ -217,11 +225,6 @@ def generate_SH_tiling(tiling_file, randomise_seed=True, randomise_pa=False):
             for c in tile_cents]
         # print tile_cents[0]
     # print len(tile_cents)
-
-    def gen_pa(randomise_pa):
-        if randomise_pa:
-            return random.uniform(0., 360.)
-        return 0.
 
     tile_list = [tp.TaipanTile(c[0] + 180., c[1], pa=gen_pa(randomise_pa))
         for c in tile_cents]
@@ -542,14 +545,6 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
     no_submitted_targets = len(candidate_targets)
     prior_tiles = []
 
-    # Define helper function to handle randomising PAs if tile generation
-    # doesn't already have it built in
-    def gen_pa(randomise_pa):
-        if randomise_pa:
-            pa = random.uniform(0., 360.)
-            return pa
-        return 0.
-
     # Do the tiling while completeness is < the target
     logging.info('Commencing tiling, %d targets...' % no_submitted_targets)
     while (float(no_submitted_targets - len(candidate_targets)) 
@@ -845,13 +840,6 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         disqualify_below_min=disqualify_below_min) for tile in candidate_tiles]
     # print ranking_list
 
-    # Define a helper function
-    def gen_pa(randomise_pa):
-        pa = 0.
-        if randomise_pa:
-            pa = random.uniform(0., 360.)
-        return pa
-
     # While we are below our completeness criteria AND the highest-ranked tile
     # is not empty, perform the greedy algorithm
     logging.info('Starting greedy tiling allocation...')
@@ -993,7 +981,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               guide_targets,
                               completeness_target = 1.0,
-                              ranking_method='priority-sum',
+                              ranking_method='priority-expsum',
                               disqualify_below_min=True,
                               tiling_method='SH', randomise_pa=True,
                               randomise_SH=True, tiling_file='ipack.3.8192.txt',
@@ -1007,10 +995,10 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               completeness_priority=4,
                               mag_ranges=[[5,8],[7,10],[9,12],[11,14]],
                               tiling_set_size=1000,
-                              tile_unpick_method='sequential',
-                              combined_weight=1.0,
+                              tile_unpick_method='combined_weighted',
+                              combined_weight=4.0,
                               sequential_ordering=(1,2), rank_supplements=False,
-                              repick_after_complete=True,
+                              repick_after_complete=True, exp_base=3.0,
                               recompute_difficulty=True, nthreads=0):
     """
     Generate a tiling based on the greedy algorithm operating on a set of magnitude 
@@ -1105,6 +1093,9 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         difficulties after a tile is moved to the results list. For funnelWeb,
         it also means recompute for each mag range. Defaults to
         True.
+        
+    exp_base : float, optional
+        For priority-expsum, this is the base for the exponent (default 3.0)
 
     Returns
     -------
@@ -1157,8 +1148,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     disqualify_below_min_range = disqualify_below_min
     for range_ix, mag_range in enumerate(mag_ranges):
         tile_list = []
-        logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0],
-                                                           mag_range[1]))
+                                                           
         try:
             mag_range_prioritise = mag_ranges_prioritise[range_ix]
         except:
@@ -1167,15 +1157,23 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         #Find the candidates in the correct magnitude range.
         candidate_targets_range = [t for t in candidate_targets 
             if mag_range[0] <= t.mag < mag_range[1]]
+            
+        #Increase the priority for the priority magnitude range
         if mag_range_prioritise: 
             for t in candidate_targets_range:
                 if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
                     t.priority += prioritise_extra
+        
         #Also find the standards in the correct magnitude range.
         standard_targets_range = [t for t in standard_targets 
             if mag_range[0] <= t.mag < mag_range[1]]
         
-                    
+        logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0],
+                                                           mag_range[1]))
+        logging.info("Mag range to prioritize: {0:5.1f} {1:5.1f}".format(mag_range_prioritise[0],
+                                                           mag_range_prioritise[1]))
+        logging.info("Number of targets in this range: {0:d}".format(len(candidate_targets_range)))
+                            
         #Find the guides that are not candidate targets only. These have to be copied, 
         #because the same target will be a guide for one field and not a guide for 
         #another field.
@@ -1240,21 +1238,13 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
 
         # Compute initial rankings for all of the tiles
         ranking_list = [tile.calculate_tile_score(method=ranking_method,
-            disqualify_below_min=disqualify_below_min_range) for tile in candidate_tiles]
+            disqualify_below_min=disqualify_below_min_range, combined_weight=combined_weight,
+            exp_base=exp_base) for tile in candidate_tiles]
         # print ranking_list
 
-        # Define a helper function
-        def gen_pa(randomise_pa):
-            pa = 0.
-            if randomise_pa:
-                pa = random.uniform(0., 360.)
-            return pa
-
-        # While we are below our completeness criteria AND the
-        # highest-ranked tile
-        # is not empty, perform the greedy algorithm
-        logging.info('Starting greedy/Funnelweb tiling allocation...')
-        i = 0
+        #The number of priority targets is the number of targets above
+        #completeness_priority. This includes some targets that are also 
+        #standards.
         n_priority_targets = 0
         for t in candidate_targets_range:
             if t.priority >= completeness_priority:
@@ -1262,8 +1252,15 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         if n_priority_targets == 0:
             raise ValueError('Require some priority targets in each mag range!')
         remaining_priority_targets = n_priority_targets
+
+
+        # While we are below our completeness criteria AND the
+        # highest-ranked tile
+        # is not empty, perform the greedy algorithm
+        logging.info('Starting greedy/Funnelweb tiling allocation...')        
         #PARALLEL - the following loop could copy tile_list, and run many versions of
         #this together. 
+        i = 0
         while ((float(n_priority_targets - remaining_priority_targets) 
             / float(n_priority_targets)) < completeness_target) and (
             max(ranking_list) > 0.05): # !!! Warning: 0.05 is hardwirded here
@@ -1274,6 +1271,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             tile_list.append(candidate_tiles.pop(i))
             best_ranking = ranking_list.pop(i)
             logging.info('Tile selected!')
+                        
             # Record the ra and dec of the candidate for tile re-creation
             best_ra = tile_list[-1].ra
             best_dec = tile_list[-1].dec
@@ -1284,12 +1282,20 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             assigned_targets = tile_list[-1].get_assigned_targets_science()
 
             # print assigned_targets
-            before_targets_len = len(candidate_targets)
+            before_targets_len = len(candidate_targets_range)
             reobserved_standards = []
             for t in assigned_targets:
                 if t in candidate_targets:
                     candidate_targets.pop(candidate_targets.index(t))
                     candidate_targets_range.pop(candidate_targets_range.index(t))
+                
+                    #Count the priority targets we've just assigned in the same way
+                    #as they were originally counted
+                    if t.priority >= completeness_priority:
+                        remaining_priority_targets -= 1
+                    
+                    #Change priorities back to normal for targets in our priority magnitude
+                    #range
                     if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
                         t.priority -= prioritise_extra
                 elif t.standard:
@@ -1300,15 +1306,13 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
 
             if len(set(assigned_targets)) != len(assigned_targets):
                 logging.warning('### WARNING: target duplication detected')
-            if len(candidate_targets) != before_targets_len - len(assigned_targets) + len(reobserved_standards):
+            if len(candidate_targets_range) != before_targets_len - len(assigned_targets) + len(reobserved_standards):
                 logging.warning('### WARNING: Discrepancy found '
                                 'in target list reduction')
                 logging.warning('Best tile had %d targets; '
                                 'only %d removed from list' %
                                 (len(assigned_targets),
                                  before_targets_len - len(candidate_targets)))
-            #!!! WARNING - difficulty here is computed for all targets...
-            # not just in-range targets. Maybe OK...
             if recompute_difficulty:
                 logging.info('Re-computing target difficulties...')
                 tp.compute_target_difficulties(tp.targets_in_range(
@@ -1348,8 +1352,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                 logging.info('Completed %d / %d' % (j, len(affected_tiles)))
             # print 'g : %d' % len(candidate_targets)
             ranking_list = [tile.calculate_tile_score(method=ranking_method,
-                disqualify_below_min=disqualify_below_min_range) 
-                for tile in candidate_tiles]
+                disqualify_below_min=disqualify_below_min_range, combined_weight=combined_weight,
+                exp_base=exp_base) for tile in candidate_tiles]
             # print ranking_list
             # print [len(t.get_assigned_targets_science()) for t in candidate_tiles]
 
@@ -1360,9 +1364,10 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                           tile_list[-1].count_assigned_targets_standard(),
                           tile_list[-1].count_assigned_targets_guide(), ))
             logging.info('Now assigned %d tiles' % (len(tile_list), ))
-            logging.info('Completeness achieved: %1.4f' %
-                         (float(no_submitted_targets - len(candidate_targets)) / float(no_submitted_targets)))
-            logging.info('Remaining targets: %d' % len(candidate_targets))
+            logging.info('Priority completeness achieved: {0:1.4f}'.format(
+                            (float(n_priority_targets - remaining_priority_targets) \
+                            / float(n_priority_targets))) )
+            logging.info('Remaining priority targets: {0:d} / {1:d}'.format(remaining_priority_targets, n_priority_targets))
             logging.info('Remaining guides & standards (this mag range): %d, %d' %
                          (len(non_candidate_guide_targets), len(standard_targets_range)))
                 
@@ -1377,12 +1382,25 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                              'relaxing requirements')
                 disqualify_below_min_range = False
                 ranking_list = [tile.calculate_tile_score(
-                    method=ranking_method,
-                    disqualify_below_min=disqualify_below_min) 
+                    method=ranking_method, combined_weight=combined_weight,
+                    exp_base=exp_base, disqualify_below_min=disqualify_below_min_range) 
                     for tile in candidate_tiles]
                 # print ranking_list
                 
-        # Now return the priorities to as they were!
+            #ZZZ Debugging plots
+            if (False): #mag_range[1] > 13:
+                cp = np.asarray([t.priority for t in candidate_targets])
+                ptarg = np.where(cp>=5)[0]
+                cras = np.asarray([t.ra for t in candidate_targets])
+                cdecs = np.asarray([t.dec for t in candidate_targets])
+                plt.clf()
+                plt.plot(cras, cdecs, 'b.')
+                plt.plot(cras[ptarg], cdecs[ptarg], 'gx')
+                for tl in candidate_tiles: plt.plot(tl.ra, tl.dec, 'ro')
+                plt.pause(0.001)
+                #import pdb; pdb.set_trace()
+                
+        # Now return the priorities to as they were for the remaining targets.
         if mag_range_prioritise: 
             for t in candidate_targets_range:
                 if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:

@@ -31,7 +31,7 @@ tp.GUIDES_PER_TILE = 9
 tp.GUIDES_PER_TILE_MIN = 3
 
 ra_lims = [30,43]
-de_lims = [-34,-26]
+de_lims = [-34,-25]
 #Takes a *long* time, i.e. 5 mins. 1000 CPU-mins expected. Parallelization needed.
 ra_lims = [20,60] 
 de_lims = [-40,0]
@@ -43,16 +43,28 @@ infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='
 mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]]
 mag_ranges = [[7.5,9],[8.5,10]]
 
-infile = '/Users/mireland/tel/funnelweb/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
-mag_ranges_prioritise = [[5,7],[7,9],[9,11]]
-mag_ranges = [[5,8],[7,10],[9,12]]
+infile = '/Users/mireland/Google Drive/funnelweb/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
+mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
+mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
+#mag_ranges_prioritise = [[7,9],[9,11]]
+#mag_ranges = [[7,10],[9,12]]
+
+tiling_method = 'SH'
+tiling_set_size = 100
+alloc_method = 'combined_weighted'
+ranking_method = 'priority-expsum'
+combined_weight = 4.0 #Originally 1.0
+sequential_ordering = (1,2) #Not used for combined_weighted. Just for 'sequential'
+completeness_target = 0.99  #Originally 0.999
+exp_base = 3.0 
 
 #Randomly choose this fraction of stars as standards. In practice, we will use colour cuts
-#to choose B and A stars
-standard_frac = 0.1 
+#to choose B and A stars. An inverse standard frac of 10 will mean 1 in 10 stars are
+#standards.
+inverse_standard_frac = 10
 
 try:
-    if all_targets and guide_targets and standard_targets:
+    if all_targets:
         pass
 except NameError:
     print 'Importing test data...'
@@ -75,50 +87,41 @@ except NameError:
         raise UserWarning("Unknown table type")
     #Take standards from the science targets, and assign the standard property to True
     for t in all_targets:
-        if np.random.random() < standard_frac:
+        if (int(t.mag*100) % int(inverse_standard_frac))==0:
             t.standard=True
     #    if t.mag > 8:
     #        t.guide=True
-    guide_targets = [t for t in all_targets if guide_range[0]<t.mag<guide_range[1]]
-    standard_targets = [t for t in all_targets if t.standard==True]
     end = datetime.datetime.now()
     delta = end - start
-    print ('Imported & generated %d targets, %d guides and %d standards'
+    print ('Imported & generated %d targets'
         ' in %d:%02.1f') % (
-        len(all_targets), len(guide_targets), len(standard_targets),
+        len(all_targets),
         delta.total_seconds()/60, 
         delta.total_seconds() % 60.)
     
     print 'Calculating target US positions...'
+    #NB No need to double-up for standard targets or guide_targets as these are drawn from all_targets
     burn = [t.compute_usposn() for t in all_targets]
-    burn = [t.compute_usposn() for t in guide_targets]
-    burn = [t.compute_usposn() for t in standard_targets]
 
 # tp.compute_target_difficulties(all_targets, ncpu=4)
 # sys.exit()
 
 # sys.exit()
 
-# Ensure the objects are re type-cast as new instances of TaipanTarget
-for t in all_targets:
-    t.__class__ = tp.TaipanTarget
-for t in guide_targets:
-    t.__class__ = tp.TaipanTarget
-for t in standard_targets:
-    t.__class__ = tp.TaipanTarget
-
+# Ensure the objects are re type-cast as new instances of TaipanTarget (not needed?)
+#for t in all_targets:
+#    t.__class__ = tp.TaipanTarget
 
 # Make a copy of all_targets list for use in assigning fibres
 candidate_targets = all_targets[:]
 random.shuffle(candidate_targets)
 
-tiling_method = 'SH'
-tiling_set_size = 100
-alloc_method = 'combined_weighted'
-ranking_method = 'combined-weighted-sum'
-combined_weight = 1.0
-sequential_ordering = (1,2)
-completeness_target = 0.999 #0.975
+#Make sure that standards and guides are drawn from candidate_targets, not our master
+#all_targets list.
+standard_targets = [t for t in candidate_targets if t.standard==True]
+guide_targets = [t for t in candidate_targets if guide_range[0]<t.mag<guide_range[1]]
+print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
+    len(candidate_targets), len(standard_targets), len(guide_targets))
 
 print 'Commencing tiling...'
 start = datetime.datetime.now()
@@ -132,11 +135,11 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelw
     ranking_method=ranking_method,
     tiling_method=tiling_method, randomise_pa=True, 
     tiling_set_size=tiling_set_size,
-    ra_min=ra_lims[0], ra_max=ra_lims[1], dec_min=de_lims[0], dec_max=de_lims[1],
+    ra_min=ra_lims[0]-1, ra_max=ra_lims[1]+1, dec_min=de_lims[0]-1, dec_max=de_lims[1]+1,
     randomise_SH=True, tiling_file='ipack.3.4112.txt',
     tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
     combined_weight=combined_weight,
-    rank_supplements=False, repick_after_complete=True,
+    rank_supplements=False, repick_after_complete=True, exp_base=exp_base,
     recompute_difficulty=True, disqualify_below_min=True, nthreads=0)
 end = datetime.datetime.now()
 
