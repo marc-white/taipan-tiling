@@ -485,6 +485,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
                  save_new_almanacs=True, instant_dq=False,
                  prioritize_lowz=True,
+                 check_almanacs=True,
                  commit=True):
     """
     Do a simulated 'night' of observations. This involves:
@@ -531,6 +532,13 @@ def sim_do_night(cursor, date, date_start, date_end,
         the hours_observable for those fields against a set end date, and
         compute all other fields against a rolling one-year end date.
         Defaults to True.
+    check_almanacs : Boolean
+        Optional; denotes whether the algorithm should check if there is
+        siufficient Almanac data in the database to perform the simulation.
+        This is simply done by making sure the maximum database table is
+        12 months after the current date. If enough data is not found, an
+        extra 12 months will be generated after maximum database date detected.
+        Note that this will cost several hours of simulation time.
     commit:
         Boolean value, denoting whether to hard-commit the database changes made
         to the database proper. Defaults to True.
@@ -549,26 +557,23 @@ def sim_do_night(cursor, date, date_start, date_end,
     if date < date_start or date > date_end:
         raise ValueError('date must be in the range [date_start, date_end]')
 
-    logging.info('Checking almanacs for night %s' %
-                 date.strftime('%Y-%m-%d'))
-    start = datetime.datetime.now()
-    # Seed an alamnac dictionary if not passed
-    if almanac_dict is None:
-        almanac_dict = {}
+    # Compute the times for the first block of dark time tonight
+    midday = ts.utc_local_dt(datetime.datetime.combine(date,
+                                                       datetime.time(12, 0,
+                                                                     0)))
+    midday_end = ts.utc_local_dt(datetime.datetime.combine(date_end,
+                                                           datetime.time(12,
+                                                                         0,
+                                                                         0)))
 
-    # Nest all the almanac_dict values inside a list for consistency.
-    for k, v in almanac_dict.iteritems():
-        if not isinstance(v, list):
-            almanac_dict[k] = [v]
-            # Check that all elements of input list are instances of Almanac
-            if not np.all([isinstance(a, ts.Almanac) for a in almanac_dict[k]]):
-                raise ValueError('The values of almanac_dict must contain '
-                                 'single Almanacs of lists of Almanacs')
-
-    if dark_almanac is not None:
-        if not isinstance(dark_almanac, ts.DarkAlmanac):
-            raise ValueError('dark_almanac must be None, or an instance of '
-                             'DarkAlmanac')
+    if check_almanacs:
+        logging.info('Checking almanacs for night %s' %
+                     date.strftime('%Y-%m-%d'))
+        almanac_end = rAS.check_almanac_finish(cursor)
+        if almanac_end - midday < datetime.timedelta(365.):
+            logging.warning('WARNING - almanacs do not hold enough data to '
+                            'compute this night correctly')
+            sys.exit()
 
     # Needs to do the following:
     # Read in the tiles that are awaiting observation, along with their scores
@@ -579,12 +584,6 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     logging.info('Finding first block of dark time for this evening')
     start = datetime.datetime.now()
-    # Compute the times for the first block of dark time tonight
-    midday = ts.utc_local_dt(datetime.datetime.combine(date,
-                                                       datetime.time(12, 0, 0)))
-    midday_end = ts.utc_local_dt(datetime.datetime.combine(date_end,
-                                                           datetime.time(12, 0,
-                                                                         0)))
 
     dark_start, dark_end = rAS.next_night_period(cursor, midday,
                                                  limiting_dt=
