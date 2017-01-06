@@ -1321,3 +1321,126 @@ def plot_airmass(cursor,
         ), fmt=output_fmt, dpi=300)
 
     return fig
+
+
+def plot_hours_observable(cursor, datetime_now, datetime_end,
+                          hours_better=True, resolution=15.,
+                          pylab_mode=False,
+                          output_loc='.',
+                          output_prefix='hours_obs',
+                          output_fmt='png',
+                          ):
+    """
+    Plot the value of hours_observable at all positions on the sky for a
+    given datetime.
+    Parameters
+    ----------
+    cursor
+    datetime_now, datetime_end
+    hours_better
+    resolution
+    pylab_mode
+    output_loc
+    output_prefix
+    output_fmt
+
+    Returns
+    -------
+
+    """
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        fig = matplotlib.pyplot.gcf()
+        fig.clf()
+        fig.set_size_inches((9, 6))
+    else:
+        fig = matplotlib.pyplot.figure()
+        fig.set_size_inches((9, 6))
+
+    mapplot = AllSkyMap(projection='moll', lon_0=0.)
+    limb = mapplot.drawmapboundary(fill_color='white')
+    mapplot.drawparallels(np.arange(-75, 76, 15), linewidth=0.5, dashes=[1, 2],
+                          labels=[1, 0, 0, 0], fontsize=9)
+    mapplot.drawmeridians(np.arange(0, 331, 30), linewidth=0.5, dashes=[1, 2])
+
+    # Plot the KiDS region
+    kids_region = [
+        [329.5, 53.5, 53.5, 329.5, 329.5],
+        [-35.6, -35.6, -25.7, -25.7, -35.6]
+    ]
+
+    # for i in range(len(kids_region[0]) - 1):
+    #     mapplot.geodesic(kids_region[0][i], kids_region[1][i],
+    #                      kids_region[0][i + 1], kids_region[1][i + 1],
+    #                      color='limegreen', lw=1.2, ls='--', zorder=20)
+
+    # Read in the field information
+    fields = rC.execute(cursor)
+    lowz_fields = rCBTexec(cursor, 'is_lowz_target',
+                           unobserved=False)
+    hours_better_comp = []
+    for field in [f.field_id for f in fields]:
+        if field in lowz_fields:
+            hours_better_comp.append(rAS.hours_observable(
+                cursor, field, datetime_now,
+                max(datetime_end, datetime_now + datetime.timedelta(30.)),
+                exclude_grey_time=True, exclude_dark_time=False,
+                minimum_airmass=2.0,
+                hours_better=hours_better, resolution=resolution,
+            ))
+        else:
+            hours_better_comp.append(rAS.hours_observable(
+                cursor, field, datetime_now,
+                datetime_now + datetime.timedelta(365.),
+                exclude_grey_time=True, exclude_dark_time=False,
+                minimum_airmass=2.0,
+                hours_better=hours_better, resolution=resolution,
+            ))
+
+    step = 21
+    i = 0
+    err = 0
+    while (i*step) < len(fields):
+        try:
+            dots = mapplot.scatter(
+                # [90.]*3, [-45.]*3,
+                # fields_ra[30:33], fields_dec[30:33],
+                [f.ra for f in fields][i*step:(i+1)*step], [f.dec for f in fields][i*step:(i+1)*step],
+                c=hours_better_comp[i*step:(i+1)*step],
+                s=50, marker='o',
+                edgecolors='none',
+                # facecolors=
+                # 'red',
+                # cm.jet,
+                # 'red',
+                # [hours_obs[k] for k in range(k, k + step)
+                #  if k in hours_obs.keys()],
+                cmap=cm.jet,
+                vmin=0.0, vmax=1200.,
+                latlon=True,
+                zorder=8,
+            )
+            i += 1
+        except ValueError:
+            i += 1
+            err += 1
+
+    print('Points lost to basemap being shit: %d' % (err * step))
+
+    matplotlib.pyplot.tight_layout()
+
+    if pylab_mode:
+        matplotlib.pyplot.show()
+        matplotlib.pyplot.draw()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    mapplot.colorbar(dots)
+    fig.suptitle(datetime_now.strftime('%Y-%m-%d %H:%M UTC'))
+
+    return fig
