@@ -776,10 +776,11 @@ def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS, \
 # TILING OBJECTS
 # ------
 
+
 class TaipanPoint(object):
     """
-    A root class for TaipanTarget and TaipanTile, including RA, Dec and associated
-    convenience functions.
+    A root class for TaipanTarget and TaipanTile, including RA, Dec and
+    associated convenience functions.
     """
     def __init__(self, ra, dec, usposn=None):
         """
@@ -865,7 +866,7 @@ class TaipanPoint(object):
         """
         if self.ra is None or self.dec is None:
             raise Exception('Cannot compute usposn because'
-                ' RA and/or Dec is None!')
+                            ' RA and/or Dec is None!')
         self.usposn = polar2cart((self.ra, self.dec))
         return
 
@@ -1050,7 +1051,8 @@ class TaipanTarget(TaipanPoint):
     # Initialisation & input-checking
     def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
-                 h0=False, vpec=False, lowz=False, science=True, assign_science=True):
+                 h0=False, vpec=False, lowz=False, science=True,
+                 assign_science=True):
         """
         Parameters
         ----------
@@ -1081,7 +1083,7 @@ class TaipanTarget(TaipanPoint):
             Do we automatically assign the science flag based on standard and guide 
             flags? Defaults to True
         """
-        #Initialise the base class
+        # Initialise the base class
         TaipanPoint.__init__(self, ra, dec, usposn)
         
         self._idn = None
@@ -1111,11 +1113,13 @@ class TaipanTarget(TaipanPoint):
         self.vpec = vpec
         self.lowz = lowz
         
-        # A default useful for Taipan (FunnelWeb will override, as it takes its standards
-        # largely from the science targets, and these are not mutually exclusive)
+        # A default useful for Taipan (FunnelWeb will override,
+        # as it takes its standards
+        # largely from the science targets, and these are not mutually
+        # exclusive)
         if assign_science:
             if self.standard or self.guide:
-                self.science=False
+                self.science = False
 
     def __repr__(self):
         return 'TP TGT %s' % str(self._idn)
@@ -1152,7 +1156,7 @@ class TaipanTarget(TaipanPoint):
     @idn.setter
     def idn(self, d):
         if not d: raise Exception('ID may not be empty')
-        self._idn = d   
+        self._idn = d
 
     @property
     def priority(self):
