@@ -16,7 +16,7 @@ import math
 import numpy as np
 import copy
 import logging
-import line_profiler
+# import line_profiler
 from threading import Thread, Lock
 
 # ------
@@ -904,9 +904,9 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
                             '%d removed from list' %
                             (len(assigned_targets),
                              before_targets_len - len(candidate_targets)))
-            logging.warning('I have %d assigned targets apparently '
-                            'not in master list' %
-                            (len(targets_not_in_cands)))
+            # logging.warning('I have %d assigned targets apparently '
+            #                 'not in master list' %
+            #                 (len(targets_not_in_cands)))
         if recompute_difficulty:
             logging.info('Re-computing target difficulties...')
             tp.compute_target_difficulties(tp.targets_in_range(
