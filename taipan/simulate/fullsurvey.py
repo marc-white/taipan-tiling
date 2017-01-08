@@ -871,7 +871,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     while curr_date <= date_end:
         sim_do_night(cursor, curr_date, date_start, date_end,
                      almanac_dict=almanacs, dark_almanac=dark_almanac,
-                     instant_dq=instant_dq,
+                     instant_dq=instant_dq, check_almanacs=False,
                      commit=True)
         curr_date += datetime.timedelta(1.)
         # if curr_date == datetime.date(2017, 4, 5):
