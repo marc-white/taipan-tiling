@@ -56,7 +56,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
     """
     This initial step prepares the database for the simulation run by getting
     the fields in from the database, performing the initial tiling of fields,
-    and then returning that information to the database for later use.
+    and then returning that information to the database for later use.\d
 
     Parameters
     ----------
