@@ -103,7 +103,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
             tl.generate_tiling_greedy_npasses(candidate_targets,
                                               standard_targets,
                                               guide_targets, tiles_per_field,
-                                              tiles=fields_to_tile)
+                                              tiles=fields_to_tile,
+                                              sequential_ordering=(2, 1))
 
         # Write the new tiles back to the database
         iTexec(cursor, tile_list, config_time=tiling_time,

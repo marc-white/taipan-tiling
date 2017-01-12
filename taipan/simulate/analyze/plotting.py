@@ -25,7 +25,7 @@ from ...core import TILE_RADIUS, BUGPOS_MM, dist_points, PATROL_RADIUS, \
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib import cm
+from matplotlib import cm, colors
 from matplotlib.patches import Circle
 from mpl_toolkits.basemap import Basemap
 import datetime
@@ -2061,5 +2061,103 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
                 obs_tile_info['date_obs'] > datetime_curr]['date_obs'][0]
         except IndexError:
             datetime_curr += datetime.timedelta(1.)
+
+    return fig
+
+
+def plot_total_visits(cursor, datetime_to=None,
+                      pylab_mode=False,
+                      output_loc='.',
+                      output_prefix='total_visits',
+                      output_fmt='png'):
+    """
+    Plot the total number of visits to each pointing up to a certain time.
+
+    Parameters
+    ----------
+    cursor : psycopg2.cursor object
+        Cursor for communicating with the database.
+    datetime_to : datetime.datetime instance, optional
+        UTC datetime to consider til. Defaults to None, at which point all
+        dates are considered.
+    pylab_mode : Boolean, optional
+        Whether or not to output the plot to a Pylab plotting window (True) or
+        not (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'hrs_bet'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig : matplotlib.Figure instance
+        The Figure instance the plot was made in
+    """
+
+    # Set up the Figure instance
+    if pylab_mode:
+        fig = plt.gcf()
+        fig.clf()
+        # fig.set_size_inches((14, 10.5))
+    else:
+        fig = plt.figure()
+        fig.set_size_inches((12.5, 9))
+
+    # Read in the tile observation data
+    obs_tile_info = rTOI.execute(cursor)
+    obs_tile_info.sort(order='date_obs')
+
+    if datetime_to is None:
+        datetime_to = np.max(obs_tile_info['date_obs'])
+
+    ax = fig.add_subplot(111)
+    m = Basemap(
+        lon_0=180., projection='moll',
+    )
+    m.drawmeridians(np.arange(30., 360., 30.),
+                    # labels=[1, 0, 0, 0]
+                    )
+    m.drawparallels(np.arange(-75., 90., 15.),
+                    labels=[1, 0, 0, 0])
+
+    # jet = colors.Colormap('jet')
+    # cNorm = colors.Normalize(vmin=0, vmax=20)
+    # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=jet)
+
+    x = np.arange(0.0, 360.05, 2.)
+    y = np.arange(-90., 20.05, 1.)
+    X, Y = np.meshgrid(x, y)
+    coverage_data = np.zeros(X.shape)
+    for i in range(len(x)):
+        for j in range(len(y)):
+            coverage_data[j, i] = np.count_nonzero(
+                [dist_points(x[i]+0.5, y[j]+0.5, t['ra'], t['dec']) <
+                 TILE_RADIUS for
+                 t in obs_tile_info[:-1]]
+            )
+
+    pcol = m.pcolor(X, Y, coverage_data, latlon=True, cmap=cm.jet,
+                    vmin=0., )
+    m.colorbar(pcol)
+
+    for field in set(obs_tile_info['field_id']):
+        pass
+        # this_field_obs = obs_tile_info[obs_tile_info['field_id'] == field]
+        # m.tissot(
+        #     this_field_obs['ra'][0], this_field_obs['dec'][0],
+        #     TILE_RADIUS/3600., 20,
+        #     # facecolor=scalarMap.to_rgba(len(this_field_obs))
+        # )
+
+    if pylab_mode:
+        plt.draw()
+        plt.show()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
 
     return fig
