@@ -470,7 +470,7 @@ def compute_offset_posn(ra, dec, dist, pa):
 
 
 def generate_ranking_list(candidate_targets,
-        method='priority', combined_weight=1.0, sequential_ordering=(1,2)):
+        method='priority', combined_weight=1.0, sequential_ordering=(2, 1)):
     """
     Generate a ranking list for target assignment.
 
@@ -2097,7 +2097,7 @@ class TaipanTile(TaipanPoint):
                      order_closest_secondary=True,
                      method='combined_weighted',
                      combined_weight=1.0,
-                     sequential_ordering=(0,1,2)):
+                     sequential_ordering=(2,1,0)):
         """
         Assign a target from the target list to the given fibre.
 
@@ -2328,7 +2328,7 @@ class TaipanTile(TaipanPoint):
     def assign_tile(self, candidate_targets,
                     check_tile_radius=True, recompute_difficulty=True,
                     method='priority', combined_weight=1.0,
-                    sequential_ordering=(1, 2),
+                    sequential_ordering=(2, 1),
                     overwrite_existing=False):
         """
         Assign a single target to a tile as a whole, choosing the best fibre
@@ -2527,7 +2527,7 @@ class TaipanTile(TaipanPoint):
 
     def assign_guides(self, guide_targets,
                       target_method='priority',
-                      combined_weight=1.0, sequential_ordering=(1,2),
+                      combined_weight=1.0, sequential_ordering=(2, 1),
                       check_tile_radius=True,
                       rank_guides=False):
         """
@@ -2745,7 +2745,7 @@ class TaipanTile(TaipanPoint):
                     overwrite_existing=False,
                     check_tile_radius=True, recompute_difficulty=True,
                     method='priority', combined_weight=1.0,
-                    sequential_ordering=(1,2),
+                    sequential_ordering=(2, 1),
                     rank_supplements=False,
                     repick_after_complete=True,
                     consider_removed_targets=True,
