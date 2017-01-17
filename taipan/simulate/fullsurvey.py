@@ -895,6 +895,7 @@ if __name__ == '__main__':
         logging.error('Type:', exctype)
         logging.error('Value:', value)
         logging.error('Traceback:', tb)
+        return
     sys.excepthook = excepthook_override
 
     # Set the logging to write to terminal AND file

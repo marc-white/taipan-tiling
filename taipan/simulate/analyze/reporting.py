@@ -260,7 +260,7 @@ def check_tile_choice(cursor, midday_end=None):
     _, _, targets_completed = rSOIexec(cursor)
     tile_obs.sort(order='date_obs')
     tile_scores_orig = rTSexec(cursor, unobserved_only=False,
-                          metrics=['prior_sum', 'n_sci_rem'])
+                               metrics=['prior_sum', 'n_sci_rem'])
     # print('Original tile scores:')
     # print(tile_scores)
 
@@ -284,7 +284,7 @@ def check_tile_choice(cursor, midday_end=None):
         # Get the scores of the tiles that were in contention at this point
         tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
                                           tile_obs[np.logical_and(
-                                              tile_obs['date_config'] <=
+                                              tile_obs['date_config'] <
                                               max(
                                                   tile_to_check['date_obs'],
                                                   datetime.datetime(2017, 4, 1, 12,
@@ -309,13 +309,19 @@ def check_tile_choice(cursor, midday_end=None):
             cursor, r, tile_to_check['date_obs'],
             datetime_to=dark_end) for
                          r in list(set(tile_scores['field_id']))}
+        # fields_available = [f for f, v in field_periods.iteritems() if
+        #                     v[0] is not None and
+        #                     v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
+        #                     < tile_to_check['date_obs'] and
+        #                     (v[1] is None or
+        #                      v[1] > tile_to_check['date_obs'] +
+        #                      datetime.timedelta(seconds=ts.POINTING_TIME))]
         fields_available = [f for f, v in field_periods.iteritems() if
                             v[0] is not None and
-                            v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
-                            < tile_to_check['date_obs'] and
+                            v[0] < tile_to_check['date_obs'] and
                             (v[1] is None or
                              v[1] > tile_to_check['date_obs'] +
-                             datetime.timedelta(seconds=ts.POINTING_TIME))]
+                             datetime.timedelta(seconds=ts.OBS_TIME))]
 
         # Restrict tile_scores to those fields actually available
         tile_scores = tile_scores[np.in1d(tile_scores['field_id'],
