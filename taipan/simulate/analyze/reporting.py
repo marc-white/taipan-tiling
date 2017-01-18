@@ -302,12 +302,7 @@ def check_tile_choice(cursor, midday_end=None):
         # )]
         tile_scores = tile_scores[
             np.logical_and(
-                np.in1d(tile_scores['tile_pk'],
-                        tile_scores[tile_scores['date_config'] < max(
-                            tile_to_check['date_obs'],
-                            datetime.datetime(2017, 4, 1, 1,
-                                              1)),
-                        ]['tile_pk']),
+                tile_scores['date_config'] > tile_to_check['date_obs'],
                 np.logical_or(
                     ~np.in1d(tile_scores['tile_pk'], tile_obs['tile_pk']),
                     np.in1d(tile_scores['tile_pk'],
