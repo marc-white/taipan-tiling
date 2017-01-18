@@ -307,8 +307,8 @@ def check_tile_choice(cursor, midday_end=None):
                 np.in1d(tile_scores['tile_pk'],
                         tile_obs[tile_obs['date_config'] < max(
                             tile_to_check['date_obs'],
-                            datetime.datetime(2017, 4, 1, 12,
-                                              1)),
+                            datetime.datetime(2017, 4, 1, 0,
+                                              0)),
                         ]['tile_pk']),
                 np.logical_or(
                     ~np.in1d(tile_scores['tile_pk'], tile_obs['tile_pk']),
@@ -320,7 +320,7 @@ def check_tile_choice(cursor, midday_end=None):
         ]
         if len(tile_scores) != len(centroids):
             raise RuntimeError('Number of tile scores being considered (%d) '
-                               'does not match the number of fields (%d)',
+                               'does not match the number of fields (%d)' %
                                (len(tile_scores), len(centroids), ))
 
         # print('Trimmed tile scores:')
