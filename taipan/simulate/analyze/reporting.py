@@ -311,9 +311,9 @@ def check_tile_choice(cursor, midday_end=None):
                 )
             )
         ]
-        if len(tile_scores) != len(centroids):
-            raise RuntimeError('Number of tile scores being considered (%d) '
-                               'does not match the number of fields (%d)' %
+        if len(tile_scores) > len(centroids):
+            raise RuntimeError('There are more tiles being considered (%d) '
+                               'than there are number of fields (%d)' %
                                (len(tile_scores), len(centroids), ))
 
         # print('Trimmed tile scores:')
