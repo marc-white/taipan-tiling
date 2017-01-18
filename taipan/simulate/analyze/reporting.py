@@ -10,6 +10,7 @@ from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
     rCBTexec
 import src.resources.v0_0_1.readout.readAlmanacStats as rAS
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
+from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 
 from src.scripts.connection import get_connection
 
@@ -264,6 +265,9 @@ def check_tile_choice(cursor, midday_end=None):
     # print('Original tile scores:')
     # print(tile_scores)
 
+    # Read in the centroids as a check
+    centroids = rCexec(cursor)
+
     if midday_end is None:
         midday_end = np.max(tile_obs['date_obs'])
 
@@ -282,17 +286,42 @@ def check_tile_choice(cursor, midday_end=None):
         # print(tile_to_check['date_obs'])
 
         # Get the scores of the tiles that were in contention at this point
-        tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
-                                          tile_obs[np.logical_and(
-                                              tile_obs['date_config'] <
-                                              max(
-                                                  tile_to_check['date_obs'],
-                                                  datetime.datetime(2017, 4, 1, 12,
-                                                                    1)),
-                                              tile_obs['date_obs'] >=
-                                              tile_to_check['date_obs']
-                                          )]['tile_pk']
-                                          )]
+        # The criteria are:
+        # - Tile was either never observed, or observed at/after the current dt;
+        # - Tile was configured before the current dt
+        tile_scores = tile_scores[np.logical_or(
+            ~np.in1d(tile_scores['tile_pk'], tile_obs['tile_pk']),
+            np.in1d(tile_scores['tile_pk'],
+                    tile_obs[np.logical_and(
+                        tile_obs['date_config'] <
+                        max(
+                            tile_to_check['date_obs'],
+                            datetime.datetime(2017, 4, 1, 12,
+                                              1)),
+                        tile_obs['date_obs'] >=
+                        tile_to_check['date_obs']
+                    )]['tile_pk'])
+        )]
+        tile_scores = tile_scores[
+            np.logical_and(
+                np.in1d(tile_scores['tile_pk'],
+                        tile_obs[tile_obs['date_config'] < max(
+                            tile_to_check['date_obs'],
+                            datetime.datetime(2017, 4, 1, 12,
+                                              1)),
+                        ]['tile_pk']),
+                np.logical_or(
+                    ~np.in1d(tile_scores['tile_pk'], tile_obs['tile_pk']),
+                    np.in1d(tile_scores['tile_pk'],
+                            tile_obs[tile_obs['date_obs'] >=
+                                     tile_to_check['date_obs']]['tile_pk'])
+                )
+            )
+        ]
+        if len(tile_scores) != len(centroids):
+            raise RuntimeError('Number of tile scores being considered (%d) '
+                               'does not match the number of fields (%d)',
+                               (len(tile_scores), len(centroids), ))
 
         # print('Trimmed tile scores:')
         # print(tile_scores)
