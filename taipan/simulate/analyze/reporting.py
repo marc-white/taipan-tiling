@@ -290,16 +290,14 @@ def check_tile_choice(cursor, midday_end=None):
         # - Tile was either never observed, or observed at/after the current dt;
         # - Tile was configured before the current dt
         tile_scores = tile_scores[np.logical_or(
-            ~np.in1d(tile_scores['tile_pk'], tile_obs['tile_pk']),
+            np.logical_and(tile_scores['date_config'] <
+                           tile_to_check['date_obs'],
+                           ~np.in1d(tile_scores['tile_pk'],
+                                    tile_obs['tile_pk'])),
             np.in1d(tile_scores['tile_pk'],
                     tile_obs[np.logical_and(
-                        tile_obs['date_config'] <
-                        max(
-                            tile_to_check['date_obs'],
-                            datetime.datetime(2017, 4, 1, 12,
-                                              1)),
-                        tile_obs['date_obs'] >=
-                        tile_to_check['date_obs']
+                        tile_obs['date_config'] < tile_to_check['date_obs'],
+                        tile_obs['date_obs'] >= tile_to_check['date_obs']
                     )]['tile_pk'])
         )]
         # tile_scores = tile_scores[
