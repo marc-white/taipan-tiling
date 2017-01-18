@@ -243,7 +243,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         return False
 
 
-def check_tile_choice(cursor, midday_end=None):
+def check_tile_choice(cursor, midday_end=None, resolution=15.):
     """
     Check all tile choices for correctness
     Parameters
@@ -375,6 +375,9 @@ def check_tile_choice(cursor, midday_end=None):
                          f in tile_scores['field_id'] if
                          f not in lowz_fields}
         hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
+        for f in hours_obs.keys():
+            if hours_obs[f] < resolution / 60.:
+                hours_obs[f] = resolution / 60.
         # else:
         #     hours_obs = {
         #     f: rAS.hours_observable(cursor, f, tile_to_check['date_obs'],
