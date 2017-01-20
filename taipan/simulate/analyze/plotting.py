@@ -1488,6 +1488,7 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
     extent_m = np.radians(10.) * EARTH_RADIUS
     extent_m_tile = np.radians(0.5+(TILE_RADIUS/3600.)) * EARTH_RADIUS
 
+    logging.debug('Reading in required data')
     # Read in the tile observation data
     obs_tile_info = rTOI.execute(cursor)
     obs_tile_info.sort(order='date_obs')
@@ -1502,6 +1503,15 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
     sci_pos = rScPexec(cursor)
     sci_pos.sort(order='field_id')
 
+    # Do some data pre-processing
+    target_is_priority = np.logical_or(
+        target_types['is_h0_target'],
+        np.logical_or(
+            target_types['is_vpec_target'],
+            target_types['is_lowz_target']
+        )
+    )
+
     fields = rC.execute(cursor)
     fields_list = [(field.field_id, field.ra, field.dec) for field in fields]
     fields = np.asarray(fields_list, dtype={
@@ -1515,7 +1525,8 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
         fig.clf()
         # fig.set_size_inches((14, 10.5))
     else:
-        fig = plt.figure()
+        fig = plt.gcf()
+        fig.clf()
         fig.set_size_inches((12.5, 9))
 
     if datetime_from is None:
@@ -1532,21 +1543,20 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
     fiber_alloc = []
     fiber_alloc_priority = []
     completeness = {priority: [] for priority in priorities}
+    logging.debug('Forming initial plotting information')
     for tile in obs_tile_info[obs_tile_info['date_obs'] < datetime_from]:
         field_visits[tile['field_id']] += 1
         fiber_alloc.append(np.count_nonzero(
-            obs_log[obs_log['tile_pk'] == tile['tile_pk']]
+            obs_log['tile_pk'] == tile['tile_pk']
         ))
         fiber_alloc_priority.append(
-            np.count_nonzero(np.logical_and(
-                obs_log['tile_pk'] == tile['tile_pk'],
-                np.logical_or(
-                    obs_log['is_h0_target'],
-                    np.logical_or(
-                        obs_log['is_vpec_target'],
-                        obs_log['is_lowz_target']
-                    )))
-            ))
+            np.count_nonzero(
+                np.logical_and(
+                    obs_log['tile_pk'] == tile['tile_pk'],
+                    np.in1d(obs_log['target_id'],
+                            target_types[target_is_priority]['target_id']))
+            )
+        )
         for priority in priorities:
             completeness[priority].append(
                 np.count_nonzero(np.in1d(target_types[
@@ -1560,6 +1570,11 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
     datetime_curr = datetime_from
 
     while datetime_curr <= datetime_to:
+
+        incomplete = ~np.in1d(target_types['target_id'],
+                              target_complete[target_complete['date_obs'] <=
+                                              datetime_curr]['target_id']
+                              )
         # Find the first tile observed at/after datetime_curr
         try:
             tile_curr = obs_tile_info[obs_tile_info['date_obs'] >=
@@ -1571,19 +1586,31 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
                 obs_log[obs_log['tile_pk'] == tile_curr['tile_pk']]
             ))
             fiber_alloc_priority.append(
-                np.count_nonzero(np.logical_and(
-                    obs_log['tile_pk'] == tile_curr['tile_pk'],
-                    np.logical_or(
-                        obs_log['is_h0_target'],
-                        np.logical_or(
-                            obs_log['is_vpec_target'],
-                            obs_log['is_lowz_target']
-                        )))
-                ))
+                np.count_nonzero(
+                    np.logical_and(
+                        obs_log['tile_pk'] == tile_curr['tile_pk'],
+                        np.in1d(obs_log['target_id'],
+                                target_types[target_is_priority]['target_id']))
+                )
+            )
         except IndexError:
             # We're out of tiles - end
             datetime_curr = datetime_to + datetime.timedelta(1.)
             continue
+
+        # Duplicate/filter the target_types array according to completeness
+        # and type (or lack thereof)
+        targets_done = target_types[~incomplete]
+        targets_filler = target_types[np.logical_and(incomplete,
+                                                     ~target_is_priority)]
+        targets_h0 = target_types[np.logical_and(incomplete,
+                                                 target_types['is_h0_target'])]
+        targets_vpec = target_types[np.logical_and(incomplete,
+                                                   target_types[
+                                                       'is_vpec_target'])]
+        targets_lowz = target_types[np.logical_and(incomplete,
+                                                   target_types[
+                                                       'is_lowz_target'])]
 
         # Axis 1 - completeness in the region of the tile
         # Start up the basemap
@@ -1612,72 +1639,32 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
         m1.drawparallels(np.arange(-90., 90., 3.), labels=[1,0,0,0],
                          labelstyle='+/-')
 
-        incomplete = ~np.in1d(target_types['target_id'],
-                              target_complete[target_complete['date_obs'] <=
-                                              datetime_curr]['target_id']
-                              )
         # Completed targets
         m1.scatter(
-            target_types[~incomplete]['ra'], target_types[~incomplete]['dec'],
+            targets_done['ra'], targets_done['dec'],
             latlon=True, s=2.5, facecolor='black', edgecolor='none',
         )
         # Filler targets
         m1.scatter(
-            target_types[
-                np.logical_and(incomplete,
-                               np.logical_and(
-                                   ~target_types['is_h0_target'],
-                                   np.logical_and(
-                                       ~target_types['is_vpec_target'],
-                                       ~target_types['is_lowz_target']
-                                   )
-                               ))
-            ]['ra'], target_types[
-                np.logical_and(incomplete,
-                               np.logical_and(
-                                   ~target_types['is_h0_target'],
-                                   np.logical_and(
-                                       ~target_types['is_vpec_target'],
-                                       ~target_types['is_lowz_target']
-                                   )
-                               ))
-            ]['dec'],
+            targets_filler['ra'], targets_filler['dec'],
             latlon=True, s=3, facecolor='grey', edgecolor='none',
         )
         # h0 targets
         m1.scatter(
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_h0_target']
-            )]['ra'],
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_h0_target']
-            )]['dec'],
+            targets_h0['ra'],
+            targets_h0['dec'],
             latlon=True, s=3, facecolor='green', edgecolor='none',
         )
         # vpec targets
         m1.scatter(
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_vpec_target']
-            )]['ra'],
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_vpec_target']
-            )]['dec'],
+            targets_vpec['ra'],
+            targets_vpec['dec'],
             latlon=True, s=3, facecolor='red', edgecolor='none',
         )
         # lowz targets
         m1.scatter(
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_lowz_target']
-            )]['ra'],
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_lowz_target']
-            )]['dec'],
+            targets_lowz['ra'],
+            targets_lowz['dec'],
             latlon=True, s=3, facecolor='purple', edgecolor='none',
         )
 
@@ -1765,96 +1752,51 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
 
         # Completed targets
         m3.scatter(
-            target_types[~incomplete]['ra'], target_types[~incomplete]['dec'],
+            targets_done['ra'], targets_done['dec'],
             latlon=True, s=2.5, facecolor='black', edgecolor='none',
         )
         # Filler targets
         m3.scatter(
-            target_types[
-                np.logical_and(incomplete,
-                               np.logical_and(
-                                   ~target_types['is_h0_target'],
-                                   np.logical_and(
-                                       ~target_types['is_vpec_target'],
-                                       ~target_types['is_lowz_target']
-                                   )
-                               ))
-            ]['ra'], target_types[
-                np.logical_and(incomplete,
-                               np.logical_and(
-                                   ~target_types['is_h0_target'],
-                                   np.logical_and(
-                                       ~target_types['is_vpec_target'],
-                                       ~target_types['is_lowz_target']
-                                   )
-                               ))
-            ]['dec'],
+            targets_filler['ra'], targets_filler['dec'],
             latlon=True, s=3, facecolor='grey', edgecolor='none',
         )
         # h0 targets
         m3.scatter(
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_h0_target']
-            )]['ra'],
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_h0_target']
-            )]['dec'],
+            targets_h0['ra'],
+            targets_h0['dec'],
             latlon=True, s=3, facecolor='green', edgecolor='none',
         )
         # vpec targets
         m3.scatter(
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_vpec_target']
-            )]['ra'],
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_vpec_target']
-            )]['dec'],
+            targets_vpec['ra'],
+            targets_vpec['dec'],
             latlon=True, s=3, facecolor='red', edgecolor='none',
         )
         # lowz targets
         m3.scatter(
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_vpec_target']
-            )]['ra'],
-            target_types[np.logical_and(
-                incomplete,
-                target_types['is_vpec_target']
-            )]['dec'],
+            targets_lowz['ra'],
+            targets_lowz['dec'],
             latlon=True, s=3, facecolor='purple', edgecolor='none',
         )
 
         m3.tissot(tile_curr['ra'], tile_curr['dec'], TILE_RADIUS / 3600., 50,
                   facecolor='none', edgecolor='blue', lw=2)
-        # Any target which has a priority *higher* than the lowest-priority
-        # target actually observed on the tile
+        # Any target which has a priority equal to the highest priority
+        # assigned on the tile
+        targets_equal_highest_p = target_types[np.logical_and(
+            np.logical_and(
+                incomplete,
+                np.in1d(target_types['target_id'],
+                        sci_pos[sci_pos['field_id'] ==
+                                tile_curr['field_id']]['target_id'])
+            ),
+            target_types['priority'] == max(
+                obs_log[obs_log['date_obs'] == datetime_curr]['priority']
+            )
+        )]
         m3.scatter(
-            target_types[np.logical_and(
-                np.logical_and(
-                    incomplete,
-                    np.in1d(target_types['target_id'],
-                            sci_pos[sci_pos['field_id'] ==
-                                    tile_curr['field_id']]['target_id'])
-                ),
-                target_types['priority'] == max(
-                    obs_log[obs_log['date_obs'] == datetime_curr]['priority']
-                )
-            )]['ra'],
-            target_types[np.logical_and(
-                np.logical_and(
-                    incomplete,
-                    np.in1d(target_types['target_id'],
-                            sci_pos[sci_pos['field_id'] ==
-                                    tile_curr['field_id']]['target_id'])
-                ),
-                target_types['priority'] == max(
-                    obs_log[obs_log['date_obs'] == datetime_curr]['priority']
-                )
-            )]['dec'],
+            targets_equal_highest_p['ra'],
+            targets_equal_highest_p['dec'],
             latlon=True, s=14, facecolor='orange', edgecolor='orange',
             marker='x',
         )
@@ -1960,15 +1902,19 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
 
         # Axis 4 - No. of fibre allocations
         ax4 = plt.subplot2grid((2,5), (1,0))
+        # print fiber_alloc
         ax4.bar(
             np.asarray(range(len(fiber_alloc))[-100:]) - 0.5,
             fiber_alloc[-100:],
-            width=1., edgecolor='none', facecolor='blue', label='all tgts'
+            width=1., edgecolor='none', facecolor='blue', label='all tgts',
+            zorder=0
         )
+        # print fiber_alloc_priority
         ax4.bar(
             np.asarray(range(len(fiber_alloc_priority))[-100:]) - 0.5,
             fiber_alloc_priority[-100:],
-            width=1., edgecolor='none', facecolor='red', label='w/ type'
+            width=1., edgecolor='none', facecolor='red', label='w/ type',
+            zorder=1
         )
         ax4.set_xlim((
             range(len(fiber_alloc))[-100:][0] - 0.5,
@@ -2038,9 +1984,11 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
         )
 
         # Final things
-        fig.suptitle('%s - Tile %s - Field %s - RA %3.1f - Dec %2.1f' %
+        fig.suptitle('%s - Tile %7d - Visit %2d to field %4d - '
+                     'RA %3.1f - Dec %2.1f' %
                      (datetime_curr.strftime('%Y-%m-%d %H:%M:%S'),
                       tile_curr['tile_pk'],
+                      tile_curr['tile_id'],
                       tile_curr['field_id'],
                       tile_curr['ra'],
                       tile_curr['dec'], ))

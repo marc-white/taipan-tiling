@@ -229,7 +229,7 @@ def select_best_tile(cursor, dt, per_end,
     # Get the latest scores_array
     scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
                                             'n_sci_rem'],
-                           ignore_zeros=True)
+                           ignore_zeros=True, unobserved_only=True)
 
     field_periods = {r['field_id']: rAS.next_observable_period(
         cursor, r['field_id'], dt,
@@ -246,6 +246,15 @@ def select_best_tile(cursor, dt, per_end,
                         v[0] is not None and v[0] < per_end]
     logging.debug('%d fields available at some point tonight' %
                   len(fields_available))
+    # Further trim fields_available for to account for field observability
+    # at the time of observation
+    fields_available = [f for f in fields_available if
+                        field_periods[f][0] is not None and
+                        field_periods[f][1] is not None and
+                        field_periods[f][0] < dt and
+                        field_periods[f][1] > dt + datetime.timedelta(
+                            seconds=ts.OBS_TIME)
+                        ]
 
     # Rank the available fields
     logging.info('Computing field scores')
@@ -270,7 +279,7 @@ def select_best_tile(cursor, dt, per_end,
                                                       timedelta(30.)
                                                   ),
                                                   hours_better=True) for
-                          f in fields_by_tile.values() if
+                          f in list(set(fields_by_tile.values())) if
                           f in lowz_fields}
         hours_obs_oth = {f: rAS.hours_observable(cursor, f,
                                                  dt,
@@ -279,7 +288,7 @@ def select_best_tile(cursor, dt, per_end,
                                                  datetime.timedelta(
                                                      365),
                                                  hours_better=True) for
-                         f in fields_by_tile.values() if
+                         f in list(set(fields_by_tile.values())) if
                          f not in lowz_fields}
         # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
         hours_obs = hours_obs_lowz.copy()
@@ -349,6 +358,7 @@ def select_best_tile(cursor, dt, per_end,
         #                    seconds=ts.POINTING_TIME)}
         # tile_to_obs = max(tile_to_obs, key=tile_to_obs.get)
         # Structured array pattern
+        # TODO Send the time selection functions to the fields_available defn
         tile_to_obs = np.asarray(
             [(t, v,)
              for t, v in tiles_scores.items() if
@@ -370,9 +380,12 @@ def select_best_tile(cursor, dt, per_end,
                 'formats': ['int', 'float64'],
             }
         )
-        tile_to_obs.sort(order='final_score')
-        tile_to_obs = tile_to_obs['tile_pk'][-1]
-    except IndexError:
+        # tile_to_obs.sort(order='final_score')
+        # tile_to_obs = tile_to_obs['tile_pk'][-1]
+        best_tile_i = np.argmax(tile_to_obs['final_score'])
+        tile_to_obs = tile_to_obs['tile_pk'][best_tile_i]
+    # except IndexError:
+    except ValueError:
         tile_to_obs = None
 
     return tile_to_obs, fields_available, tiles_scores, scores_array, \
@@ -486,7 +499,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                  save_new_almanacs=True, instant_dq=False,
                  prioritize_lowz=True,
                  check_almanacs=True,
-                 commit=True):
+                 commit=True, kill_time=None):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonighttar
@@ -542,6 +555,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     commit:
         Boolean value, denoting whether to hard-commit the database changes made
         to the database proper. Defaults to True.
+    kill_time: datetime.datetime object, optional
+        A pre-determined time at which to 'kill' a simulation. Used for
+        debugging purposes. Defaults to None.
 
     Returns
     -------
@@ -610,6 +626,14 @@ def sim_do_night(cursor, date, date_start, date_end,
         #                                                    ts.EPHEM_DT_STRFMT))
         local_utc_now = dark_start
         while local_utc_now < (dark_end - datetime.timedelta(ts.POINTING_TIME)):
+            # Do kill-time logic
+            if kill_time is not None:
+                if local_utc_now > kill_time:
+                    cursor.connection.commit()
+                    logging.warning('KILL TIME REACHED - %s' %
+                                    kill_time.strftime('%Y-%m-%d %H:%M:%S'))
+                    sys.exit()
+
             # ------
             # FAKE WEATHER FAILURES
             # ------
@@ -778,7 +802,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
-            instant_dq=False, seed=None):
+            instant_dq=False, seed=None, kill_time=None):
     """
     Execute the simulation
     Parameters
@@ -872,7 +896,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         sim_do_night(cursor, curr_date, date_start, date_end,
                      almanac_dict=almanacs, dark_almanac=dark_almanac,
                      instant_dq=instant_dq, check_almanacs=False,
-                     commit=True)
+                     commit=True, kill_time=kill_time)
         curr_date += datetime.timedelta(1.)
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
@@ -887,6 +911,9 @@ if __name__ == '__main__':
     sim_start = datetime.date(2017, 4, 1)
     sim_end = datetime.date(2018, 4, 1)
     global_start = datetime.datetime.now()
+
+    # kill_time = None
+    kill_time = datetime.datetime(2017, 8, 17, 12, 40, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
@@ -924,7 +951,7 @@ if __name__ == '__main__':
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
-            output_loc='.', prep_db=True)
+            output_loc='.', prep_db=True, kill_time=kill_time)
 
     global_end = datetime.datetime.now()
     global_delta = global_end - global_start
