@@ -951,7 +951,8 @@ if __name__ == '__main__':
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
-            output_loc='.', prep_db=True, kill_time=kill_time)
+            output_loc='.', prep_db=True, kill_time=kill_time,
+            seed=sim_start)
 
     global_end = datetime.datetime.now()
     global_delta = global_end - global_start
