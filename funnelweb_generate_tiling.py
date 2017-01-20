@@ -1,6 +1,8 @@
 #ipython --pylab
 #i.e.
 #run -i funnelweb_generate_tiling
+# Save with:
+# pickle.dump( (test_tiling, tiling_completeness, remaining_targets), open('tiling_big_email.pkl','w'))
 
 # Test the various implementations of assign_fibre
 
@@ -30,39 +32,58 @@ tp.SKY_PER_TILE_MIN = 7
 tp.GUIDES_PER_TILE = 9
 tp.GUIDES_PER_TILE_MIN = 3
 
+#Limits for right-ascension and declination
 ra_lims = [30,43]
 de_lims = [-34,-25]
 #Takes a *long* time, i.e. 5 mins. 1000 CPU-mins expected. Parallelization needed.
-ra_lims = [20,60] 
-de_lims = [-40,0]
+#ra_lims = [20,60] 
+#de_lims = [-40,0]
 
+#Range of magnitudes for the guide stars. Note that this range isn't allowed to be 
+#completely within one of the mag_ranges below
 guide_range=[8,10.5]
 gal_lat_limit = 10 #For Gaia data only
 
-infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='2mass'
-mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]]
-mag_ranges = [[7.5,9],[8.5,10]]
+#infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='2mass'
+#mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]]
+#mag_ranges = [[7.5,9],[8.5,10]]
 
+### Change this below for your path!
 infile = '/Users/mireland/Google Drive/funnelweb/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
-mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
+
+#Magnitude (Gaia) ranges for each exposure time.
 mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
+#Magnitude ranges to prioritise within each range. We make sure that these are 
+#mostly complete (up to completenes_target below)
+mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
+
 #mag_ranges_prioritise = [[7,9],[9,11]]
 #mag_ranges = [[7,10],[9,12]]
 
+#Method for tiling the sky. The following two parameter determine where the field 
+#centers are.
 tiling_method = 'SH'
 tiling_set_size = 100
+
+#Method for prioritising fibers 
 alloc_method = 'combined_weighted'
-ranking_method = 'priority-expsum'
-combined_weight = 4.0 #Originally 1.0
+combined_weight = 4.0 #Originally 1.0 - used for 'combined_weighted' fiber priority
 sequential_ordering = (1,2) #Not used for combined_weighted. Just for 'sequential'
+
+#Method for prioritising fields
+ranking_method = 'priority-expsum'
+exp_base = 3.0 #For priority-expsum, one fiber of priority k is worth exp_base fibers of priority k-1
+
+#We move on to the next magnitude range after reaching this completeness on the priority
+#targets
 completeness_target = 0.99  #Originally 0.999
-exp_base = 3.0 
 
 #Randomly choose this fraction of stars as standards. In practice, we will use colour cuts
 #to choose B and A stars. An inverse standard frac of 10 will mean 1 in 10 stars are
 #standards.
 inverse_standard_frac = 10
 
+#-------------- Automatic below here -----------------
 try:
     if all_targets:
         pass
@@ -160,9 +181,9 @@ print '(min %d, max %d, median %d, std %2.1f' % (min(targets_per_tile),
     max(targets_per_tile), np.median(targets_per_tile), 
     np.std(targets_per_tile))
 
+# Plot these results (requires ipython --pylab)
 if plotit:
-    # Plot these results (requires ipython --pylab)
-
+    
     plt.clf()
     fig = plt.gcf()
     fig.set_size_inches(12., 18.)
