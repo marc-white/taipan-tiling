@@ -259,10 +259,10 @@ def select_best_tile(cursor, dt, per_end,
     # Rank the available fields
     logging.info('Computing field scores')
     start = datetime.datetime.now()
-    tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
-                    for
-                    row in scores_array if
-                    row['field_id'] in fields_available}
+    tiles_scores_raw = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
+                        for
+                        row in scores_array if
+                        row['field_id'] in fields_available}
     fields_by_tile = {row['tile_pk']: row['field_id'] for
                       row in scores_array if
                       row['field_id'] in fields_available}
@@ -273,7 +273,10 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   dt,
                                                   datetime_to=max(
-                                                      midday_end,
+                                                      midday_end
+                                                      - datetime.timedelta(
+                                                          days=365./2.)
+                                                      ,
                                                       dt +
                                                       datetime.
                                                       timedelta(30.)
@@ -295,7 +298,9 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs.update(hours_obs_oth)
     else:
         hours_obs = {f: rAS.hours_observable(cursor, f, dt,
-                                             datetime_to=midday_end,
+                                             datetime_to=dt +
+                                                         datetime.timedelta(
+                                                             365),
                                              hours_better=True) for
                      f in fields_by_tile.values()}
 
@@ -303,11 +308,11 @@ def select_best_tile(cursor, dt, per_end,
     # otherwise, 0 hours fields will be forcibly observed, even if their score
     # does not warrant it
     for f in hours_obs.keys():
-        if hours_obs[f] < resolution / 60.:
+        if hours_obs[f] < (resolution / 60.):
             hours_obs[f] = resolution / 60.
 
-    tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
-                    t, v in tiles_scores.iteritems()}
+    tiles_scores = {t: (v[0] * v[1] / hours_obs[fields_by_tile[t]]) for
+                    t, v in tiles_scores_raw.items()}
     logging.debug('Tiles scores: ')
     logging.debug(tiles_scores)
     end = datetime.datetime.now()
@@ -358,23 +363,26 @@ def select_best_tile(cursor, dt, per_end,
         #                    seconds=ts.POINTING_TIME)}
         # tile_to_obs = max(tile_to_obs, key=tile_to_obs.get)
         # Structured array pattern
-        # TODO Send the time selection functions to the fields_available defn
         tile_to_obs = np.asarray(
             [(t, v,)
-             for t, v in tiles_scores.items() if
-             field_periods[
-                 fields_by_tile[t]][0] is not
-             None and
-             field_periods[
-                 fields_by_tile[t]][1] is not
-             None and
-             field_periods[
-                 fields_by_tile[t]][0] <
-             dt and
-             field_periods[fields_by_tile[t]][1] >
-             dt +
-             datetime.timedelta(
-                 seconds=ts.OBS_TIME)],
+             for t, v in tiles_scores.items()
+             # Redundant - time restriction moved to creation of
+             # fields_available
+             # if
+             # field_periods[
+             #     fields_by_tile[t]][0] is not
+             # None and
+             # field_periods[
+             #     fields_by_tile[t]][1] is not
+             # None and
+             # field_periods[
+             #     fields_by_tile[t]][0] <
+             # dt and
+             # field_periods[fields_by_tile[t]][1] >
+             # dt +
+             # datetime.timedelta(
+             #     seconds=ts.OBS_TIME)
+             ],
             dtype={
                 'names': ['tile_pk', 'final_score'],
                 'formats': ['int', 'float64'],
@@ -661,7 +669,6 @@ def sim_do_night(cursor, date, date_start, date_end,
                 local_utc_now = min([v[0] for f, v in
                                      field_periods.items()
                                      if v[0] is not None and
-                                     v[1] if not None and
                                      v[0] > local_utc_now])
                 if local_utc_now is None:
                     logging.info('There appears to be no valid observing time '
@@ -912,8 +919,8 @@ if __name__ == '__main__':
     sim_end = datetime.date(2018, 4, 1)
     global_start = datetime.datetime.now()
 
-    # kill_time = None
-    kill_time = datetime.datetime(2017, 4, 2, 16, 55, 0)
+    kill_time = None
+    # kill_time = datetime.datetime(2017, 4, 2, 16, 55, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python

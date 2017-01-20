@@ -338,7 +338,7 @@ def check_tile_choice(cursor, midday_end=None, resolution=15.):
         #                     (v[1] is None or
         #                      v[1] > tile_to_check['date_obs'] +
         #                      datetime.timedelta(seconds=ts.POINTING_TIME))]
-        fields_available = [f for f, v in field_periods.iteritems() if
+        fields_available = [f for f, v in field_periods.items() if
                             v[0] is not None and
                             v[0] < tile_to_check['date_obs'] and
                             (v[1] is None or
@@ -422,13 +422,15 @@ def check_tile_choice(cursor, midday_end=None, resolution=15.):
         highest_score = tile_scores[::-1][0]
         try:
             highest_score_lowz = \
-                tile_scores[np.in1d(tile_scores['field_id'], lowz_fields)][::-1][0]
+                tile_scores[np.in1d(tile_scores['field_id'],
+                                    lowz_fields)][::-1][0]
             prioritize_lowz = True
         except IndexError:
             prioritize_lowz = False
         highest_n_sci = tile_scores[np.argmax(tile_scores['n_sci_rem'])]
-        lowest_hrs = \
-        tile_scores[tile_scores['field_id'] == min(hours_obs, key=hours_obs.get)][0]
+        lowest_hrs = tile_scores[
+            tile_scores['field_id'] == min(hours_obs, key=hours_obs.get)
+        ][0]
 
         stat_type = [
             'Highest raw score',
