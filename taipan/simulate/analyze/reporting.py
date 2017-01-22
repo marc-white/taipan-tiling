@@ -125,7 +125,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   tile_to_check['date_obs'],
                                                   datetime_to=max(
-                                                      midday_end,
+                                                      midday_end-datetime.timedelta(365./2.),
                                                       tile_to_check['date_obs'] +
                                                       datetime.
                                                       timedelta(30.)
