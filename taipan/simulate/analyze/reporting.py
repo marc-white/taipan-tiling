@@ -108,11 +108,10 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
                      r in list(set(tile_scores['field_id']))}
     fields_available = [f for f, v in field_periods.iteritems() if
                         v[0] is not None and
-                        v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
-                        < tile_to_check['date_obs'] and
+                        v[0] < tile_to_check['date_obs'] and
                         (v[1] is None or
                          v[1] > tile_to_check['date_obs'] +
-                         datetime.timedelta(seconds=ts.POINTING_TIME))]
+                         datetime.timedelta(seconds=ts.OBS_TIME))]
 
     # Restrict tile_scores to those fields actually available
     tile_scores = tile_scores[np.in1d(tile_scores['field_id'],

@@ -829,7 +829,8 @@ def plot_hours_remain_analysis(cursor,
                                output_loc='.',
                                output_prefix='hrs_bet',
                                output_fmt='png',
-                               prioritize_lowz=True):
+                               prioritize_lowz=True,
+                               resolution=6):
     """
     Plot an analysis of the hours_remaining parameter for each field in the
     survey.
@@ -855,6 +856,9 @@ def plot_hours_remain_analysis(cursor,
         the hours_observable for those fields against a set end date, and
         compute all other fields against a rolling one-year end date.
         Defaults to True.
+    resolution:
+        How frequently to sample hours_better for each field, in hours. Defaults
+        to 6.0 hours.
 
     Returns
     -------
@@ -892,10 +896,10 @@ def plot_hours_remain_analysis(cursor,
         [-35.6, -35.6, -25.7, -25.7, -35.6]
     ]
 
-    for i in range(len(kids_region[0]) - 1):
-        mapplot.geodesic(kids_region[0][i], kids_region[1][i],
-                         kids_region[0][i + 1], kids_region[1][i + 1],
-                         color='limegreen', lw=1.2, ls='--', zorder=20)
+    # for i in range(len(kids_region[0]) - 1):
+    #     mapplot.geodesic(kids_region[0][i], kids_region[1][i],
+    #                      kids_region[0][i + 1], kids_region[1][i + 1],
+    #                      color='limegreen', lw=1.2, ls='--', zorder=20)
 
     # Read in the field information
     fields = rC.execute(cursor)
@@ -922,7 +926,7 @@ def plot_hours_remain_analysis(cursor,
         print local_utc_now.strftime('%Y-%m-%d %H:%M:%S')
         dark_start, dark_end = rAS.next_night_period(cursor, local_utc_now,
                                                      limiting_dt=local_utc_now +
-                                                     datetime.timedelta(1),
+                                                     datetime.timedelta(5),
                                                      dark=True, grey=False)
 
         field_periods = {r: rAS.next_observable_period(
@@ -1006,7 +1010,7 @@ def plot_hours_remain_analysis(cursor,
                     # 'red',
                     [hours_obs[k] for k in range(k, k+step)
                      if k in hours_obs.keys()],
-                    cmap=cm.jet,
+                    cmap=cm.jet_r,
                     vmin=0.0, vmax=1200.,
                     latlon=True,
                     zorder=8,
@@ -1015,6 +1019,8 @@ def plot_hours_remain_analysis(cursor,
                 pass
 
         fig.suptitle(local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
+
+        mapplot.colorbar(dots)
 
         if pylab_mode:
             plt.show()
@@ -1027,7 +1033,7 @@ def plot_hours_remain_analysis(cursor,
                 output_fmt
             ), fmt=output_fmt, dpi=300)
 
-        local_utc_now += datetime.timedelta(minutes=15)
+        local_utc_now += datetime.timedelta(hours=resolution)
 
 
 def plot_fibre_stretch(cursor,
