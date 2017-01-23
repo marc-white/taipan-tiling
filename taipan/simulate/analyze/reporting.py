@@ -40,7 +40,7 @@ def generate_report(cursor):
 
 
 def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
-                         output=True):
+                         output=True, resolution=15.):
     """
     Generate a report on why a particular tile was chosen at a particular time.
 
@@ -150,6 +150,10 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
                                              hours_better=True) for
                      f in tile_scores['field_id']}
 
+    for f in hours_obs.keys():
+        if hours_obs[f] < (resolution / 60.):
+            hours_obs[f] = resolution / 60.
+
     # This is the hardest part - we need to compute the n_sci_rem for each
     # tile at this point in time
     # n_sci_rem = {}
@@ -210,7 +214,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         print(' --------------------- ')
         print(' %s | %s | %s | %s | %s | %s | %s ' % (
             'Tile type'.ljust(25),
-            'PK'.ljust(5),
+            'PK'.ljust(7),
             'Field',
             'Score'.ljust(6),
             'NSciR',
@@ -227,7 +231,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
                 hours_obs[
                     tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
                 (tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / hours_obs[
-                    tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
+                    tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']]
             ))
 
     scores = []

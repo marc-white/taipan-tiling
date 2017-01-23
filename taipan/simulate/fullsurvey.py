@@ -298,9 +298,9 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs.update(hours_obs_oth)
     else:
         hours_obs = {f: rAS.hours_observable(cursor, f, dt,
-                                             datetime_to=dt +
-                                                         datetime.timedelta(
-                                                             365),
+                                             datetime_to=
+                                             dt +
+                                             datetime.timedelta(365),
                                              hours_better=True) for
                      f in fields_by_tile.values()}
 
