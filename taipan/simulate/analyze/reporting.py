@@ -355,7 +355,7 @@ def check_tile_choice(cursor, midday_end=None, resolution=15.):
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   tile_to_check['date_obs'],
                                                   datetime_to=max(
-                                                      midday_end,
+                                                      midday_end - datetime.timedelta(365./2.),
                                                       tile_to_check[
                                                           'date_obs'] +
                                                       datetime.
