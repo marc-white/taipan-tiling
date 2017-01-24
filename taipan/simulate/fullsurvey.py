@@ -919,8 +919,8 @@ if __name__ == '__main__':
     sim_end = datetime.date(2018, 4, 1)
     global_start = datetime.datetime.now()
 
-    kill_time = None
-    # kill_time = datetime.datetime(2017, 4, 2, 16, 55, 0)
+    # kill_time = None
+    kill_time = datetime.datetime(2017, 8, 21, 17, 45, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
