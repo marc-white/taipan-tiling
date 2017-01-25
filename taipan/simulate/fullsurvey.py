@@ -857,6 +857,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     # Seed the random number generator
     if seed is not None:
         random.seed(seed)
+        np.random.seed(seed)
 
     if prep_db:
         start = datetime.datetime.now()
@@ -959,7 +960,7 @@ if __name__ == '__main__':
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
             output_loc='.', prep_db=True, kill_time=kill_time,
-            seed=sim_start)
+            seed=100)
 
     global_end = datetime.datetime.now()
     global_delta = global_end - global_start
