@@ -921,7 +921,7 @@ if __name__ == '__main__':
     global_start = datetime.datetime.now()
 
     # kill_time = None
-    kill_time = datetime.datetime(2017, 6, 3, 19, 5, 0)
+    kill_time = datetime.datetime(2017, 7, 23, 9, 25, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
