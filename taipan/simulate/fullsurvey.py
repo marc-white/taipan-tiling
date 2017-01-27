@@ -672,7 +672,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             if prior_lowz_end is not None:
                 prioritize_lowz_today = prioritize_lowz and (local_utc_now <
                                                              prior_lowz_end)
-                midday_end_prior = midday_start + prior_lowz_end
+                midday_end_prior = prior_lowz_end
             else:
                 prioritize_lowz_today = prioritize_lowz
                 midday_end_prior = midday_end
