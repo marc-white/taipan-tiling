@@ -211,7 +211,8 @@ def select_best_tile(cursor, dt, per_end,
         End of the time bracket (e.g. dark time ends) when tiles should
         be considered to. Used to compute field observability.
     midday_end: datetime.datetime object
-        Midday after the survey time period finishes, transformed to UTC
+        Midday after the lowz prioritization period finishes,
+        transformed to UTC
     prioritize_lowz : Boolean, optional
         Whether or not to prioritize fields with lowz targets by computing
         the hours_observable for those fields against a set end date, and
@@ -275,7 +276,7 @@ def select_best_tile(cursor, dt, per_end,
                                                   datetime_to=max(
                                                       midday_end
                                                       - datetime.timedelta(
-                                                          days=365./2.)
+                                                          days=365)
                                                       ,
                                                       dt +
                                                       datetime.
@@ -289,7 +290,7 @@ def select_best_tile(cursor, dt, per_end,
                                                  datetime_to=
                                                  dt +
                                                  datetime.timedelta(
-                                                     365),
+                                                     365.*2.),
                                                  hours_better=True) for
                          f in list(set(fields_by_tile.values())) if
                          f not in lowz_fields}
@@ -300,7 +301,7 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs = {f: rAS.hours_observable(cursor, f, dt,
                                              datetime_to=
                                              dt +
-                                             datetime.timedelta(365),
+                                             datetime.timedelta(365*2),
                                              hours_better=True) for
                      f in fields_by_tile.values()}
 
@@ -507,7 +508,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                  save_new_almanacs=True, instant_dq=False,
                  prioritize_lowz=True,
                  check_almanacs=True,
-                 commit=True, kill_time=None):
+                 commit=True, kill_time=None,
+                 prior_lowz_end=None):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonighttar
@@ -566,6 +568,10 @@ def sim_do_night(cursor, date, date_start, date_end,
     kill_time: datetime.datetime object, optional
         A pre-determined time at which to 'kill' a simulation. Used for
         debugging purposes. Defaults to None.
+    prior_lowz_end : datetime.timedelta object, optional
+        Denotes for how long after the start of the survey that lowz targets
+        should be prioritized. Defaults to None, and which point lowz fields
+        will always be prioritized (if prioritize_lowz=True).
 
     Returns
     -------
@@ -582,6 +588,10 @@ def sim_do_night(cursor, date, date_start, date_end,
         raise ValueError('date must be in the range [date_start, date_end]')
 
     # Compute the times for the first block of dark time tonight
+    midday_start = ts.utc_local_dt(datetime.datetime.combine(date_start,
+                                                             datetime.time(12,
+                                                                           0,
+                                                                           0)))
     midday = ts.utc_local_dt(datetime.datetime.combine(date,
                                                        datetime.time(12, 0,
                                                                      0)))
@@ -589,6 +599,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                            datetime.time(12,
                                                                          0,
                                                                          0)))
+
+    if prior_lowz_end is not None:
+        prior_lowz_end = midday_start + prior_lowz_end
 
     if check_almanacs:
         logging.info('Checking almanacs for night %s' %
@@ -656,12 +669,18 @@ def sim_do_night(cursor, date, date_start, date_end,
                 ))
                 continue
 
+            if prior_lowz_end is not None:
+                prioritize_lowz_today = prioritize_lowz and (local_utc_now <
+                                                             prior_lowz_end)
+                midday_end_prior = midday_start + prior_lowz_end
+            else:
+                prioritize_lowz_today = prioritize_lowz
             # Pick the best tile
             tile_to_obs, fields_available, tiles_scores, scores_array, \
             field_periods, fields_by_tile, hours_obs = select_best_tile(
                 cursor, local_utc_now,
-                dark_end, midday_end,
-                prioritize_lowz=prioritize_lowz)
+                dark_end, midday_end_prior,
+                prioritize_lowz=prioritize_lowz_today)
             if tile_to_obs is None:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
@@ -809,7 +828,8 @@ def sim_do_night(cursor, date, date_start, date_end,
 
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
-            instant_dq=False, seed=None, kill_time=None):
+            instant_dq=False, seed=None, kill_time=None,
+            prior_lowz_end=None):
     """
     Execute the simulation
     Parameters
@@ -846,6 +866,10 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         applied.
         .. warning:: Supplying a seed will not work if the Python environment
                      variable ``PYTHONHASHSEED`` has been set.
+    prior_lowz_end : datetime.timedelta object, optional
+        Denotes for how long after the start of the survey that lowz targets
+        should be prioritized. Defaults to None, and which point lowz fields
+        will always be prioritized (if prioritize_lowz=True).
 
     Returns
     -------
@@ -916,12 +940,13 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 4, 1)
-    sim_end = datetime.date(2018, 4, 1)
+    sim_start = datetime.date(2017, 6, 1)
+    sim_end = datetime.date(2022, 6, 1)
     global_start = datetime.datetime.now()
+    prior_lowz_end = datetime.timedelta(days=365.)
 
-    # kill_time = None
-    kill_time = datetime.datetime(2017, 7, 23, 9, 25, 0)
+    kill_time = None
+    # kill_time = datetime.datetime(2017, 7, 23, 9, 25, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
@@ -960,7 +985,7 @@ if __name__ == '__main__':
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
             output_loc='.', prep_db=True, kill_time=kill_time,
-            seed=100)
+            seed=100, prior_lowz_end=prior_lowz_end)
 
     global_end = datetime.datetime.now()
     global_delta = global_end - global_start
