@@ -675,6 +675,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                 midday_end_prior = midday_start + prior_lowz_end
             else:
                 prioritize_lowz_today = prioritize_lowz
+                midday_end_prior = midday_end
             # Pick the best tile
             tile_to_obs, fields_available, tiles_scores, scores_array, \
             field_periods, fields_by_tile, hours_obs = select_best_tile(
@@ -928,7 +929,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         sim_do_night(cursor, curr_date, date_start, date_end,
                      almanac_dict=almanacs, dark_almanac=dark_almanac,
                      instant_dq=instant_dq, check_almanacs=False,
-                     commit=True, kill_time=kill_time)
+                     commit=True, kill_time=kill_time,
+                     prior_lowz_end=prior_lowz_end)
         curr_date += datetime.timedelta(1.)
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
