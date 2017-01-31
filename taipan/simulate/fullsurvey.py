@@ -56,7 +56,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
     """
     This initial step prepares the database for the simulation run by getting
     the fields in from the database, performing the initial tiling of fields,
-    and then returning that information to the database for later use.
+    and then returning that information to the database for later use.\d
 
     Parameters
     ----------
@@ -211,7 +211,8 @@ def select_best_tile(cursor, dt, per_end,
         End of the time bracket (e.g. dark time ends) when tiles should
         be considered to. Used to compute field observability.
     midday_end: datetime.datetime object
-        Midday after the survey time period finishes, transformed to UTC
+        Midday after the lowz prioritization period finishes,
+        transformed to UTC
     prioritize_lowz : Boolean, optional
         Whether or not to prioritize fields with lowz targets by computing
         the hours_observable for those fields against a set end date, and
@@ -229,7 +230,7 @@ def select_best_tile(cursor, dt, per_end,
     # Get the latest scores_array
     scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
                                             'n_sci_rem'],
-                           ignore_zeros=True)
+                           ignore_zeros=True, unobserved_only=True)
 
     field_periods = {r['field_id']: rAS.next_observable_period(
         cursor, r['field_id'], dt,
@@ -246,14 +247,23 @@ def select_best_tile(cursor, dt, per_end,
                         v[0] is not None and v[0] < per_end]
     logging.debug('%d fields available at some point tonight' %
                   len(fields_available))
+    # Further trim fields_available for to account for field observability
+    # at the time of observation
+    fields_available = [f for f in fields_available if
+                        field_periods[f][0] is not None and
+                        field_periods[f][1] is not None and
+                        field_periods[f][0] < dt and
+                        field_periods[f][1] > dt + datetime.timedelta(
+                            seconds=ts.OBS_TIME)
+                        ]
 
     # Rank the available fields
     logging.info('Computing field scores')
     start = datetime.datetime.now()
-    tiles_scores = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
-                    for
-                    row in scores_array if
-                    row['field_id'] in fields_available}
+    tiles_scores_raw = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
+                        for
+                        row in scores_array if
+                        row['field_id'] in fields_available}
     fields_by_tile = {row['tile_pk']: row['field_id'] for
                       row in scores_array if
                       row['field_id'] in fields_available}
@@ -264,29 +274,34 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   dt,
                                                   datetime_to=max(
-                                                      midday_end,
+                                                      midday_end
+                                                      - datetime.timedelta(
+                                                          days=365)
+                                                      ,
                                                       dt +
                                                       datetime.
                                                       timedelta(30.)
                                                   ),
                                                   hours_better=True) for
-                          f in fields_by_tile.values() if
+                          f in list(set(fields_by_tile.values())) if
                           f in lowz_fields}
         hours_obs_oth = {f: rAS.hours_observable(cursor, f,
                                                  dt,
                                                  datetime_to=
                                                  dt +
                                                  datetime.timedelta(
-                                                     365),
+                                                     365.*2.),
                                                  hours_better=True) for
-                         f in fields_by_tile.values() if
+                         f in list(set(fields_by_tile.values())) if
                          f not in lowz_fields}
         # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
         hours_obs = hours_obs_lowz.copy()
         hours_obs.update(hours_obs_oth)
     else:
         hours_obs = {f: rAS.hours_observable(cursor, f, dt,
-                                             datetime_to=midday_end,
+                                             datetime_to=
+                                             dt +
+                                             datetime.timedelta(365*2),
                                              hours_better=True) for
                      f in fields_by_tile.values()}
 
@@ -294,11 +309,11 @@ def select_best_tile(cursor, dt, per_end,
     # otherwise, 0 hours fields will be forcibly observed, even if their score
     # does not warrant it
     for f in hours_obs.keys():
-        if hours_obs[f] < resolution / 60.:
+        if hours_obs[f] < (resolution / 60.):
             hours_obs[f] = resolution / 60.
 
-    tiles_scores = {t: v[0] * v[1] / hours_obs[fields_by_tile[t]] for
-                    t, v in tiles_scores.iteritems()}
+    tiles_scores = {t: (v[0] * v[1] / hours_obs[fields_by_tile[t]]) for
+                    t, v in tiles_scores_raw.items()}
     logging.debug('Tiles scores: ')
     logging.debug(tiles_scores)
     end = datetime.datetime.now()
@@ -351,28 +366,35 @@ def select_best_tile(cursor, dt, per_end,
         # Structured array pattern
         tile_to_obs = np.asarray(
             [(t, v,)
-             for t, v in tiles_scores.items() if
-             field_periods[
-                 fields_by_tile[t]][0] is not
-             None and
-             field_periods[
-                 fields_by_tile[t]][1] is not
-             None and
-             field_periods[
-                 fields_by_tile[t]][0] <
-             dt and
-             field_periods[fields_by_tile[t]][1] >
-             dt +
-             datetime.timedelta(
-                 seconds=ts.OBS_TIME)],
+             for t, v in tiles_scores.items()
+             # Redundant - time restriction moved to creation of
+             # fields_available
+             # if
+             # field_periods[
+             #     fields_by_tile[t]][0] is not
+             # None and
+             # field_periods[
+             #     fields_by_tile[t]][1] is not
+             # None and
+             # field_periods[
+             #     fields_by_tile[t]][0] <
+             # dt and
+             # field_periods[fields_by_tile[t]][1] >
+             # dt +
+             # datetime.timedelta(
+             #     seconds=ts.OBS_TIME)
+             ],
             dtype={
                 'names': ['tile_pk', 'final_score'],
                 'formats': ['int', 'float64'],
             }
         )
-        tile_to_obs.sort(order='final_score')
-        tile_to_obs = tile_to_obs['tile_pk'][-1]
-    except IndexError:
+        # tile_to_obs.sort(order='final_score')
+        # tile_to_obs = tile_to_obs['tile_pk'][-1]
+        best_tile_i = np.argmax(tile_to_obs['final_score'])
+        tile_to_obs = tile_to_obs['tile_pk'][best_tile_i]
+    # except IndexError:
+    except ValueError:
         tile_to_obs = None
 
     return tile_to_obs, fields_available, tiles_scores, scores_array, \
@@ -485,7 +507,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
                  save_new_almanacs=True, instant_dq=False,
                  prioritize_lowz=True,
-                 commit=True):
+                 check_almanacs=True,
+                 commit=True, kill_time=None,
+                 prior_lowz_end=None):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonighttar
@@ -531,9 +555,23 @@ def sim_do_night(cursor, date, date_start, date_end,
         the hours_observable for those fields against a set end date, and
         compute all other fields against a rolling one-year end date.
         Defaults to True.
+    check_almanacs : Boolean
+        Optional; denotes whether the algorithm should check if there is
+        siufficient Almanac data in the database to perform the simulation.
+        This is simply done by making sure the maximum database table is
+        12 months after the current date. If enough data is not found, an
+        extra 12 months will be generated after maximum database date detected.
+        Note that this will cost several hours of simulation time.
     commit:
         Boolean value, denoting whether to hard-commit the database changes made
         to the database proper. Defaults to True.
+    kill_time: datetime.datetime object, optional
+        A pre-determined time at which to 'kill' a simulation. Used for
+        debugging purposes. Defaults to None.
+    prior_lowz_end : datetime.timedelta object, optional
+        Denotes for how long after the start of the survey that lowz targets
+        should be prioritized. Defaults to None, and which point lowz fields
+        will always be prioritized (if prioritize_lowz=True).
 
     Returns
     -------
@@ -549,26 +587,30 @@ def sim_do_night(cursor, date, date_start, date_end,
     if date < date_start or date > date_end:
         raise ValueError('date must be in the range [date_start, date_end]')
 
-    logging.info('Checking almanacs for night %s' %
-                 date.strftime('%Y-%m-%d'))
-    start = datetime.datetime.now()
-    # Seed an alamnac dictionary if not passed
-    if almanac_dict is None:
-        almanac_dict = {}
+    # Compute the times for the first block of dark time tonight
+    midday_start = ts.utc_local_dt(datetime.datetime.combine(date_start,
+                                                             datetime.time(12,
+                                                                           0,
+                                                                           0)))
+    midday = ts.utc_local_dt(datetime.datetime.combine(date,
+                                                       datetime.time(12, 0,
+                                                                     0)))
+    midday_end = ts.utc_local_dt(datetime.datetime.combine(date_end,
+                                                           datetime.time(12,
+                                                                         0,
+                                                                         0)))
 
-    # Nest all the almanac_dict values inside a list for consistency.
-    for k, v in almanac_dict.iteritems():
-        if not isinstance(v, list):
-            almanac_dict[k] = [v]
-            # Check that all elements of input list are instances of Almanac
-            if not np.all([isinstance(a, ts.Almanac) for a in almanac_dict[k]]):
-                raise ValueError('The values of almanac_dict must contain '
-                                 'single Almanacs of lists of Almanacs')
+    if prior_lowz_end is not None:
+        prior_lowz_end = midday_start + prior_lowz_end
 
-    if dark_almanac is not None:
-        if not isinstance(dark_almanac, ts.DarkAlmanac):
-            raise ValueError('dark_almanac must be None, or an instance of '
-                             'DarkAlmanac')
+    if check_almanacs:
+        logging.info('Checking almanacs for night %s' %
+                     date.strftime('%Y-%m-%d'))
+        almanac_end = rAS.check_almanac_finish(cursor)
+        if almanac_end - midday < datetime.timedelta(365.):
+            logging.warning('WARNING - almanacs do not hold enough data to '
+                            'compute this night correctly')
+            sys.exit()
 
     # Needs to do the following:
     # Read in the tiles that are awaiting observation, along with their scores
@@ -579,12 +621,6 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     logging.info('Finding first block of dark time for this evening')
     start = datetime.datetime.now()
-    # Compute the times for the first block of dark time tonight
-    midday = ts.utc_local_dt(datetime.datetime.combine(date,
-                                                       datetime.time(12, 0, 0)))
-    midday_end = ts.utc_local_dt(datetime.datetime.combine(date_end,
-                                                           datetime.time(12, 0,
-                                                                         0)))
 
     dark_start, dark_end = rAS.next_night_period(cursor, midday,
                                                  limiting_dt=
@@ -611,6 +647,14 @@ def sim_do_night(cursor, date, date_start, date_end,
         #                                                    ts.EPHEM_DT_STRFMT))
         local_utc_now = dark_start
         while local_utc_now < (dark_end - datetime.timedelta(ts.POINTING_TIME)):
+            # Do kill-time logic
+            if kill_time is not None:
+                if local_utc_now > kill_time:
+                    cursor.connection.commit()
+                    logging.warning('KILL TIME REACHED - %s' %
+                                    kill_time.strftime('%Y-%m-%d %H:%M:%S'))
+                    sys.exit()
+
             # ------
             # FAKE WEATHER FAILURES
             # ------
@@ -625,12 +669,19 @@ def sim_do_night(cursor, date, date_start, date_end,
                 ))
                 continue
 
+            if prior_lowz_end is not None:
+                prioritize_lowz_today = prioritize_lowz and (local_utc_now <
+                                                             prior_lowz_end)
+                midday_end_prior = prior_lowz_end
+            else:
+                prioritize_lowz_today = prioritize_lowz
+                midday_end_prior = midday_end
             # Pick the best tile
             tile_to_obs, fields_available, tiles_scores, scores_array, \
             field_periods, fields_by_tile, hours_obs = select_best_tile(
                 cursor, local_utc_now,
-                dark_end, midday_end,
-                prioritize_lowz=prioritize_lowz)
+                dark_end, midday_end_prior,
+                prioritize_lowz=prioritize_lowz_today)
             if tile_to_obs is None:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
@@ -638,7 +689,6 @@ def sim_do_night(cursor, date, date_start, date_end,
                 local_utc_now = min([v[0] for f, v in
                                      field_periods.items()
                                      if v[0] is not None and
-                                     v[1] if not None and
                                      v[0] > local_utc_now])
                 if local_utc_now is None:
                     logging.info('There appears to be no valid observing time '
@@ -779,7 +829,8 @@ def sim_do_night(cursor, date, date_start, date_end,
 
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
-            instant_dq=False, seed=None):
+            instant_dq=False, seed=None, kill_time=None,
+            prior_lowz_end=None):
     """
     Execute the simulation
     Parameters
@@ -816,6 +867,10 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         applied.
         .. warning:: Supplying a seed will not work if the Python environment
                      variable ``PYTHONHASHSEED`` has been set.
+    prior_lowz_end : datetime.timedelta object, optional
+        Denotes for how long after the start of the survey that lowz targets
+        should be prioritized. Defaults to None, and which point lowz fields
+        will always be prioritized (if prioritize_lowz=True).
 
     Returns
     -------
@@ -827,6 +882,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     # Seed the random number generator
     if seed is not None:
         random.seed(seed)
+        np.random.seed(seed)
 
     if prep_db:
         start = datetime.datetime.now()
@@ -872,8 +928,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     while curr_date <= date_end:
         sim_do_night(cursor, curr_date, date_start, date_end,
                      almanac_dict=almanacs, dark_almanac=dark_almanac,
-                     instant_dq=instant_dq,
-                     commit=True)
+                     instant_dq=instant_dq, check_almanacs=False,
+                     commit=True, kill_time=kill_time,
+                     prior_lowz_end=prior_lowz_end)
         curr_date += datetime.timedelta(1.)
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
@@ -885,9 +942,13 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 4, 1)
-    sim_end = datetime.date(2018, 4, 1)
+    sim_start = datetime.date(2017, 6, 1)
+    sim_end = datetime.date(2022, 6, 1)
     global_start = datetime.datetime.now()
+    prior_lowz_end = datetime.timedelta(days=365.)
+
+    kill_time = None
+    # kill_time = datetime.datetime(2017, 7, 23, 9, 25, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
@@ -896,6 +957,7 @@ if __name__ == '__main__':
         logging.error('Type:', exctype)
         logging.error('Value:', value)
         logging.error('Traceback:', tb)
+        return
     sys.excepthook = excepthook_override
 
     # Set the logging to write to terminal AND file
@@ -924,7 +986,8 @@ if __name__ == '__main__':
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
-            output_loc='.', prep_db=True)
+            output_loc='.', prep_db=True, kill_time=kill_time,
+            seed=100, prior_lowz_end=prior_lowz_end)
 
     global_end = datetime.datetime.now()
     global_delta = global_end - global_start

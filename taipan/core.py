@@ -470,7 +470,7 @@ def compute_offset_posn(ra, dec, dist, pa):
 
 
 def generate_ranking_list(candidate_targets,
-        method='priority', combined_weight=1.0, sequential_ordering=(1,2)):
+        method='priority', combined_weight=1.0, sequential_ordering=(2, 1)):
     """
     Generate a ranking list for target assignment.
 
@@ -778,10 +778,11 @@ def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS, \
 # TILING OBJECTS
 # ------
 
+
 class TaipanPoint(object):
     """
-    A root class for TaipanTarget and TaipanTile, including RA, Dec and associated
-    convenience functions.
+    A root class for TaipanTarget and TaipanTile, including RA, Dec and
+    associated convenience functions.
     """
     def __init__(self, ra, dec, usposn=None):
         """
@@ -867,7 +868,7 @@ class TaipanPoint(object):
         """
         if self.ra is None or self.dec is None:
             raise Exception('Cannot compute usposn because'
-                ' RA and/or Dec is None!')
+                            ' RA and/or Dec is None!')
         self.usposn = polar2cart((self.ra, self.dec))
         return
 
@@ -1052,7 +1053,8 @@ class TaipanTarget(TaipanPoint):
     # Initialisation & input-checking
     def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
-                 h0=False, vpec=False, lowz=False, science=True, assign_science=True):
+                 h0=False, vpec=False, lowz=False, science=True,
+                 assign_science=True):
         """
         Parameters
         ----------
@@ -1083,7 +1085,7 @@ class TaipanTarget(TaipanPoint):
             Do we automatically assign the science flag based on standard and guide 
             flags? Defaults to True
         """
-        #Initialise the base class
+        # Initialise the base class
         TaipanPoint.__init__(self, ra, dec, usposn)
         
         self._idn = None
@@ -1113,11 +1115,13 @@ class TaipanTarget(TaipanPoint):
         self.vpec = vpec
         self.lowz = lowz
         
-        # A default useful for Taipan (FunnelWeb will override, as it takes its standards
-        # largely from the science targets, and these are not mutually exclusive)
+        # A default useful for Taipan (FunnelWeb will override,
+        # as it takes its standards
+        # largely from the science targets, and these are not mutually
+        # exclusive)
         if assign_science:
             if self.standard or self.guide:
-                self.science=False
+                self.science = False
 
     def __repr__(self):
         return 'TP TGT %s' % str(self._idn)
@@ -1154,7 +1158,7 @@ class TaipanTarget(TaipanPoint):
     @idn.setter
     def idn(self, d):
         if not d: raise Exception('ID may not be empty')
-        self._idn = d   
+        self._idn = d
 
     @property
     def priority(self):
@@ -2093,7 +2097,7 @@ class TaipanTile(TaipanPoint):
                      order_closest_secondary=True,
                      method='combined_weighted',
                      combined_weight=1.0,
-                     sequential_ordering=(0,1,2)):
+                     sequential_ordering=(2,1,0)):
         """
         Assign a target from the target list to the given fibre.
 
@@ -2324,7 +2328,7 @@ class TaipanTile(TaipanPoint):
     def assign_tile(self, candidate_targets,
                     check_tile_radius=True, recompute_difficulty=True,
                     method='priority', combined_weight=1.0,
-                    sequential_ordering=(1, 2),
+                    sequential_ordering=(2, 1),
                     overwrite_existing=False):
         """
         Assign a single target to a tile as a whole, choosing the best fibre
@@ -2523,7 +2527,7 @@ class TaipanTile(TaipanPoint):
 
     def assign_guides(self, guide_targets,
                       target_method='priority',
-                      combined_weight=1.0, sequential_ordering=(1,2),
+                      combined_weight=1.0, sequential_ordering=(2, 1),
                       check_tile_radius=True,
                       rank_guides=False):
         """
@@ -2741,7 +2745,7 @@ class TaipanTile(TaipanPoint):
                     overwrite_existing=False,
                     check_tile_radius=True, recompute_difficulty=True,
                     method='priority', combined_weight=1.0,
-                    sequential_ordering=(1,2),
+                    sequential_ordering=(2, 1),
                     rank_supplements=False,
                     repick_after_complete=True,
                     consider_removed_targets=True,

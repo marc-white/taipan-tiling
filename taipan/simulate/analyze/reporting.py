@@ -10,6 +10,7 @@ from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
     rCBTexec
 import src.resources.v0_0_1.readout.readAlmanacStats as rAS
 from src.resources.v0_0_1.readout.readScience import execute as rScexec
+from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 
 from src.scripts.connection import get_connection
 
@@ -39,7 +40,7 @@ def generate_report(cursor):
 
 
 def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
-                         output=True):
+                         output=True, resolution=15.):
     """
     Generate a report on why a particular tile was chosen at a particular time.
 
@@ -107,11 +108,10 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
                      r in list(set(tile_scores['field_id']))}
     fields_available = [f for f, v in field_periods.iteritems() if
                         v[0] is not None and
-                        v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
-                        < tile_to_check['date_obs'] and
+                        v[0] < tile_to_check['date_obs'] and
                         (v[1] is None or
                          v[1] > tile_to_check['date_obs'] +
-                         datetime.timedelta(seconds=ts.POINTING_TIME))]
+                         datetime.timedelta(seconds=ts.OBS_TIME))]
 
     # Restrict tile_scores to those fields actually available
     tile_scores = tile_scores[np.in1d(tile_scores['field_id'],
@@ -124,7 +124,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   tile_to_check['date_obs'],
                                                   datetime_to=max(
-                                                      midday_end,
+                                                      midday_end-datetime.timedelta(365./2.),
                                                       tile_to_check['date_obs'] +
                                                       datetime.
                                                       timedelta(30.)
@@ -149,6 +149,10 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
                                                      365),
                                              hours_better=True) for
                      f in tile_scores['field_id']}
+
+    for f in hours_obs.keys():
+        if hours_obs[f] < (resolution / 60.):
+            hours_obs[f] = resolution / 60.
 
     # This is the hardest part - we need to compute the n_sci_rem for each
     # tile at this point in time
@@ -210,7 +214,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         print(' --------------------- ')
         print(' %s | %s | %s | %s | %s | %s | %s ' % (
             'Tile type'.ljust(25),
-            'PK'.ljust(5),
+            'PK'.ljust(7),
             'Field',
             'Score'.ljust(6),
             'NSciR',
@@ -227,7 +231,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
                 hours_obs[
                     tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
                 (tile_scores[tile_scores['tile_pk'] == stats[i]][0]['prior_sum'] * tile_scores[tile_scores['tile_pk'] == stats[i]][0]['n_sci_rem']) / hours_obs[
-                    tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']],
+                    tile_scores[tile_scores['tile_pk'] == stats[i]][0]['field_id']]
             ))
 
     scores = []
@@ -242,7 +246,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         return False
 
 
-def check_tile_choice(cursor, midday_end=None):
+def check_tile_choice(cursor, midday_end=None, resolution=15.):
     """
     Check all tile choices for correctness
     Parameters
@@ -260,9 +264,12 @@ def check_tile_choice(cursor, midday_end=None):
     _, _, targets_completed = rSOIexec(cursor)
     tile_obs.sort(order='date_obs')
     tile_scores_orig = rTSexec(cursor, unobserved_only=False,
-                          metrics=['prior_sum', 'n_sci_rem'])
+                               metrics=['prior_sum', 'n_sci_rem'])
     # print('Original tile scores:')
     # print(tile_scores)
+
+    # Read in the centroids as a check
+    centroids = rCexec(cursor)
 
     if midday_end is None:
         midday_end = np.max(tile_obs['date_obs'])
@@ -282,17 +289,35 @@ def check_tile_choice(cursor, midday_end=None):
         # print(tile_to_check['date_obs'])
 
         # Get the scores of the tiles that were in contention at this point
-        tile_scores = tile_scores[np.in1d(tile_scores['tile_pk'],
-                                          tile_obs[np.logical_and(
-                                              tile_obs['date_config'] <=
-                                              max(
-                                                  tile_to_check['date_obs'],
-                                                  datetime.datetime(2017, 4, 1, 12,
-                                                                    1)),
-                                              tile_obs['date_obs'] >=
-                                              tile_to_check['date_obs']
-                                          )]['tile_pk']
-                                          )]
+        # The criteria are:
+        # - Tile was either never observed, or observed at/after the current dt;
+        # - Tile was configured before the current dt
+        # tile_scores = tile_scores[np.logical_or(
+        #     np.logical_and(tile_scores['date_config'] <
+        #                    tile_to_check['date_obs'],
+        #                    ~np.in1d(tile_scores['tile_pk'],
+        #                             tile_obs['tile_pk'])),
+        #     np.in1d(tile_scores['tile_pk'],
+        #             tile_obs[np.logical_and(
+        #                 tile_obs['date_config'] < tile_to_check['date_obs'],
+        #                 tile_obs['date_obs'] >= tile_to_check['date_obs']
+        #             )]['tile_pk'])
+        # )]
+        tile_scores = tile_scores[
+            np.logical_and(
+                tile_scores['date_config'] < tile_to_check['date_obs'],
+                np.logical_or(
+                    ~np.in1d(tile_scores['tile_pk'], tile_obs['tile_pk']),
+                    np.in1d(tile_scores['tile_pk'],
+                            tile_obs[tile_obs['date_obs'] >=
+                                     tile_to_check['date_obs']]['tile_pk'])
+                )
+            )
+        ]
+        if len(tile_scores) > len(centroids):
+            raise RuntimeError('There are more tiles being considered (%d) '
+                               'than there are number of fields (%d)' %
+                               (len(tile_scores), len(centroids), ))
 
         # print('Trimmed tile scores:')
         # print(tile_scores)
@@ -309,13 +334,19 @@ def check_tile_choice(cursor, midday_end=None):
             cursor, r, tile_to_check['date_obs'],
             datetime_to=dark_end) for
                          r in list(set(tile_scores['field_id']))}
-        fields_available = [f for f, v in field_periods.iteritems() if
+        # fields_available = [f for f, v in field_periods.iteritems() if
+        #                     v[0] is not None and
+        #                     v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
+        #                     < tile_to_check['date_obs'] and
+        #                     (v[1] is None or
+        #                      v[1] > tile_to_check['date_obs'] +
+        #                      datetime.timedelta(seconds=ts.POINTING_TIME))]
+        fields_available = [f for f, v in field_periods.items() if
                             v[0] is not None and
-                            v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
-                            < tile_to_check['date_obs'] and
+                            v[0] < tile_to_check['date_obs'] and
                             (v[1] is None or
                              v[1] > tile_to_check['date_obs'] +
-                             datetime.timedelta(seconds=ts.POINTING_TIME))]
+                             datetime.timedelta(seconds=ts.OBS_TIME))]
 
         # Restrict tile_scores to those fields actually available
         tile_scores = tile_scores[np.in1d(tile_scores['field_id'],
@@ -328,7 +359,7 @@ def check_tile_choice(cursor, midday_end=None):
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   tile_to_check['date_obs'],
                                                   datetime_to=max(
-                                                      midday_end,
+                                                      midday_end - datetime.timedelta(365./2.),
                                                       tile_to_check[
                                                           'date_obs'] +
                                                       datetime.
@@ -347,6 +378,9 @@ def check_tile_choice(cursor, midday_end=None):
                          f in tile_scores['field_id'] if
                          f not in lowz_fields}
         hours_obs = dict(hours_obs_lowz, **hours_obs_oth)
+        for f in hours_obs.keys():
+            if hours_obs[f] < resolution / 60.:
+                hours_obs[f] = resolution / 60.
         # else:
         #     hours_obs = {
         #     f: rAS.hours_observable(cursor, f, tile_to_check['date_obs'],
@@ -391,13 +425,15 @@ def check_tile_choice(cursor, midday_end=None):
         highest_score = tile_scores[::-1][0]
         try:
             highest_score_lowz = \
-                tile_scores[np.in1d(tile_scores['field_id'], lowz_fields)][::-1][0]
+                tile_scores[np.in1d(tile_scores['field_id'],
+                                    lowz_fields)][::-1][0]
             prioritize_lowz = True
         except IndexError:
             prioritize_lowz = False
         highest_n_sci = tile_scores[np.argmax(tile_scores['n_sci_rem'])]
-        lowest_hrs = \
-        tile_scores[tile_scores['field_id'] == min(hours_obs, key=hours_obs.get)][0]
+        lowest_hrs = tile_scores[
+            tile_scores['field_id'] == min(hours_obs, key=hours_obs.get)
+        ][0]
 
         stat_type = [
             'Highest raw score',

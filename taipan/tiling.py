@@ -16,7 +16,7 @@ import math
 import numpy as np
 import copy
 import logging
-import line_profiler
+# import line_profiler
 from threading import Thread, Lock
 #XXX
 #import matplotlib.pyplot as plt
@@ -392,7 +392,7 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
                             tiling_set_size=1000,
                             tile_unpick_method='sequential',
                             combined_weight=1.0,
-                            sequential_ordering=(1,2), rank_supplements=False,
+                            sequential_ordering=(2, 1), rank_supplements=False,
                             repick_after_complete=True,
                             recompute_difficulty=True):
     """
@@ -657,7 +657,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
                            dec_max=90.0,
                            tiling_set_size=1000,
                            tile_unpick_method='sequential', combined_weight=1.0,
-                           sequential_ordering=(1,2), rank_supplements=False,
+                           sequential_ordering=(2, 1), rank_supplements=False,
                            repick_after_complete=True,
                            recompute_difficulty=True):
     """
@@ -892,9 +892,9 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
                             '%d removed from list' %
                             (len(assigned_targets),
                              before_targets_len - len(candidate_targets)))
-            logging.warning('I have %d assigned targets apparently '
-                            'not in master list' %
-                            (len(targets_not_in_cands)))
+            # logging.warning('I have %d assigned targets apparently '
+            #                 'not in master list' %
+            #                 (len(targets_not_in_cands)))
         if recompute_difficulty:
             logging.info('Re-computing target difficulties...')
             tp.compute_target_difficulties(tp.targets_in_range(
@@ -997,7 +997,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               tiling_set_size=1000,
                               tile_unpick_method='combined_weighted',
                               combined_weight=4.0,
-                              sequential_ordering=(1,2), rank_supplements=False,
+                              sequential_ordering=(2, 1), rank_supplements=False,
                               repick_after_complete=True, exp_base=3.0,
                               recompute_difficulty=True, nthreads=0):
     """
@@ -1441,7 +1441,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    dec_max=90.,
                                    tile_unpick_method='sequential',
                                    combined_weight=1.0,
-                                   sequential_ordering=(1, 2),
+                                   sequential_ordering=(2, 1),
                                    rank_supplements=False,
                                    repick_after_complete=True,
                                    recompute_difficulty=True,

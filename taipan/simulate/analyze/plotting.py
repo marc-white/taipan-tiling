@@ -12,6 +12,8 @@ from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
 from src.resources.v0_0_1.readout.readObservingLog import execute as rOLexec
 from src.resources.v0_0_1.readout.readScienceVisits import execute as rScVexec
 from src.resources.v0_0_1.readout.readScienceTypes import execute as rScTexec
+from src.resources.v0_0_1.readout.readSciencePosn import execute as rScPexec
+from src.resources.v0_0_1.readout.readScienceDates import execute as rScDexec
 
 from ..utils.allskymap import AllSkyMap
 
@@ -21,17 +23,19 @@ from ...core import TILE_RADIUS, BUGPOS_MM, dist_points, PATROL_RADIUS, \
     ARCSEC_PER_MM
 
 import matplotlib
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib import cm
+from matplotlib import cm, colors
 from matplotlib.patches import Circle
-# from mpl_toolkits.basemap import Basemap
+from mpl_toolkits.basemap import Basemap
 import datetime
 import time
 import sys
 import logging
 
 MIDDAY = datetime.time(12,0)
+
+EARTH_RADIUS = 6371000 # m
 
 
 def plot_tiles_per_night(cursor, start_date=None, end_date=None,
@@ -114,10 +118,10 @@ def plot_tiles_per_night(cursor, start_date=None, end_date=None,
 
     # Actually plot
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
 
     ax = fig.add_subplot(111)
     ax.set_title('Tiles observed: %s to %s' % (
@@ -154,8 +158,8 @@ def plot_tiles_per_night(cursor, start_date=None, end_date=None,
         fig.savefig('%s/%s.%s' % (output_loc, output_name, output_fmt),
                     fmt=output_fmt)
     else:
-        matplotlib.pyplot.draw()
-        matplotlib.pyplot.show()
+        plt.draw()
+        plt.show()
 
     return fig
 
@@ -198,10 +202,10 @@ def plot_timedelta_histogram(cursor, pylab_mode=False,
 
     # Actually plot
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
 
     ax = fig.add_subplot(111)
     ax.set_title('Time between observations:')
@@ -216,8 +220,8 @@ def plot_timedelta_histogram(cursor, pylab_mode=False,
         fig.savefig('%s/%s.%s' % (output_loc, output_name, output_fmt),
                     fmt=output_fmt)
     else:
-        matplotlib.pyplot.draw()
-        matplotlib.pyplot.show()
+        plt.draw()
+        plt.show()
 
     return fig
 
@@ -270,10 +274,10 @@ def plot_position_histogram(cursor, start_date=None, end_date=None,
 
     # Actually plot
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
 
     # Read in the tiles data
     obs_tile_info = rTOI.execute(cursor)
@@ -287,7 +291,7 @@ def plot_position_histogram(cursor, start_date=None, end_date=None,
     # axhist = fig.add_subplot(222,
     #                          projection='mollweide',
     #                          )
-    axhist = matplotlib.pyplot.subplot2grid((3,3), (0,1), colspan=2,
+    axhist = plt.subplot2grid((3,3), (0,1), colspan=2,
                                             rowspan=2,
                                             projection='mollweide')
     axhist.grid(True)
@@ -302,7 +306,7 @@ def plot_position_histogram(cursor, start_date=None, end_date=None,
     histcb.set_label('Tiles observed')
 
     # Histogram of RA
-    axra = matplotlib.pyplot.subplot2grid((3,3), (2, 1), colspan=2)
+    axra = plt.subplot2grid((3,3), (2, 1), colspan=2)
     histra = axra.hist(
         (obs_tile_info['ra'] - 180.) % 360 - 180., bins=rabins)
     axra.set_xlim((-180., 180.))
@@ -310,7 +314,7 @@ def plot_position_histogram(cursor, start_date=None, end_date=None,
     axra.set_ylabel('Tiles observed')
 
     # Histogram of Dec
-    axdec = matplotlib.pyplot.subplot2grid((3, 3), (0, 0), rowspan=2)
+    axdec = plt.subplot2grid((3, 3), (0, 0), rowspan=2)
     histdec = axdec.hist(
         obs_tile_info['dec'],
         bins=rabins,
@@ -323,8 +327,8 @@ def plot_position_histogram(cursor, start_date=None, end_date=None,
         fig.savefig('%s/%s.%s' % (output_loc, output_name, output_fmt),
                     fmt=output_fmt)
     else:
-        matplotlib.pyplot.draw()
-        matplotlib.pyplot.show()
+        plt.draw()
+        plt.show()
 
     return fig
 
@@ -398,10 +402,10 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
 
     # Prepare the Figure instance
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
         fig.set_size_inches((9, 6))
 
     # ax1 = fig.add_subplot(
@@ -545,11 +549,11 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
             moves_this_seq = 0
             geos_this_seq = []
 
-        matplotlib.pyplot.title('%s' %
+        plt.title('%s' %
                                 t['date_obs'].strftime('%Y-%m-%d %H:%M:%S'))
 
         if not pylab_mode:
-            # matplotlib.pyplot.draw()
+            # plt.draw()
             fig.savefig('%s/%s-%s.%s' % (
                 output_loc,
                 output_prefix,
@@ -558,8 +562,8 @@ def plot_observing_sequence(cursor, start_date=None, end_date=None,
             ), fmt=output_fmt, dpi=300)
 
     if pylab_mode:
-        matplotlib.pyplot.show()
-        matplotlib.pyplot.draw()
+        plt.show()
+        plt.draw()
     else:
         # Save the figure
         pass
@@ -602,7 +606,7 @@ def plot_target_completeness_time(cursor,
 
     Returns
     -------
-    fig : matplotlib.pyplot.Figure
+    fig : plt.Figure
         The Figure instance the plot was made on.
     """
 
@@ -671,10 +675,10 @@ def plot_target_completeness_time(cursor,
     # Prepare the plot
     # Prepare the Figure instance
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
         fig.set_size_inches((9, 6))
     # Prepare the axes
     ax = fig.add_subplot(111)
@@ -800,7 +804,7 @@ def plot_target_completeness_time(cursor,
         #                                          done)
 
         if not pylab_mode:
-            # matplotlib.pyplot.draw()
+            # plt.draw()
             fig.savefig('%s/%s-%s.%s' % (
                 output_loc,
                 output_prefix,
@@ -825,7 +829,8 @@ def plot_hours_remain_analysis(cursor,
                                output_loc='.',
                                output_prefix='hrs_bet',
                                output_fmt='png',
-                               prioritize_lowz=True):
+                               prioritize_lowz=True,
+                               resolution=6):
     """
     Plot an analysis of the hours_remaining parameter for each field in the
     survey.
@@ -851,10 +856,13 @@ def plot_hours_remain_analysis(cursor,
         the hours_observable for those fields against a set end date, and
         compute all other fields against a rolling one-year end date.
         Defaults to True.
+    resolution:
+        How frequently to sample hours_better for each field, in hours. Defaults
+        to 6.0 hours.
 
     Returns
     -------
-    fig: matplotlib.pyplot.Figure instance
+    fig: plt.Figure instance
         The figure instance the information was plotted to.
     """
     # Input checking
@@ -864,10 +872,10 @@ def plot_hours_remain_analysis(cursor,
     # Prepare the plot
     # Prepare the Figure instance
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
         fig.set_size_inches((9, 6))
 
     # ax1 = fig.add_subplot(
@@ -888,10 +896,10 @@ def plot_hours_remain_analysis(cursor,
         [-35.6, -35.6, -25.7, -25.7, -35.6]
     ]
 
-    for i in range(len(kids_region[0]) - 1):
-        mapplot.geodesic(kids_region[0][i], kids_region[1][i],
-                         kids_region[0][i + 1], kids_region[1][i + 1],
-                         color='limegreen', lw=1.2, ls='--', zorder=20)
+    # for i in range(len(kids_region[0]) - 1):
+    #     mapplot.geodesic(kids_region[0][i], kids_region[1][i],
+    #                      kids_region[0][i + 1], kids_region[1][i + 1],
+    #                      color='limegreen', lw=1.2, ls='--', zorder=20)
 
     # Read in the field information
     fields = rC.execute(cursor)
@@ -918,7 +926,7 @@ def plot_hours_remain_analysis(cursor,
         print local_utc_now.strftime('%Y-%m-%d %H:%M:%S')
         dark_start, dark_end = rAS.next_night_period(cursor, local_utc_now,
                                                      limiting_dt=local_utc_now +
-                                                     datetime.timedelta(1),
+                                                     datetime.timedelta(5),
                                                      dark=True, grey=False)
 
         field_periods = {r: rAS.next_observable_period(
@@ -1002,7 +1010,7 @@ def plot_hours_remain_analysis(cursor,
                     # 'red',
                     [hours_obs[k] for k in range(k, k+step)
                      if k in hours_obs.keys()],
-                    cmap=cm.jet,
+                    cmap=cm.jet_r,
                     vmin=0.0, vmax=1200.,
                     latlon=True,
                     zorder=8,
@@ -1012,9 +1020,11 @@ def plot_hours_remain_analysis(cursor,
 
         fig.suptitle(local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
 
+        mapplot.colorbar(dots)
+
         if pylab_mode:
-            matplotlib.pyplot.show()
-            matplotlib.pyplot.draw()
+            plt.show()
+            plt.draw()
         else:
             fig.savefig('%s/%s-%s.%s' % (
                 output_loc,
@@ -1023,7 +1033,7 @@ def plot_hours_remain_analysis(cursor,
                 output_fmt
             ), fmt=output_fmt, dpi=300)
 
-        local_utc_now += datetime.timedelta(minutes=15)
+        local_utc_now += datetime.timedelta(hours=resolution)
 
 
 def plot_fibre_stretch(cursor,
@@ -1051,7 +1061,7 @@ def plot_fibre_stretch(cursor,
 
     Returns
     -------
-    fig: matplotlib.pyplot.Figure instance
+    fig: plt.Figure instance
         The figure instance the information was plotted to.
     """
 
@@ -1067,10 +1077,10 @@ def plot_fibre_stretch(cursor,
     # Prepare the plot
     # Prepare the Figure instance
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
         fig.set_size_inches((22, 12))
 
     # Generate a dictionary to hold the stats for each fibre
@@ -1126,11 +1136,11 @@ def plot_fibre_stretch(cursor,
     # ax.set_zorder(ax2.get_zorder() + 1)
     # ax.patch.set_visible(False)
 
-    matplotlib.pyplot.tight_layout()
+    plt.tight_layout()
 
     if pylab_mode:
-        matplotlib.pyplot.show()
-        matplotlib.pyplot.draw()
+        plt.show()
+        plt.draw()
     else:
         fig.savefig('%s/%s.%s' % (
             output_loc,
@@ -1166,10 +1176,10 @@ def plot_hours_better(cursor,
     # Prepare the plot
     # Prepare the Figure instance
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
         fig.set_size_inches((9, 6))
 
 
@@ -1217,11 +1227,11 @@ def plot_hours_better(cursor,
     ax2 = fig.add_subplot(212)
     ax2.scatter(hours_used['dec'], hours_used['hb'])
 
-    matplotlib.pyplot.tight_layout()
+    plt.tight_layout()
 
     if pylab_mode:
-        matplotlib.pyplot.show()
-        matplotlib.pyplot.draw()
+        plt.show()
+        plt.draw()
     else:
         fig.savefig('%s/%s.%s' % (
             output_loc,
@@ -1257,10 +1267,10 @@ def plot_airmass(cursor,
     # Prepare the plot
     # Prepare the Figure instance
     if pylab_mode:
-        matplotlib.pyplot.clf()
-        fig = matplotlib.pyplot.gcf()
+        plt.clf()
+        fig = plt.gcf()
     else:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
         fig.set_size_inches((9, 6))
 
 
@@ -1308,11 +1318,795 @@ def plot_airmass(cursor,
     ax2 = fig.add_subplot(212)
     ax2.scatter(hours_used['dec'], hours_used['airmass'])
 
-    matplotlib.pyplot.tight_layout()
+    plt.tight_layout()
 
     if pylab_mode:
-        matplotlib.pyplot.show()
-        matplotlib.pyplot.draw()
+        plt.show()
+        plt.draw()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    return fig
+
+
+def plot_hours_observable(cursor, datetime_now, datetime_end,
+                          hours_better=True, resolution=15.,
+                          pylab_mode=False,
+                          output_loc='.',
+                          output_prefix='hours_obs',
+                          output_fmt='png',
+                          ):
+    """
+    Plot the value of hours_observable at all positions on the sky for a
+    given datetime.
+    Parameters
+    ----------
+    cursor
+    datetime_now, datetime_end
+    hours_better
+    resolution
+    pylab_mode
+    output_loc
+    output_prefix
+    output_fmt
+
+    Returns
+    -------
+
+    """
+    # Prepare the plot
+    # Prepare the Figure instance
+    if pylab_mode:
+        fig = plt.gcf()
+        fig.clf()
+        fig.set_size_inches((9, 6))
+    else:
+        fig = plt.figure()
+        fig.set_size_inches((9, 6))
+
+    mapplot = AllSkyMap(projection='moll', lon_0=0.)
+    limb = mapplot.drawmapboundary(fill_color='white')
+    mapplot.drawparallels(np.arange(-75, 76, 15), linewidth=0.5, dashes=[1, 2],
+                          labels=[1, 0, 0, 0], fontsize=9)
+    mapplot.drawmeridians(np.arange(0, 331, 30), linewidth=0.5, dashes=[1, 2])
+
+    # Plot the KiDS region
+    kids_region = [
+        [329.5, 53.5, 53.5, 329.5, 329.5],
+        [-35.6, -35.6, -25.7, -25.7, -35.6]
+    ]
+
+    # for i in range(len(kids_region[0]) - 1):
+    #     mapplot.geodesic(kids_region[0][i], kids_region[1][i],
+    #                      kids_region[0][i + 1], kids_region[1][i + 1],
+    #                      color='limegreen', lw=1.2, ls='--', zorder=20)
+
+    # Read in the field information
+    fields = rC.execute(cursor)
+    lowz_fields = rCBTexec(cursor, 'is_lowz_target',
+                           unobserved=False)
+    hours_better_comp = []
+    for field in [f.field_id for f in fields]:
+        if field in lowz_fields:
+            hours_better_comp.append(rAS.hours_observable(
+                cursor, field, datetime_now,
+                max(datetime_end, datetime_now + datetime.timedelta(30.)),
+                exclude_grey_time=True, exclude_dark_time=False,
+                minimum_airmass=2.0,
+                hours_better=hours_better, resolution=resolution,
+            ))
+        else:
+            hours_better_comp.append(rAS.hours_observable(
+                cursor, field, datetime_now,
+                datetime_now + datetime.timedelta(365.),
+                exclude_grey_time=True, exclude_dark_time=False,
+                minimum_airmass=2.0,
+                hours_better=hours_better, resolution=resolution,
+            ))
+
+    step = 21
+    i = 0
+    err = 0
+    while (i*step) < len(fields):
+        try:
+            dots = mapplot.scatter(
+                # [90.]*3, [-45.]*3,
+                # fields_ra[30:33], fields_dec[30:33],
+                [f.ra for f in fields][i*step:(i+1)*step], [f.dec for f in fields][i*step:(i+1)*step],
+                c=hours_better_comp[i*step:(i+1)*step],
+                s=50, marker='o',
+                edgecolors='none',
+                # facecolors=
+                # 'red',
+                # cm.jet,
+                # 'red',
+                # [hours_obs[k] for k in range(k, k + step)
+                #  if k in hours_obs.keys()],
+                cmap=cm.jet,
+                vmin=0.0, vmax=1200.,
+                latlon=True,
+                zorder=8,
+            )
+            i += 1
+        except ValueError:
+            i += 1
+            err += 1
+
+    print('Points lost to basemap being shit: %d' % (err * step))
+
+    plt.tight_layout()
+
+    if pylab_mode:
+        plt.show()
+        plt.draw()
+    else:
+        fig.savefig('%s/%s_%s.%s' % (
+            output_loc,
+            output_prefix,
+            datetime_now.strftime('%Y-%m-%d-%H-%M'),
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    mapplot.colorbar(dots)
+    fig.suptitle(datetime_now.strftime('%Y-%m-%d %H:%M UTC'))
+
+    return fig
+
+
+def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
+                          pylab_mode=False,
+                          output_loc='.',
+                          output_prefix='tile_stats',
+                          output_fmt='png',
+                          extent=10.
+                          ):
+    """
+    Make a plot with information about a tile observation
+
+    Parameters
+    ----------
+    cursor : psycopg2.cursor object
+        Cursor for communication with the database.
+    datetime_from, datetime_to: datetime.datetime, optional
+        Bounding datetimes for the plotting to consider. Both default to None,
+        which will make a plot for each observed tile.
+    pylab_mode : Boolean, optional
+        Whether or not to output the plot to a Pylab plotting window (True) or
+        not (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'hrs_bet'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig : matplotlib.Figure instance
+        The Figure instance used for plotting.
+    """
+
+    priorities = range(0, 2) + range(3, 11)
+
+    extent_m = np.radians(10.) * EARTH_RADIUS
+    extent_m_tile = np.radians(0.5+(TILE_RADIUS/3600.)) * EARTH_RADIUS
+
+    logging.debug('Reading in required data')
+    # Read in the tile observation data
+    obs_tile_info = rTOI.execute(cursor)
+    obs_tile_info.sort(order='date_obs')
+    # Read in the target observation data
+    obs_log = rOLexec(cursor)
+    obs_log.sort(order='date_obs')
+    target_types = rScTexec(cursor)
+    target_types.sort(order='target_id')
+    target_started, target_complete = rScDexec(cursor)
+    target_started.sort(order='target_id')
+    target_complete.sort(order='target_id')
+    sci_pos = rScPexec(cursor)
+    sci_pos.sort(order='field_id')
+
+    # Do some data pre-processing
+    target_is_priority = np.logical_or(
+        target_types['is_h0_target'],
+        np.logical_or(
+            target_types['is_vpec_target'],
+            target_types['is_lowz_target']
+        )
+    )
+
+    fields = rC.execute(cursor)
+    fields_list = [(field.field_id, field.ra, field.dec) for field in fields]
+    fields = np.asarray(fields_list, dtype={
+        'names': ['field_id', 'ra', 'dec'],
+        'formats': ['i8', 'f8', 'f8']
+    })
+
+    # Set up the Figure instance
+    if pylab_mode:
+        fig = plt.gcf()
+        fig.clf()
+        # fig.set_size_inches((14, 10.5))
+    else:
+        fig = plt.gcf()
+        fig.clf()
+        fig.set_size_inches((12.5, 9))
+
+    if datetime_from is None:
+        datetime_from = np.min(obs_tile_info['date_obs'])
+    if datetime_to is None:
+        datetime_to = np.max(obs_tile_info['date_obs'])
+
+    # We now need to initialize the data arrays
+    # Basically, some of the data we wish to plot are cumulative across
+    # the simulator run, so we need to compute those data for any tiles
+    # we're not explicitly plotting (i.e. that were observed before
+    # datetime_from)
+    field_visits = {f: 0 for f in fields['field_id']}
+    fiber_alloc = []
+    fiber_alloc_priority = []
+    completeness = {priority: [] for priority in priorities}
+    logging.debug('Forming initial plotting information')
+    for tile in obs_tile_info[obs_tile_info['date_obs'] < datetime_from]:
+        field_visits[tile['field_id']] += 1
+        fiber_alloc.append(np.count_nonzero(
+            obs_log['tile_pk'] == tile['tile_pk']
+        ))
+        fiber_alloc_priority.append(
+            np.count_nonzero(
+                np.logical_and(
+                    obs_log['tile_pk'] == tile['tile_pk'],
+                    np.in1d(obs_log['target_id'],
+                            target_types[target_is_priority]['target_id']))
+            )
+        )
+        for priority in priorities:
+            completeness[priority].append(
+                np.count_nonzero(np.in1d(target_types[
+                            target_types['priority'] == priority
+                        ]['target_id'],
+                        target_complete[target_complete['date_obs'] <=
+                                        tile['date_obs']]['target_id']))
+                / np.count_nonzero(target_types['priority'] == priority)
+            )
+
+    datetime_curr = datetime_from
+
+    while datetime_curr <= datetime_to:
+
+        incomplete = ~np.in1d(target_types['target_id'],
+                              target_complete[target_complete['date_obs'] <=
+                                              datetime_curr]['target_id']
+                              )
+        # Find the first tile observed at/after datetime_curr
+        try:
+            tile_curr = obs_tile_info[obs_tile_info['date_obs'] >=
+                                      datetime_curr][0]
+            print(tile_curr['date_obs'])
+            datetime_curr = tile_curr['date_obs']
+            field_visits[tile_curr['field_id']] += 1
+            fiber_alloc.append(np.count_nonzero(
+                obs_log[obs_log['tile_pk'] == tile_curr['tile_pk']]
+            ))
+            fiber_alloc_priority.append(
+                np.count_nonzero(
+                    np.logical_and(
+                        obs_log['tile_pk'] == tile_curr['tile_pk'],
+                        np.in1d(obs_log['target_id'],
+                                target_types[target_is_priority]['target_id']))
+                )
+            )
+        except IndexError:
+            # We're out of tiles - end
+            datetime_curr = datetime_to + datetime.timedelta(1.)
+            continue
+
+        # Duplicate/filter the target_types array according to completeness
+        # and type (or lack thereof)
+        targets_done = target_types[~incomplete]
+        targets_filler = target_types[np.logical_and(incomplete,
+                                                     ~target_is_priority)]
+        targets_h0 = target_types[np.logical_and(incomplete,
+                                                 target_types['is_h0_target'])]
+        targets_vpec = target_types[np.logical_and(incomplete,
+                                                   target_types[
+                                                       'is_vpec_target'])]
+        targets_lowz = target_types[np.logical_and(incomplete,
+                                                   target_types[
+                                                       'is_lowz_target'])]
+
+        # Axis 1 - completeness in the region of the tile
+        # Start up the basemap
+        ax1 = plt.subplot2grid((2,3), (0,0))
+        ax1.set_title('Target distrib.')
+        m1 = Basemap(
+            # llcrnrlon=tile_curr['ra'] - (extent /
+            #                              np.cos(np.radians(
+            #                                  tile_curr['dec']
+            #                                  - extent))),
+            # llcrnrlat=tile_curr['dec'] - extent,
+            # urcrnrlon=tile_curr['ra'] + (extent /
+            #                              np.cos(np.radians(
+            #                                  tile_curr['dec']
+            #                                  + extent))),
+            # urcrnrlat=tile_curr['dec'] + extent,
+            projection='cass',
+            # celestial=False,
+            # projection='lcc',
+            lon_0=tile_curr['ra'], lat_0=tile_curr['dec'],
+            width=2*extent_m, height=2*extent_m
+        )
+        m1.drawmeridians(np.arange(0, 360., 5.),
+                         labels=[0,0,0,1] if tile_curr['dec'] > -70. else [0,1,0,0],
+                         labelstyle='+/-')
+        m1.drawparallels(np.arange(-90., 90., 3.), labels=[1,0,0,0],
+                         labelstyle='+/-')
+
+        # Completed targets
+        m1.scatter(
+            targets_done['ra'], targets_done['dec'],
+            latlon=True, s=2.5, facecolor='black', edgecolor='none',
+        )
+        # Filler targets
+        m1.scatter(
+            targets_filler['ra'], targets_filler['dec'],
+            latlon=True, s=3, facecolor='grey', edgecolor='none',
+        )
+        # h0 targets
+        m1.scatter(
+            targets_h0['ra'],
+            targets_h0['dec'],
+            latlon=True, s=3, facecolor='green', edgecolor='none',
+        )
+        # vpec targets
+        m1.scatter(
+            targets_vpec['ra'],
+            targets_vpec['dec'],
+            latlon=True, s=3, facecolor='red', edgecolor='none',
+        )
+        # lowz targets
+        m1.scatter(
+            targets_lowz['ra'],
+            targets_lowz['dec'],
+            latlon=True, s=3, facecolor='purple', edgecolor='none',
+        )
+
+        # This tile's targets
+        m1.scatter(
+            obs_log[obs_log['date_obs'] == tile_curr['date_obs']]['ra'],
+            obs_log[obs_log['date_obs'] == tile_curr['date_obs']]['dec'],
+            latlon=True, s=8, facecolor='yellow', edgecolor='none',
+        )
+        # Tile boundary
+        m1.tissot(tile_curr['ra'], tile_curr['dec'], TILE_RADIUS/3600., 20,
+                  facecolor='none', edgecolor='blue', lw=2)
+        # Tile centres
+        m1.scatter(
+            fields['ra'], fields['dec'], latlon=True, s=30, marker='s',
+            edgecolor='black', facecolor='white', linewidths=2,
+        )
+
+        # Axis 2 - No. visits in the area
+        ax2 = plt.subplot2grid((2, 3), (0, 1))
+        ax2.set_title('No. visits')
+        m2 = Basemap(
+            # llcrnrlon=tile_curr['ra'] - (extent /
+            #                              np.cos(np.radians(
+            #                                  tile_curr['dec']
+            #                                  - extent))),
+            # llcrnrlat=tile_curr['dec'] - extent,
+            # urcrnrlon=tile_curr['ra'] + (extent /
+            #                              np.cos(np.radians(
+            #                                  tile_curr['dec']
+            #                                  + extent))),
+            # urcrnrlat=tile_curr['dec'] + extent,
+            projection='cass',
+            # celestial=False,
+            # projection='lcc',
+            lon_0=tile_curr['ra'], lat_0=tile_curr['dec'],
+            width=2 * extent_m, height=2 * extent_m
+        )
+        m2.drawmeridians(np.arange(0, 360., 5.),
+                         labels=[0, 0, 0, 1] if tile_curr['dec']>-70 else [0,1,0,0],
+                         labelstyle='+/-')
+        m2.drawparallels(np.arange(-90., 90., 3.), labels=[1, 0, 0, 0],
+                         labelstyle='+/-')
+
+        for tile in obs_tile_info[obs_tile_info['date_obs'] <= datetime_curr]:
+            m2.tissot(tile['ra'], tile['dec'], TILE_RADIUS/3600., 20,
+                      facecolor='red', edgecolor='none', alpha=0.05,
+                      # celestial=True,
+                      )
+
+        m2.scatter(
+            fields['ra'], fields['dec'], latlon=True, s=30, marker='s',
+            edgecolor='black', facecolor='white', linewidths=2,
+        )
+
+        # Axis 3 - tile target distribution (close-up)
+        ax3 = plt.subplot2grid((2, 3), (0, 2))
+        ax3.set_title('Tile setup')
+        m3 = Basemap(
+            # llcrnrlon=tile_curr['ra'] - (extent /
+            #                              np.cos(np.radians(
+            #                                  tile_curr['dec']
+            #                                  - extent))),
+            # llcrnrlat=tile_curr['dec'] - extent,
+            # urcrnrlon=tile_curr['ra'] + (extent /
+            #                              np.cos(np.radians(
+            #                                  tile_curr['dec']
+            #                                  + extent))),
+            # urcrnrlat=tile_curr['dec'] + extent,
+            projection='cass',
+            # celestial=False,
+            # projection='lcc',
+            lon_0=tile_curr['ra'], lat_0=tile_curr['dec'],
+            width=2 * extent_m_tile,
+            height=2 * extent_m_tile
+        )
+        m3.drawmeridians(np.arange(0, 360., 2.),
+                         labels=[0, 0, 0, 1] if tile_curr['dec'] > -70 else [0,
+                                                                             1,
+                                                                             0,
+                                                                             0],
+                         labelstyle='+/-')
+        m3.drawparallels(np.arange(-90., 90., 2.), labels=[1, 0, 0, 0],
+                         labelstyle='+/-')
+
+        # Completed targets
+        m3.scatter(
+            targets_done['ra'], targets_done['dec'],
+            latlon=True, s=2.5, facecolor='black', edgecolor='none',
+        )
+        # Filler targets
+        m3.scatter(
+            targets_filler['ra'], targets_filler['dec'],
+            latlon=True, s=3, facecolor='grey', edgecolor='none',
+        )
+        # h0 targets
+        m3.scatter(
+            targets_h0['ra'],
+            targets_h0['dec'],
+            latlon=True, s=3, facecolor='green', edgecolor='none',
+        )
+        # vpec targets
+        m3.scatter(
+            targets_vpec['ra'],
+            targets_vpec['dec'],
+            latlon=True, s=3, facecolor='red', edgecolor='none',
+        )
+        # lowz targets
+        m3.scatter(
+            targets_lowz['ra'],
+            targets_lowz['dec'],
+            latlon=True, s=3, facecolor='purple', edgecolor='none',
+        )
+
+        m3.tissot(tile_curr['ra'], tile_curr['dec'], TILE_RADIUS / 3600., 50,
+                  facecolor='none', edgecolor='blue', lw=2)
+        # Any target which has a priority equal to the highest priority
+        # assigned on the tile
+        targets_equal_highest_p = target_types[np.logical_and(
+            np.logical_and(
+                incomplete,
+                np.in1d(target_types['target_id'],
+                        sci_pos[sci_pos['field_id'] ==
+                                tile_curr['field_id']]['target_id'])
+            ),
+            target_types['priority'] == max(
+                obs_log[obs_log['date_obs'] == datetime_curr]['priority']
+            )
+        )]
+        m3.scatter(
+            targets_equal_highest_p['ra'],
+            targets_equal_highest_p['dec'],
+            latlon=True, s=14, facecolor='orange', edgecolor='orange',
+            marker='x',
+        )
+
+        # This tile's targets
+        # filler
+        m3.scatter(
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.logical_and(
+                                   ~np.in1d(obs_log['target_id'],
+                                            target_types[target_types[
+                                                'is_vpec_target']]['target_id']),
+                                   np.logical_and(
+                                       ~np.in1d(obs_log['target_id'],
+                                                target_types[target_types[
+                                                    'is_h0_target']][
+                                                    'target_id']),
+                                       ~np.in1d(obs_log['target_id'],
+                                                target_types[target_types[
+                                                    'is_lowz_target']][
+                                                    'target_id'])))
+                               )
+            ]['ra'],
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.logical_and(
+                                   ~np.in1d(obs_log['target_id'],
+                                            target_types[target_types[
+                                                'is_vpec_target']][
+                                                'target_id']),
+                                   np.logical_and(
+                                       ~np.in1d(obs_log['target_id'],
+                                                target_types[target_types[
+                                                    'is_h0_target']][
+                                                    'target_id']),
+                                       ~np.in1d(obs_log['target_id'],
+                                                target_types[target_types[
+                                                    'is_lowz_target']][
+                                                    'target_id'])))
+                               )
+            ]['dec'],
+            latlon=True, s=20, facecolor='grey', edgecolor='black',
+            marker='D',
+        )
+        # h0
+        m3.scatter(
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.in1d(obs_log['target_id'],
+                                       target_types[target_types[
+                                           'is_h0_target']]['target_id'])
+                               )
+            ]['ra'],
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.in1d(obs_log['target_id'],
+                                       target_types[target_types[
+                                           'is_h0_target']]['target_id'])
+                               )
+            ]['dec'],
+            latlon=True, s=20, facecolor='green', edgecolor='black',
+            marker='D',
+        )
+        # vpec
+        m3.scatter(
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.in1d(obs_log['target_id'],
+                                       target_types[target_types[
+                                           'is_vpec_target']]['target_id'])
+                               )
+            ]['ra'],
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.in1d(obs_log['target_id'],
+                                       target_types[target_types[
+                                           'is_vpec_target']]['target_id'])
+                               )
+            ]['dec'],
+            latlon=True, s=20, facecolor='red', edgecolor='black',
+            marker='D',
+        )
+        # lowz
+        m3.scatter(
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.in1d(obs_log['target_id'],
+                                       target_types[target_types[
+                                           'is_lowz_target']]['target_id'])
+                               )
+            ]['ra'],
+            obs_log[
+                np.logical_and(obs_log['date_obs'] == tile_curr['date_obs'],
+                               np.in1d(obs_log['target_id'],
+                                       target_types[target_types[
+                                           'is_lowz_target']]['target_id'])
+                               )
+            ]['dec'],
+            latlon=True, s=20, facecolor='purple', edgecolor='black',
+            marker='D',
+        )
+
+        # Axis 4 - No. of fibre allocations
+        ax4 = plt.subplot2grid((2,5), (1,0))
+        # print fiber_alloc
+        ax4.bar(
+            np.asarray(range(len(fiber_alloc))[-100:]) - 0.5,
+            fiber_alloc[-100:],
+            width=1., edgecolor='none', facecolor='blue', label='all tgts',
+            zorder=0
+        )
+        # print fiber_alloc_priority
+        ax4.bar(
+            np.asarray(range(len(fiber_alloc_priority))[-100:]) - 0.5,
+            fiber_alloc_priority[-100:],
+            width=1., edgecolor='none', facecolor='red', label='w/ type',
+            zorder=1
+        )
+        ax4.set_xlim((
+            range(len(fiber_alloc))[-100:][0] - 0.5,
+            range(len(fiber_alloc))[-100:][0] + 101,
+        ))
+        ax4.set_ylim((0, 140))
+        ax4.set_title('Fibre alloc')
+        ax4.set_xlabel('Observation no.')
+        ax4.set_ylabel('No. fibres assigned')
+        ax4.legend(loc='lower left')
+
+        # Axis 5 - Survey progress (takes up two standard axis slots)
+        ax5 = plt.subplot2grid((2,5), (1,3), colspan=2)
+        ax5.set_title('Progress')
+        ax5.set_ylabel('Fraction targets done')
+        ax5.set_xlabel('Observation no.')
+        ax5.set_ylim((0.0, 1.05))
+        ax5.set_xlim(0, len(obs_tile_info))
+
+        for priority in priorities:
+            completeness[priority].append(
+                np.count_nonzero(np.in1d(target_types[
+                            target_types['priority'] == priority
+                        ]['target_id'],
+                        target_complete[target_complete['date_obs'] <=
+                                        tile['date_obs']]['target_id']))
+                / np.count_nonzero(target_types['priority'] == priority)
+            )
+            ax5.plot(
+                range(len(completeness[priority])), completeness[priority],
+                label='%2d (%.1f%%)' % (priority,
+                                        completeness[priority][-1]*100.),
+            )
+        ax5.legend(loc='upper left')
+
+        # Axis 6 - priority distribution on tile
+        ax6 = plt.subplot2grid((2, 5), (1, 1))
+        ax6.set_xlabel('Priority')
+        ax6.set_xlim((-0.5, 10.5))
+        ax6.set_ylabel('No. targets')
+        ax6.set_title('Assigned prior.')
+        ax6.bar(
+            np.asarray(priorities) - 0.5,
+            [np.count_nonzero(np.logical_and(
+                obs_log['date_obs'] == datetime_curr,
+                obs_log['priority'] == priority
+            )) for priority in priorities],
+            width=1., edgecolor='none', facecolor='black',
+        )
+
+        # Axis 7 - remaining priorities on tile
+        ax7 = plt.subplot2grid((2, 5), (1, 2))
+        ax7.set_xlabel('Priority')
+        ax7.set_xlim((-0.5, 10.5))
+        ax7.set_ylabel('No. targets')
+        ax7.set_title('Remaining prior.')
+        ax7.set_yscale('log')
+        ax7.bar(
+            np.asarray(priorities) - 0.5,
+            [np.count_nonzero(np.logical_and(
+                target_types[incomplete]['priority'] == priority,
+                np.in1d(target_types[incomplete]['target_id'],
+                        sci_pos[sci_pos['field_id'] ==
+                                tile_curr['field_id']]['target_id'])
+            )) for priority in priorities],
+            width=1., edgecolor='none', facecolor='black',
+        )
+
+        # Final things
+        fig.suptitle('%s - Tile %7d - Visit %2d to field %4d - '
+                     'RA %3.1f - Dec %2.1f' %
+                     (datetime_curr.strftime('%Y-%m-%d %H:%M:%S'),
+                      tile_curr['tile_pk'],
+                      tile_curr['tile_id'],
+                      tile_curr['field_id'],
+                      tile_curr['ra'],
+                      tile_curr['dec'], ))
+
+        if pylab_mode:
+            plt.draw()
+            plt.show()
+        else:
+            fig.savefig('%s/%s_%s.%s' % (
+                output_loc,
+                output_prefix,
+                datetime_curr.strftime('%Y-%m-%d-%H-%M'),
+                output_fmt
+            ), fmt=output_fmt, dpi=300)
+
+        try:
+            datetime_curr = obs_tile_info[
+                obs_tile_info['date_obs'] > datetime_curr]['date_obs'][0]
+        except IndexError:
+            datetime_curr += datetime.timedelta(1.)
+
+    return fig
+
+
+def plot_total_visits(cursor, datetime_to=None,
+                      pylab_mode=False,
+                      output_loc='.',
+                      output_prefix='total_visits',
+                      output_fmt='png'):
+    """
+    Plot the total number of visits to each pointing up to a certain time.
+
+    Parameters
+    ----------
+    cursor : psycopg2.cursor object
+        Cursor for communicating with the database.
+    datetime_to : datetime.datetime instance, optional
+        UTC datetime to consider til. Defaults to None, at which point all
+        dates are considered.
+    pylab_mode : Boolean, optional
+        Whether or not to output the plot to a Pylab plotting window (True) or
+        not (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'hrs_bet'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig : matplotlib.Figure instance
+        The Figure instance the plot was made in
+    """
+
+    # Set up the Figure instance
+    if pylab_mode:
+        fig = plt.gcf()
+        fig.clf()
+        # fig.set_size_inches((14, 10.5))
+    else:
+        fig = plt.figure()
+        fig.set_size_inches((12.5, 9))
+
+    # Read in the tile observation data
+    obs_tile_info = rTOI.execute(cursor)
+    obs_tile_info.sort(order='date_obs')
+
+    if datetime_to is None:
+        datetime_to = np.max(obs_tile_info['date_obs'])
+
+    ax = fig.add_subplot(111)
+    m = Basemap(
+        lon_0=180., projection='moll',
+    )
+    m.drawmeridians(np.arange(30., 360., 30.),
+                    # labels=[1, 0, 0, 0]
+                    )
+    m.drawparallels(np.arange(-75., 90., 15.),
+                    labels=[1, 0, 0, 0])
+
+    # jet = colors.Colormap('jet')
+    # cNorm = colors.Normalize(vmin=0, vmax=20)
+    # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=jet)
+
+    x = np.arange(0.0, 360.05, 2.)
+    y = np.arange(-90., 20.05, 1.)
+    X, Y = np.meshgrid(x, y)
+    coverage_data = np.zeros(X.shape)
+    for i in range(len(x)):
+        for j in range(len(y)):
+            coverage_data[j, i] = np.count_nonzero(
+                [dist_points(x[i]+0.5, y[j]+0.5, t['ra'], t['dec']) <
+                 TILE_RADIUS for
+                 t in obs_tile_info[:-1]]
+            )
+
+    pcol = m.pcolor(X, Y, coverage_data, latlon=True, cmap=cm.jet,
+                    vmin=0., )
+    m.colorbar(pcol)
+
+    for field in set(obs_tile_info['field_id']):
+        pass
+        # this_field_obs = obs_tile_info[obs_tile_info['field_id'] == field]
+        # m.tissot(
+        #     this_field_obs['ra'][0], this_field_obs['dec'][0],
+        #     TILE_RADIUS/3600., 20,
+        #     # facecolor=scalarMap.to_rgba(len(this_field_obs))
+        # )
+
+    if pylab_mode:
+        plt.draw()
+        plt.show()
     else:
         fig.savefig('%s/%s.%s' % (
             output_loc,
