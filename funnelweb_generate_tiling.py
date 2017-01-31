@@ -6,6 +6,10 @@
 
 # Test the various implementations of assign_fibre
 
+#Test speed with: 
+#kernprof -l funnelweb_generate_tiling.py
+#python -m line_profiler script_to_profile.py.lprof
+
 import taipan.core as tp
 import taipan.tiling as tl
 from astropy.table import Table
@@ -82,6 +86,8 @@ completeness_target = 0.99  #Originally 0.999
 #to choose B and A stars. An inverse standard frac of 10 will mean 1 in 10 stars are
 #standards.
 inverse_standard_frac = 10
+
+#NB We have repick_after_complete set as False below - this can be done at the end.
 
 #-------------- Automatic below here -----------------
 try:
@@ -160,7 +166,7 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelw
     randomise_SH=True, tiling_file='ipack.3.4112.txt',
     tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
     combined_weight=combined_weight,
-    rank_supplements=False, repick_after_complete=True, exp_base=exp_base,
+    rank_supplements=False, repick_after_complete=False, exp_base=exp_base,
     recompute_difficulty=True, disqualify_below_min=True, nthreads=0)
 end = datetime.datetime.now()
 

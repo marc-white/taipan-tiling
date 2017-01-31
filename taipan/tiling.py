@@ -1005,16 +1005,20 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     ranges sequentially. Within each magnitude range, a complete set of tiles are 
     selected that enables completeness higher than the minimum priority only.
 
-    The greedy algorithm works as follows:
+    For each magnitude range, the greedy algorithm works as follows:
     
     - Generate a set of tiles covering the area of interest.
-    - Unpick each tile, allowing for target duplication between tiles.
+    - Unpick each tile (meaning allocate fibers), allowing targets to be duplicated '
+      between tiles.
     - Select the 'best' tile from this set, and add it to the resultant
       tiling.
-    - Replace the removed tile, then re-unpick the tiles in the set which are
-      affected by the removal of the tile;
+    - Replace the removed tile in the list (i.e. as you probably haven't yet observed
+      all targets in that part of the sky), then re-unpick the tiles in the set which are
+      affected by the removal of the tile - i.e. the tile just replaced and 
+      neighbouring tiles.
     - Repeat until no useful tiles remain, or the completeness target is
       reached.
+    - Then go on to the next magnitude range until there are no magnitude ranges left.
 
 
     Parameters
