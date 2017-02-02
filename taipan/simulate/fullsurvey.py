@@ -943,6 +943,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                          instant_dq=instant_dq, check_almanacs=False,
                          commit=True, kill_time=kill_time,
                          prior_lowz_end=prior_lowz_end)
+        else:
+            logging.info('WEATHER LOSS: Lost %s to weather' %
+                         curr_date.strftime('%Y-%m-%d'))
         curr_date += datetime.timedelta(1.)
         if curr_date not in weather_fails.keys():
             curr_date = date_start
