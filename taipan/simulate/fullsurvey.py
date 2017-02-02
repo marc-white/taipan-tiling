@@ -658,16 +658,16 @@ def sim_do_night(cursor, date, date_start, date_end,
             # ------
             # FAKE WEATHER FAILURES
             # ------
-            # For now, assume P% of all tiles are lost randomly to weather
-            P = 0.25
-            weather_prob = np.random.random(1)
-            if weather_prob[0] < P:
-                local_utc_now += datetime.timedelta(ts.POINTING_TIME)
-                logging.info('*BREAK* Lost one pointing to weather, '
-                             'advancing to %s' % (
-                    local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
-                ))
-                continue
+            # Superseded by night losses in execute
+            # P = 0.25
+            # weather_prob = np.random.random(1)
+            # if weather_prob[0] < P:
+            #     local_utc_now += datetime.timedelta(ts.POINTING_TIME)
+            #     logging.info('*BREAK* Lost one pointing to weather, '
+            #                  'advancing to %s' % (
+            #         local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
+            #     ))
+            #     continue
 
             if prior_lowz_end is not None:
                 prioritize_lowz_today = prioritize_lowz and (local_utc_now <
@@ -830,7 +830,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             instant_dq=False, seed=None, kill_time=None,
-            prior_lowz_end=None):
+            prior_lowz_end=None, weather_loss=0.4):
     """
     Execute the simulation
     Parameters
@@ -871,6 +871,11 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         Denotes for how long after the start of the survey that lowz targets
         should be prioritized. Defaults to None, and which point lowz fields
         will always be prioritized (if prioritize_lowz=True).
+    weather_loss: float, in the range [0, 1)
+        Percentage of nights lost to weather every calendar year. The nights
+        to be lost will be computed at the start of each calendar year, to
+        ensure exactly 40% of nights are lost per calendar year (or part
+        thereof).
 
     Returns
     -------
@@ -922,16 +927,32 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     almanacs = None
     dark_almanac = None
 
+    year_in_days = 365
+
     # Run the actual observing
     logging.info('Commencing observing...')
     curr_date = date_start
+    weather_fails = {curr_date + datetime.timedelta(days=i): random.random() for
+                     i in range(year_in_days)}
+    weather_fail_thresh = np.percentile(weather_fails.values(),
+                                        weather_loss*100.)
     while curr_date <= date_end:
-        sim_do_night(cursor, curr_date, date_start, date_end,
-                     almanac_dict=almanacs, dark_almanac=dark_almanac,
-                     instant_dq=instant_dq, check_almanacs=False,
-                     commit=True, kill_time=kill_time,
-                     prior_lowz_end=prior_lowz_end)
+        if weather_fails[curr_date] > weather_fail_thresh:
+            sim_do_night(cursor, curr_date, date_start, date_end,
+                         almanac_dict=almanacs, dark_almanac=dark_almanac,
+                         instant_dq=instant_dq, check_almanacs=False,
+                         commit=True, kill_time=kill_time,
+                         prior_lowz_end=prior_lowz_end)
         curr_date += datetime.timedelta(1.)
+        if curr_date not in weather_fails.keys():
+            curr_date = date_start
+            weather_fails = {
+                curr_date + datetime.timedelta(days=i): random.random() for
+                i in range(year_in_days)
+                }
+            weather_fail_thresh = np.percentile(weather_fails.values(),
+                                                weather_loss * 100.)
+
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
 
