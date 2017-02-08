@@ -4,6 +4,8 @@
 
 import numpy as np
 
+LRG_GICOL_SELECTION_LIMIT = 1.4
+NIR_JKCOL_SELECTION_LIMIT = 1.0
 
 def _set_priority_array_values(priorities, bool_arrays, priority):
     """
@@ -41,7 +43,275 @@ def _set_priority_array_values(priorities, bool_arrays, priority):
     return
 
 
-def compute_target_priorities(target_info_array, default_priority=20, ):
+def compute_target_priorities_tree(target_info_array, default_priority=0,
+                                   prisci=False):
+    """
+    Compute priority values for a list of targets.
+
+    This function is different from the _percase calculation in that it's
+    closer to Ned Taylor's priority decision tree, which will (hopefully)
+    compute faster.
+
+    The input to this function should be the output of a call to the TaipanDB
+    function readScience.execute(cursor, *args, **kwargs). However, this is
+    not being hard-coded here, to keep database and simulator operations
+    separated.
+
+    Parameters
+    ----------
+    target_info_array: numpy.array object (structured)
+        A numpy structured array containing the target information, one row for
+        each target.
+    default_priority : int
+        A default priority value to use for targets which don't satisfy any
+        of the given criteria. Effectively a minimum priority. Defaults to 20.
+    prisci : Boolean, default False
+        Whether or not we are in the 'priority science' period. Defaults to
+        False.
+
+    Returns
+    -------
+    priorities: list of ints
+        A list of priorities, corresponding to the target_info_array provided.
+    """
+
+    default_priority = int(default_priority)
+
+    # Initialize the priorities array with the default value
+    priorities = np.zeros(target_info_array['target_id'].shape)
+    priorities += default_priority
+
+    if prisci:
+        # Priority science-period logic
+        in_census_region = np.logical_or(
+            # KiDS-N
+            np.logical_or(
+                np.logical_and(156. < target_info_array['ra'] <= 225.,
+                               -5. < target_info_array['dec'] < 4.),
+                np.logical_and(225. < target_info_array['ra'] < 238.,
+                               -3. < target_info_array['dec'] < 4.)
+            ),
+            # KiDS-S
+            np.logical_and(np.logical_or(target_info_array['ra'] > 329.5,
+                                         target_info_array['ra'] < 53.5),
+                           -35.6 < target_info_array['dec'] < 25.7)
+        )
+        # IN CENSUS REGION
+        # i-band selected
+        in_census_region_iband = np.logical_and(in_census_region,
+                                                target_info_array['is_iband'])
+        # No success yet
+        priorities[np.logical_and(in_census_region_iband,
+                                  ~target_info_array['done'])
+        ] = 99 - target_info_array[
+            in_census_region_iband]['visits']
+        # vpec target in census region
+        priorities[np.logical_and(
+            in_census_region_iband,
+            np.logical_and(target_info_array['is_vpec_target'],
+                           target_info_array['done'])
+        )] = 89 - np.clip(10 * target_info_array[np.logical_and(
+            in_census_region_iband,
+            target_info_array['is_vpec_target']
+        )]['zspec'], 0, 9).astype('i')
+        # lowz targets in census region
+        priorities[np.logical_and(
+            in_census_region_iband,
+            np.logical_and(target_info_array['is_lowz_target'],
+                           target_info_array['done'])
+        )] = 0
+        # Other i-band targets in census region
+        priorities[np.logical_and(
+            np.logical_and(
+                in_census_region_iband,
+                target_info_array['done']
+            ),
+            np.logical_and(
+                ~target_info_array['is_vpec_target'],
+                ~target_info_array['is_lowz_target']
+            )
+        )] = 0
+        # Remaining non-iband targets in region are fillers
+        priorities[np.logical_and(
+            in_census_region,
+            ~in_census_region_iband
+        )] = 0
+
+        # OUTSIDE CENSUS REGION
+        # NIR-selected
+        out_census_region_nir = np.logical_and(~in_census_region,
+                                               target_info_array['is_nir'])
+        # Standard incomplete target defns.
+        priorities[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            target_info_array['visits'] < 1
+        )] = 79 - np.clip(5 - (target_info_array[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            target_info_array['visits'] < 1
+        )]['col_jk'] - 1.0) * 10, 0, 4).astype('i')
+
+        priorities[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            np.logical_and(
+                target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
+                target_info_array['visits'] < 4
+            )
+        )] = 70 - target_info_array[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            np.logical_and(
+                target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
+                target_info_array['visits'] < 4
+            )
+        )]['visits']
+
+        priorities[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            np.logical_and(
+                target_info_array['col_jk'] <= NIR_JKCOL_SELECTION_LIMIT,
+                target_info_array['visits'] < 3
+            )
+        )] = 67 - target_info_array[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            np.logical_and(
+                target_info_array['col_jk'] <= NIR_JKCOL_SELECTION_LIMIT,
+                target_info_array['visits'] < 3
+            )
+        )]['visits']
+
+        priorities[np.logical_and(
+            np.logical_and(
+                out_census_region_nir,
+                ~target_info_array['done']
+            ),
+            np.logical_or(
+                np.logical_and(
+                target_info_array['col_jk'] <= NIR_JKCOL_SELECTION_LIMIT,
+                target_info_array['visits'] >= 3
+                ),
+                target_info_array['visits'] >= 4)
+        )] = 0
+
+        # vpec targets in the area
+        priorities[np.logical_and(
+            out_census_region_nir,
+            np.logical_and(target_info_array['is_vpec_target'],
+                           target_info_array['done'])
+        )] = 0
+
+        # Other targets in region
+        priorities[np.logical_and(
+            out_census_region_nir,
+            np.logical_and(~target_info_array['is_vpec_target'],
+                           target_info_array['done'])
+        )] = 0
+
+        # Targets not NIR selected outside census region
+        priorities[np.logical_and(
+            ~in_census_region,
+            ~out_census_region_nir
+        )] = 0
+
+    else:
+        # Full survey period logic
+        # i-band selected, no redshift yet
+        priorities[np.logical_and(
+            target_info_array['is_iband'],
+            ~target_info_array['done']
+        )] = 99 - target_info_array[np.logical_and(
+            target_info_array['is_iband'],
+            ~target_info_array['done']
+        )]['visits']
+        # iband selected, redshift, vpec target
+        priorities[np.logical_and(
+            target_info_array['is_iband'],
+            np.logical_and(
+                target_info_array['done'],
+                target_info_array['is_vpec_target']
+            )
+        )] = 89 - np.clip(target_info_array[np.logical_and(
+            target_info_array['is_iband'],
+            np.logical_and(
+                target_info_array['done'],
+                target_info_array['is_vpec_target']
+            )
+        )]['zspec'], 0, 9).astype('i')
+        # iband selected, redshift, lowz target
+        priorities[np.logical_and(
+            target_info_array['is_iband'],
+            np.logical_and(
+                target_info_array['done'],
+                target_info_array['is_lowz_target']
+            )
+        )] = 0
+        # Remaining i-band selected targets
+        priorities[np.logical_and(
+            target_info_array['is_iband'],
+            np.logical_and(
+                target_info_array['done'],
+                np.logical_and(~target_info_array['is_lowz_target'],
+                               ~target_info_array['is_vpec_target'])
+            )
+        )] = 0
+        # LRG selected, no redshift
+        priorities[np.logical_and(
+            target_info_array['is_lrg'],
+            np.logical_and(~target_info_array['done'],
+                           target_info_array['visits'] < 1)
+        )] = 74 - np.clip(5 - (target_info_array[np.logical_and(
+            target_info_array['is_lrg'],
+            np.logical_and(~target_info_array['done'],
+                           target_info_array['visits'] < 1)
+        )]['col_gi'] - 1.4) * 10, 0, 4).astype('i')
+        priorities[np.logical_and(
+            np.logical_and(target_info_array['is_lrg'],
+                           target_info_array['col_gi'] >
+                           LRG_GICOL_SELECTION_LIMIT),
+            np.logical_and(~target_info_array['done'],
+                           target_info_array['visits'] > 0)
+        )] = 65 - target_info_array[np.logical_and(
+            target_info_array['is_lrg'],
+            np.logical_and(~target_info_array['done'],
+                           0 < target_info_array['visits'] < 6)
+        )]['visits']
+        priorities[np.logical_and(
+            target_info_array['is_lrg'],
+            np.logical_and(~target_info_array['done'],
+                           target_info_array['visits'] > 6)
+        )] = 0
+        # LRG selected, redshift
+        priorities[np.logical_and(
+            target_info_array['is_lrg'],
+            target_info_array['done']
+        )] = 0
+
+        # No particular selection, filler
+        priorities[np.logical_and(
+            ~target_info_array['is_iband'],
+            ~target_info_array['is_lrg']
+        )] = 0
+
+    return priorities
+
+
+def compute_target_priorities_percase(target_info_array, default_priority=20, ):
     """
     Compute priority values for a list of targets.
 
