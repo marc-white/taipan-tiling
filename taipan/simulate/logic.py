@@ -3,6 +3,7 @@
 # Some of these functions are directy transferrable to live survey ops
 
 import numpy as np
+import logging
 
 LRG_GICOL_SELECTION_LIMIT = 1.4
 NIR_JKCOL_SELECTION_LIMIT = 1.0
@@ -53,7 +54,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     compute faster.
 
     The input to this function should be the output of a call to the TaipanDB
-    function readScience.execute(cursor, *args, **kwargs). However, this is
+    function readScienceTypes.execute(cursor, *args, **kwargs). However, this is
     not being hard-coded here, to keep database and simulator operations
     separated.
 
@@ -86,15 +87,25 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         in_census_region = np.logical_or(
             # KiDS-N
             np.logical_or(
-                np.logical_and(156. < target_info_array['ra'] <= 225.,
-                               -5. < target_info_array['dec'] < 4.),
-                np.logical_and(225. < target_info_array['ra'] < 238.,
-                               -3. < target_info_array['dec'] < 4.)
+                np.logical_and(
+                    np.logical_and(156. < target_info_array['ra'],
+                                   target_info_array['ra'] <= 225.),
+                    np.logical_and(-5. < target_info_array['dec'],
+                                   target_info_array['dec'] < 4.),
+                ),
+                np.logical_and(
+                    np.logical_and(225. < target_info_array['ra'],
+                                   target_info_array['ra'] < 238.),
+                    np.logical_and(-3. < target_info_array['dec'],
+                                   target_info_array['dec'] < 4.)
+                )
             ),
             # KiDS-S
             np.logical_and(np.logical_or(target_info_array['ra'] > 329.5,
                                          target_info_array['ra'] < 53.5),
-                           -35.6 < target_info_array['dec'] < 25.7)
+                           np.logical_and(-35.6 < target_info_array['dec'],
+                                          target_info_array['dec'] < 25.7)
+        )
         )
         # IN CENSUS REGION
         # i-band selected
@@ -316,7 +327,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         )] = 65 - target_info_array[np.logical_and(
             target_info_array['is_lrg'],
             np.logical_and(~target_info_array['done'],
-                           0 < target_info_array['visits'] < 6)
+                           np.logical_and(0 < target_info_array['visits'],
+                                          target_info_array['visits'] < 6))
         )]['visits']
 
         priorities[np.logical_and(
