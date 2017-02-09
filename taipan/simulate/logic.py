@@ -44,6 +44,78 @@ def _set_priority_array_values(priorities, bool_arrays, priority):
     return
 
 
+def compute_target_types(target_info_array, prisci=False):
+    """
+    Compute target types (is_h0_target, is_vpec_target, is_lowz_target)
+    for the given targets.
+
+    Parameters
+    ----------
+    target_info_array: numpy.array object (structured)
+        A numpy structured array containing the target information, one row for
+        each target.
+    default_priority : int
+        A default priority value to use for targets which don't satisfy any
+        of the given criteria. Effectively a minimum priority. Defaults to 20.
+    prisci : Boolean, default False
+        Whether or not we are in the 'priority science' period. Defaults to
+        False.
+
+    Returns
+    -------
+    tgt_types : numpy.array object (structured)
+        A numpy structured array with columns 'target_id', 'is_h0_target',
+        'is_lowz_target' and 'is_vpec_target'.
+    """
+
+    # Initialise the return array
+    tgt_types = np.array(
+        np.concatenate((target_info_array['target_id'],
+                        np.zeros(target_info_array['target_id'].shape
+                                 ).astype(bool),
+                        np.zeros(target_info_array['target_id'].shape
+                                 ).astype(bool),
+                        np.zeros(target_info_array['target_id'].shape
+                                 ).astype(bool), )),
+        dtype={
+            'names': ['target_id', 'is_h0_target', 'is_vpec_target',
+                      'is_lowz_target'],
+            'formats': ['i8', bool, bool, bool]
+        }
+    )
+
+    # Work out which of the targets are vpec
+    if prisci:
+        tgt_types[tgt_types['is_prisci_vpec_target']]['is_vpec_target'] = True
+    else:
+        tgt_types[
+            np.logical_or(
+                tgt_types['is_prisci_vpec_targets'],
+                np.logical_and(
+                    np.logical_or(
+                        tgt_types['done'],
+                        tgt_types['visits'] > 0),
+                    tgt_types['is_full_vpec_targets']
+                )
+            )
+        ]['is_vpec_target'] = True
+
+
+    # Work out which of the targets are H0
+    # Compute the priorities of the targets
+    priorities = compute_target_priorities_tree(target_info_array,
+                                                prisci=prisci)
+    tgt_types[
+        np.logical_and(priorities >= 60,
+                       priorities <= 79)
+    ]['is_h0_target'] = True
+
+    # Work out which of the targets are lowz
+    # Currently, none (doesn't really affect anything under current logic)
+
+    return tgt_types
+
+
 def compute_target_priorities_tree(target_info_array, default_priority=0,
                                    prisci=False):
     """
