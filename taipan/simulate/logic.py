@@ -76,7 +76,7 @@ def compute_target_types(target_info_array, prisci=False):
                          np.zeros(target_info_array['target_id'].shape
                                   ).astype(bool),
                          np.zeros(target_info_array['target_id'].shape
-                                  ).astype(bool), )),
+                                  ).astype(bool))),
         dtype={
             'names': ['target_id', 'is_h0_target', 'is_vpec_target',
                       'is_lowz_target'],
@@ -84,6 +84,7 @@ def compute_target_types(target_info_array, prisci=False):
         }
     )
     print tgt_types.shape
+    return tgt_types
 
     # Work out which of the targets are vpec
     if prisci:
