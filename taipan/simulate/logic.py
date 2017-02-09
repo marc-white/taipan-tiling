@@ -69,14 +69,14 @@ def compute_target_types(target_info_array, prisci=False):
     """
 
     # Initialise the return array
-    tgt_types = np.array(
+    tgt_types = np.asarray(
         np.column_stack((target_info_array['target_id'],
                          np.zeros(target_info_array['target_id'].shape
                                   ).astype(bool),
                          np.zeros(target_info_array['target_id'].shape
                                   ).astype(bool),
                          np.zeros(target_info_array['target_id'].shape
-                                  ).astype(bool), ), ),
+                                  ).astype(bool), )),
         dtype={
             'names': ['target_id', 'is_h0_target', 'is_vpec_target',
                       'is_lowz_target'],
