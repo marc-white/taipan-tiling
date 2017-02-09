@@ -83,8 +83,6 @@ def compute_target_types(target_info_array, prisci=False):
                                            ).astype(bool)
     tgt_types['is_lowz_target'] = np.zeros(tgt_types['target_id'].shape
                                            ).astype(bool)
-    print tgt_types.shape
-    return tgt_types
 
     # Work out which of the targets are vpec
     if prisci:
