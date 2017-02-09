@@ -83,6 +83,7 @@ def compute_target_types(target_info_array, prisci=False):
             'formats': ['i8', bool, bool, bool]
         }
     )
+    print tgt_types.shape
 
     # Work out which of the targets are vpec
     if prisci:
