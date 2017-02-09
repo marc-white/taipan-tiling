@@ -86,16 +86,16 @@ def compute_target_types(target_info_array, prisci=False):
 
     # Work out which of the targets are vpec
     if prisci:
-        tgt_types[tgt_types['is_prisci_vpec_target']]['is_vpec_target'] = True
+        tgt_types[target_info_array['is_prisci_vpec_target']]['is_vpec_target'] = True
     else:
         tgt_types[
             np.logical_or(
-                tgt_types['is_prisci_vpec_target'],
+                target_info_array['is_prisci_vpec_target'],
                 np.logical_and(
                     np.logical_or(
-                        tgt_types['done'],
-                        tgt_types['visits'] > 0),
-                    tgt_types['is_full_vpec_target']
+                        target_info_array['done'],
+                        target_info_array['visits'] > 0),
+                    target_info_array['is_full_vpec_target']
                 )
             )
         ]['is_vpec_target'] = True
