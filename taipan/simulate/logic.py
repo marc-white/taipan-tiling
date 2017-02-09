@@ -395,9 +395,12 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                            target_info_array['col_gi'] >
                            LRG_GICOL_SELECTION_LIMIT),
             np.logical_and(~target_info_array['done'],
-                           0 < target_info_array['visits'] < 6)
+                           np.logical_and(0 < target_info_array['visits'],
+                                          target_info_array['visits'] < 6))
         )] = 65 - target_info_array[np.logical_and(
-            target_info_array['is_lrg'],
+            np.logical_and(target_info_array['is_lrg'],
+                           target_info_array['col_gi'] >
+                           LRG_GICOL_SELECTION_LIMIT),
             np.logical_and(~target_info_array['done'],
                            np.logical_and(0 < target_info_array['visits'],
                                           target_info_array['visits'] < 6))
