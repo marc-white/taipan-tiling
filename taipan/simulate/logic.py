@@ -104,7 +104,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             np.logical_and(np.logical_or(target_info_array['ra'] > 329.5,
                                          target_info_array['ra'] < 53.5),
                            np.logical_and(-35.6 < target_info_array['dec'],
-                                          target_info_array['dec'] < 25.7)
+                                          target_info_array['dec'] < -25.7)
         )
         )
         # IN CENSUS REGION
