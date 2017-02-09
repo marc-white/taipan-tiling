@@ -79,7 +79,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     default_priority = int(default_priority)
 
     # Initialize the priorities array with the default value
-    priorities = np.zeros(target_info_array['target_id'].shape)
+    priorities = np.zeros(target_info_array['target_id'].shape).astype('i')
     priorities += default_priority
 
     if prisci:
