@@ -1168,17 +1168,19 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             if range_ix < len(mag_ranges)-1:
                 candidate_targets_range = [t for t in candidate_targets 
                     if ( (mag_range_prioritise[1] <= t.mag < mag_range[1]) and #faint
-                    (t.priority <= priority_normal) )or
+                    (t.priority <= priority_normal) ) or
                     ( (mag_range[0] <= t.mag < mag_range_prioritise[1]) )] #bright
-                if (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
-                    t.priority >= priority_normal:
-                    t.priority += prioritise_extra
+                for t in candidate_targets_range:
+                    if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
+                        t.priority >= priority_normal):
+                        t.priority += prioritise_extra
             else:
                 candidate_targets_range = [t for t in candidate_targets
                     if (mag_range[0] <= t.mag < mag_range[1])]
-                if (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
-                    t.priority == priority_normal:
-                    t.priority += prioritise_extra                
+                for t in candidate_targets_range:
+                    if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
+                        t.priority == priority_normal):
+                        t.priority += prioritise_extra                
         
         #Also find the standards in the correct magnitude range.
         standard_targets_range = [t for t in standard_targets 

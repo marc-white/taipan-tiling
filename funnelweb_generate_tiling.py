@@ -56,7 +56,7 @@ gal_lat_limit = 10 #For Gaia data only
 #mag_ranges = [[7.5,9],[8.5,10]]
 
 ### Change this below for your path!
-infile = '/Users/mireland/Google Drive/funnelweb/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
+infile = '/Users/mireland/Google Drive/FunnelWeb/TargetSelection/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
 
 #Magnitude (Gaia) ranges for each exposure time.
 mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
