@@ -5,6 +5,7 @@ import logging
 import taipan.core as tp
 import taipan.tiling as tl
 import taipan.scheduling as ts
+import taipan.simulate.logic as tsl
 import simulate as tsim
 
 from utils.tiling import retile_fields
@@ -41,6 +42,8 @@ from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
 from src.resources.v0_0_1.manipulate.makeTilesQueued import execute as mTQexec
 from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
 from src.resources.v0_0_1.manipulate.makeTilesReset import execute as mTRexec
+from src.resources.v0_0_1.manipulate.makeScienceTypes import execute as mScTyexec
+from src.resources.v0_0_1.manipulate.makeSciencePriorities import execute as mScPexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
@@ -131,7 +134,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                     prob_bugfail=1./10000.,
                     prob_vpec_first=0.3, prob_vpec_second=0.7,
-                    prob_lowz_each=0.8):
+                    prob_lowz_each=0.8, prisci=False):
     # -------
     # FAKE DQ/SCIENCE ANALYSIS
     # -------
@@ -179,6 +182,21 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         # observed but unsuccessfully
         mSRIexec(cursor, target_ids[success_targets], set_done=True)
         mSVIexec(cursor, target_ids[~success_targets])
+
+        # Recompute the target priorities and types for the observed targets
+        # Will need fresh visits/repeats data
+        target_types_db = rSTyexec(cursor, target_ids=target_ids)
+        target_types_new = tsl.compute_target_types(target_types_db,
+                                                    prisci=prisci)
+        mScTyexec(cursor, target_types_new['target_id'],
+                  target_types_new['is_h0_target'],
+                  target_types_new['is_vpec_target'],
+                  target_types_new['is_lowz_target'])
+        target_types_db = rSTyexec(cursor, target_ids=target_ids)
+        new_priors = tsl.compute_target_priorities_tree(target_types_db,
+                                                        prisci=prisci)
+        mScPexec(cursor, target_types_db['target_id'], new_priors)
+
 
     # Mark the tiles as having been observed
     mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
@@ -506,10 +524,10 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
 def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
                  save_new_almanacs=True, instant_dq=False,
-                 prioritize_lowz=True,
+                 prisci=True,
                  check_almanacs=True,
                  commit=True, kill_time=None,
-                 prior_lowz_end=None):
+                 prisci_end=None):
     """
     Do a simulated 'night' of observations. This involves:
     - Determine the tiles to do tonighttar
@@ -550,7 +568,7 @@ def sim_do_night(cursor, date, date_start, date_end,
         assume instantaneous data processing; True) or not, which requires
         a re-tile of all affected fields at the end of the night (False).
         Defaults to False.
-    prioritize_lowz : Boolean, optional
+    prisci : Boolean, optional
         Whether or not to prioritize fields with lowz targets by computing
         the hours_observable for those fields against a set end date, and
         compute all other fields against a rolling one-year end date.
@@ -568,7 +586,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     kill_time: datetime.datetime object, optional
         A pre-determined time at which to 'kill' a simulation. Used for
         debugging purposes. Defaults to None.
-    prior_lowz_end : datetime.timedelta object, optional
+    prisci_end : datetime.timedelta object, optional
         Denotes for how long after the start of the survey that lowz targets
         should be prioritized. Defaults to None, and which point lowz fields
         will always be prioritized (if prioritize_lowz=True).
@@ -600,8 +618,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                                          0,
                                                                          0)))
 
-    if prior_lowz_end is not None:
-        prior_lowz_end = midday_start + prior_lowz_end
+    if prisci_end is not None:
+        prisci_end = midday_start + prisci_end
 
     if check_almanacs:
         logging.info('Checking almanacs for night %s' %
@@ -658,23 +676,23 @@ def sim_do_night(cursor, date, date_start, date_end,
             # ------
             # FAKE WEATHER FAILURES
             # ------
-            # For now, assume P% of all tiles are lost randomly to weather
-            P = 0.25
-            weather_prob = np.random.random(1)
-            if weather_prob[0] < P:
-                local_utc_now += datetime.timedelta(ts.POINTING_TIME)
-                logging.info('*BREAK* Lost one pointing to weather, '
-                             'advancing to %s' % (
-                    local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
-                ))
-                continue
+            # Superseded by night losses in execute
+            # P = 0.25
+            # weather_prob = np.random.random(1)
+            # if weather_prob[0] < P:
+            #     local_utc_now += datetime.timedelta(ts.POINTING_TIME)
+            #     logging.info('*BREAK* Lost one pointing to weather, '
+            #                  'advancing to %s' % (
+            #         local_utc_now.strftime('%Y-%m-%d %H:%M:%S'),
+            #     ))
+            #     continue
 
-            if prior_lowz_end is not None:
-                prioritize_lowz_today = prioritize_lowz and (local_utc_now <
-                                                             prior_lowz_end)
-                midday_end_prior = prior_lowz_end
+            if prisci_end is not None:
+                prioritize_lowz_today = prisci and (local_utc_now <
+                                                    prisci_end)
+                midday_end_prior = prisci_end
             else:
-                prioritize_lowz_today = prioritize_lowz
+                prioritize_lowz_today = prisci
                 midday_end_prior = midday_end
             # Pick the best tile
             tile_to_obs, fields_available, tiles_scores, scores_array, \
@@ -741,7 +759,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             # logger.setLevel(logging.DEBUG)
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                           tiling_time=local_utc_now,
-                          disqualify_below_min=False)
+                          disqualify_below_min=False,
+                          prisci=prioritize_lowz_today)
             # logger.setLevel(logging.INFO)
 
             # Increment time_now and move to observe the next field
@@ -830,7 +849,7 @@ def sim_do_night(cursor, date, date_start, date_end,
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             instant_dq=False, seed=None, kill_time=None,
-            prior_lowz_end=None):
+            prior_lowz_end=None, weather_loss=0.4):
     """
     Execute the simulation
     Parameters
@@ -871,6 +890,11 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         Denotes for how long after the start of the survey that lowz targets
         should be prioritized. Defaults to None, and which point lowz fields
         will always be prioritized (if prioritize_lowz=True).
+    weather_loss: float, in the range [0, 1)
+        Percentage of nights lost to weather every calendar year. The nights
+        to be lost will be computed at the start of each calendar year, to
+        ensure exactly 40% of nights are lost per calendar year (or part
+        thereof).
 
     Returns
     -------
@@ -922,16 +946,35 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     almanacs = None
     dark_almanac = None
 
+    year_in_days = 365
+
     # Run the actual observing
     logging.info('Commencing observing...')
     curr_date = date_start
+    weather_fails = {curr_date + datetime.timedelta(days=i): random.random() for
+                     i in range(year_in_days)}
+    weather_fail_thresh = np.percentile(weather_fails.values(),
+                                        weather_loss*100.)
     while curr_date <= date_end:
-        sim_do_night(cursor, curr_date, date_start, date_end,
-                     almanac_dict=almanacs, dark_almanac=dark_almanac,
-                     instant_dq=instant_dq, check_almanacs=False,
-                     commit=True, kill_time=kill_time,
-                     prior_lowz_end=prior_lowz_end)
+        if weather_fails[curr_date] > weather_fail_thresh:
+            sim_do_night(cursor, curr_date, date_start, date_end,
+                         almanac_dict=almanacs, dark_almanac=dark_almanac,
+                         instant_dq=instant_dq, check_almanacs=False,
+                         commit=True, kill_time=kill_time,
+                         prisci_end=prior_lowz_end)
+        else:
+            logging.info('WEATHER LOSS: Lost %s to weather' %
+                         curr_date.strftime('%Y-%m-%d'))
         curr_date += datetime.timedelta(1.)
+        if curr_date not in weather_fails.keys():
+            curr_date = date_start
+            weather_fails = {
+                curr_date + datetime.timedelta(days=i): random.random() for
+                i in range(year_in_days)
+                }
+            weather_fail_thresh = np.percentile(weather_fails.values(),
+                                                weather_loss * 100.)
+
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
 

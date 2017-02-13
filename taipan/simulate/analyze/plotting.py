@@ -2068,9 +2068,10 @@ def plot_total_visits(cursor, datetime_to=None,
     ax = fig.add_subplot(111)
     m = Basemap(
         lon_0=180., projection='moll',
+        celestial=True,
     )
     m.drawmeridians(np.arange(30., 360., 30.),
-                    # labels=[1, 0, 0, 0]
+                    labels=[1, 0, 0, 0]
                     )
     m.drawparallels(np.arange(-75., 90., 15.),
                     labels=[1, 0, 0, 0])
