@@ -42,6 +42,9 @@ de_lims = [-34,-25]
 #Takes a *long* time, i.e. 5 mins. 1000 CPU-mins expected. Parallelization needed.
 #ra_lims = [20,60] 
 #de_lims = [-40,0]
+#ra_lims = [25,50]
+#de_lims = [-34,-12]
+
 
 #Range of magnitudes for the guide stars. Note that this range isn't allowed to be 
 #completely within one of the mag_ranges below
@@ -67,7 +70,6 @@ mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
 #Method for tiling the sky. The following two parameter determine where the field 
 #centers are.
 tiling_method = 'SH'
-tiling_set_size = 100
 
 #Method for prioritising fibers 
 alloc_method = 'combined_weighted'
@@ -103,11 +105,11 @@ except NameError:
     print 'Generating targets...'
     if tabtype == '2mass':
         all_targets = [tp.TaipanTarget(str(r['mainid']), r['raj2000'], r['dej2000'], 
-            priority=1, mag=r['imag'],difficulty=1) for r in tabdata 
+            priority=2, mag=r['imag'],difficulty=1) for r in tabdata 
             if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
     elif tabtype == 'gaia':
         all_targets = [tp.TaipanTarget(str(r['source_id']), r['ra'], r['dec'], 
-            priority=1, mag=r['phot_g_mean_mag'],difficulty=1) for r in tabdata 
+            priority=2, mag=r['phot_g_mean_mag'],difficulty=1) for r in tabdata 
             if ra_lims[0] < r['ra'] < ra_lims[1] and de_lims[0] < r['dec'] < de_lims[1] 
             and np.abs(r['b']) > gal_lat_limit]
     else: 
@@ -155,13 +157,12 @@ start = datetime.datetime.now()
 test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelweb(
     candidate_targets, standard_targets, guide_targets,
     mag_ranges_prioritise = mag_ranges_prioritise,
-    prioritise_extra = 4,
-    completeness_priority = 4,
+    prioritise_extra = 2,
+    priority_normal = 2,
     mag_ranges = mag_ranges,
     completeness_target=completeness_target,
     ranking_method=ranking_method,
     tiling_method=tiling_method, randomise_pa=True, 
-    tiling_set_size=tiling_set_size,
     ra_min=ra_lims[0]-1, ra_max=ra_lims[1]+1, dec_min=de_lims[0]-1, dec_max=de_lims[1]+1,
     randomise_SH=True, tiling_file='ipack.3.4112.txt',
     tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,

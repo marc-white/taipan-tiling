@@ -1090,6 +1090,7 @@ class TaipanTarget(TaipanPoint):
         
         self._idn = None
         self._priority = None
+        self._priority_original = None
         self._standard = None
         self._guide = None
         self._science = None
@@ -1106,6 +1107,7 @@ class TaipanTarget(TaipanPoint):
         # error checking
         self.idn = idn
         self.priority = priority
+        self.priority_original = priority
         self.standard = standard
         self.science = science
         self.guide = guide
@@ -1169,9 +1171,22 @@ class TaipanTarget(TaipanPoint):
         # Make sure priority is an int
         p = int(p)
         if p < TARGET_PRIORITY_MIN or p > TARGET_PRIORITY_MAX:
-            raise ValueError('Target priority must be %d < p < %d' 
+            raise ValueError('Target priority must be %d <= p <= %d' 
                 % (TARGET_PRIORITY_MIN, TARGET_PRIORITY_MAX, ))
         self._priority = p
+
+    @property
+    def priority_original(self):
+        return self._priority_original
+
+    @priority_original.setter
+    def priority_original(self, p):
+        # Make sure priority is an int
+        p = int(p)
+        if p < TARGET_PRIORITY_MIN or p > TARGET_PRIORITY_MAX:
+            raise ValueError('Target priority must be %d <= p <= %d' 
+                % (TARGET_PRIORITY_MIN, TARGET_PRIORITY_MAX, ))
+        self._priority_original = p
 
     @property
     def standard(self):
