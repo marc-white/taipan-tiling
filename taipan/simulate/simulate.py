@@ -90,7 +90,7 @@ def test_redshift_success(target_types_db, num_visits,
     # Therefore, we can just leave prob as 1 for these targets
 
     # 80% success for lowz targets on each pass
-    prob = np.where(is_lowz, np.minimum(0.8, prob), prob)
+    prob = np.where(is_lowz, np.minimum(prob_lowz_each, prob), prob)
 
     # success for 20% vpec targets on first visit
     prob = np.where(np.logical_and(is_vpec, num_visits == 1),

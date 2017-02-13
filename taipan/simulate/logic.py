@@ -204,7 +204,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                            target_info_array['done'])
         )] = 89 - np.clip(10 * target_info_array[np.logical_and(
             in_census_region_iband,
-            target_info_array['is_vpec_target']
+            np.logical_and(target_info_array['is_vpec_target'],
+                           target_info_array['done'])
         )]['zspec'], 0, 9).astype('i')
 
         # lowz targets in census region
