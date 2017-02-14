@@ -264,7 +264,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ),
             np.logical_and(
                 target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
-                target_info_array['visits'] < 4
+                np.logical_and(target_info_array['visits'] < 4,
+                               target_info_array['visits'] >= 1)
             )
         )] = 70 - target_info_array[np.logical_and(
             np.logical_and(
@@ -273,7 +274,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ),
             np.logical_and(
                 target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
-                target_info_array['visits'] < 4
+                np.logical_and(target_info_array['visits'] < 4,
+                               target_info_array['visits'] >= 1)
             )
         )]['visits']
 
@@ -284,7 +286,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ),
             np.logical_and(~np.logical_and(
                 target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
-                target_info_array['visits'] < 4
+                np.logical_and(target_info_array['visits'] < 4,
+                               target_info_array['visits'] >= 1)
             ),
                            target_info_array['visits'] < 3)
         )] = 67 - target_info_array[np.logical_and(
@@ -294,7 +297,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ),
             np.logical_and(~np.logical_and(
                 target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
-                target_info_array['visits'] < 4
+                np.logical_and(target_info_array['visits'] < 4,
+                               target_info_array['visits'] >= 1)
             ),
                            target_info_array['visits'] < 3)
         )]['visits']
@@ -306,7 +310,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ),
             np.logical_and(~np.logical_and(
                 target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT,
-                target_info_array['visits'] < 4
+                np.logical_and(target_info_array['visits'] < 4,
+                               target_info_array['visits'] >= 1)
             ),
                            ~target_info_array['visits'] < 3)
         )] = 0
