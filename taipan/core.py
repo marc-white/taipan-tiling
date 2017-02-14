@@ -244,6 +244,7 @@ FIBRES_GUIDE.sort()
 #   raise Exception('Length of GUIDE_FIBRES array does not match'
 #       'GUIDES_PER_TILE. Check the constant in taipan.core')
 FIBRES_NORMAL = [f for f in BUGPOS_OFFSET if f not in FIBRES_GUIDE]
+FIBRES_NORMAL.sort()
 
 FIBRE_EXCLUSION_RADIUS = 10.0 * 60.0  # arcsec
 TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec

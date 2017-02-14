@@ -996,10 +996,12 @@ if __name__ == '__main__':
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
     def excepthook_override(exctype, value, tb):
-        logging.error('My Error Information')
-        logging.error('Type:', exctype)
-        logging.error('Value:', value)
-        logging.error('Traceback:', tb)
+        logging.error(
+            'My Error Information\nType: %s\nValue: %s\nTraceback: %s' %
+            (exctype, value, tb, ))
+        # logging.error('Type:', exctype)
+        # logging.error('Value:', value)
+        # logging.error('Traceback:', tb)
         return
     sys.excepthook = excepthook_override
 
