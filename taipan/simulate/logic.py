@@ -138,7 +138,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         each target.
     default_priority : int
         A default priority value to use for targets which don't satisfy any
-        of the given criteria. Effectively a minimum priority. Defaults to 20.
+        of the given criteria. Effectively a minimum priority. Defaults to 0.
     prisci : Boolean, default False
         Whether or not we are in the 'priority science' period. Defaults to
         False.
@@ -297,7 +297,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                     target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT
                 )
             )
-        )] = 79 - np.clip(5 - (target_info_array[np.logical_and(
+        )] = 70 - np.clip(5 - (target_info_array[np.logical_and(
             np.logical_and(
                 out_census_region_nir,
                 ~target_info_array['done']
