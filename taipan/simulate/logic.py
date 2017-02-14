@@ -316,7 +316,11 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             out_census_region_nir,
             np.logical_and(target_info_array['is_vpec_target'],
                            target_info_array['done'])
-        )] = 0
+        )] = 89 - np.clip(10. * target_info_array[np.logical_and(
+            out_census_region_nir,
+            np.logical_and(target_info_array['is_vpec_target'],
+                           target_info_array['done'])
+        )]['zspec'], 0, 9).astype('i')
 
         # Other targets in region
         priorities[np.logical_and(
