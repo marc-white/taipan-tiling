@@ -297,7 +297,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                     target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT
                 )
             )
-        )] = 70 - np.clip(5 - (target_info_array[np.logical_and(
+        )] = 70 - target_info_array[np.logical_and(
             np.logical_and(
                 out_census_region_nir,
                 ~target_info_array['done']
@@ -309,7 +309,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                     target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT
                 )
             )
-        )]['col_jk'] - 1) * 10., 0, 4).astype('i')
+        )]['visits']
 
         # vpec targets in the area
         priorities[np.logical_and(
