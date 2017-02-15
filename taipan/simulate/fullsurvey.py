@@ -29,6 +29,7 @@ from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
 from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexec
 from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
 from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
+from src.resources.v0_0_1.readout.readSciencePosn import execute as rSPexec
 from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
 from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
     rCBTexec
@@ -44,6 +45,7 @@ from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
 from src.resources.v0_0_1.manipulate.makeTilesReset import execute as mTRexec
 from src.resources.v0_0_1.manipulate.makeScienceTypes import execute as mScTyexec
 from src.resources.v0_0_1.manipulate.makeSciencePriorities import execute as mScPexec
+from src.resources.v0_0_1.manipulate.makeScienceDiff import execute as mSDexec
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
@@ -196,7 +198,13 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         new_priors = tsl.compute_target_priorities_tree(target_types_db,
                                                         prisci=prisci)
         mScPexec(cursor, target_types_db['target_id'], new_priors)
-
+        # Difficulties need to be re-done after types modified
+        # This needs to be done for the field observed, and all affected fields
+        mSDexec(
+            cursor,
+            target_list=rSPexec(cursor,
+                                field_list=rCAexec(cursor,
+                                                   tile_list=tiles_observed)))
 
     # Mark the tiles as having been observed
     mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)

@@ -311,7 +311,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             )
         )]['visits']
 
-        # vpec targets in the area
+        # 'done' vpec targets in the area
         priorities[np.logical_and(
             out_census_region_nir,
             np.logical_and(target_info_array['is_vpec_target'],
