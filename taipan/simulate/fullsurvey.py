@@ -768,7 +768,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
                           tiling_time=local_utc_now,
                           disqualify_below_min=False,
-                          prisci=prioritize_lowz_today)
+                          # prisci=prioritize_lowz_today,
+                          )
             # logger.setLevel(logging.INFO)
 
             # Increment time_now and move to observe the next field
