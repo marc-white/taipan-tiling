@@ -204,7 +204,8 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
             cursor,
             target_list=rSPexec(cursor,
                                 field_list=rCAexec(cursor,
-                                                   tile_list=tiles_observed)))
+                                                   tile_list=tiles_observed)
+                                )['target_id'])
 
     # Mark the tiles as having been observed
     mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
