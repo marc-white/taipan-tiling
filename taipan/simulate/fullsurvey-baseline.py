@@ -10,6 +10,7 @@ import datetime
 import random
 import numpy as np
 import math
+import traceback
 
 from src.scripts.connection import get_connection
 
@@ -197,7 +198,7 @@ if __name__ == '__main__':
     def excepthook_override(exctype, value, tb):
         logging.error(
             'My Error Information\nType: %s\nValue: %s\nTraceback: %s' %
-            (exctype, value, tb, ))
+            (exctype, value, traceback.print_tb(tb), ))
         # logging.error('Type:', exctype)
         # logging.error('Value:', value)
         # logging.error('Traceback:', tb)
