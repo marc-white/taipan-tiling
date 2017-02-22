@@ -173,7 +173,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                 tp.FIBRES_NORMAL.append(last_fibre + i + 1)
             # Lose 30 days to the upgrade
             curr_date += datetime.timedelta(days=30.)
-            # Expand the number of fibres - will need to work on this
+            # Need to now do:
+            # Complete re-compute of target priorities and difficulties
+            # Complete re-tile of all fields
 
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
