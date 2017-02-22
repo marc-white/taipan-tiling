@@ -609,7 +609,7 @@ def compute_target_difficulties(target_list, full_target_list=None,
     cart_targets = np.asarray([t.usposn for t in target_list])
     if full_target_list:
         burn = [t.compute_usposn() for t in full_target_list 
-            if t.usposn is None]
+                if t.usposn is None]
         full_cart_targets = np.asarray([t.usposn for t in full_target_list])
     else:
         full_cart_targets = np.copy(cart_targets)
@@ -625,7 +625,8 @@ def compute_target_difficulties(target_list, full_target_list=None,
 
     if tree_function == skKDTree:
         difficulties = tree.query_radius(cart_targets,
-            dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
+                                         dist_euclidean(
+                                             FIBRE_EXCLUSION_RADIUS/3600.))
     else:
         if len(target_list) < (100*leafsize):
             if verbose:
@@ -636,7 +637,8 @@ def compute_target_difficulties(target_list, full_target_list=None,
             if verbose:
                 logging.debug('Generating subtree for difficulties...')
             subtree = tree_function(cart_targets, leafsize=leafsize)
-            difficulties = subtree.query_ball_tree(tree,
+            difficulties = subtree.query_ball_tree(
+                tree,
                 dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
     difficulties = [len(d) for d in difficulties]
 
