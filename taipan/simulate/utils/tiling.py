@@ -98,7 +98,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         standard_targets = rSexec(cursor, field_list=fields_w_targets)
         fields_to_tile = rCexec(cursor, field_ids=sub_field_list)
         logging.info('retile_fields is tiling the following fields: %s' %
-                     (', '.join(t.field_id for t in fields_to_tile)))
+                     (', '.join(str(t.field_id) for t in fields_to_tile)))
 
         # Execute a re-tile of the affected fields to the required depth
         tile_list, targets_after_tile = \
