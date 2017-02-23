@@ -785,7 +785,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
             fields_to_retile = rCAexec(cursor, tile_list=[tile_to_obs])
-            logging.info('Retiling fields %s' % ', '.join(fields_to_retile))
+            logging.info('Retiling fields %s' % ', '.join(str(i) for i in
+                                                          fields_to_retile))
             # Switch the logger to DEBUG
             # logger.setLevel(logging.DEBUG)
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
