@@ -67,6 +67,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     if len(field_list) == 0:
         logging.debug('No fields passed to utils.tiling - no tiling done')
         return
+    else:
+        logging.info('retile_fields has received the following list of fields '
+                     'to retile: %s' % (', '.join(str(f) for f in field_list)))
 
     logging.debug('Retiling fields w/ recorded datetime %s' % (
         tiling_time.strftime('%y-%m-%d %H:%M:%S'),
@@ -97,7 +100,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         guide_targets = rGexec(cursor, field_list=fields_w_targets)
         standard_targets = rSexec(cursor, field_list=fields_w_targets)
         fields_to_tile = rCexec(cursor, field_ids=sub_field_list)
-        logging.info('retile_fields is tiling the following fields: %s' %
+        logging.info('retile_fields is tiling the following fields together:'
+                     ' %s' %
                      (', '.join(str(t.field_id) for t in fields_to_tile)))
 
         # Execute a re-tile of the affected fields to the required depth
