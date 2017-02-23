@@ -87,6 +87,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         sub_field_list = field_list[k * len(field_list) / bins:
                                     min((k + 1) * len(field_list) / bins,
                                         len(field_list))]
+        logging.info('This list has been trimmed to: %s' %
+                     (', '.join(str(f) for f in sub_field_list)))
 
         if restrict_targets:
             fields_w_targets = rCAexec(cursor, field_list=sub_field_list)
