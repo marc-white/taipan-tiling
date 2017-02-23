@@ -67,9 +67,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
     if len(field_list) == 0:
         logging.debug('No fields passed to utils.tiling - no tiling done')
         return
-    else:
-        logging.info('retile_fields has received the following list of fields '
-                     'to retile: %s' % (', '.join(str(f) for f in field_list)))
+    # else:
+    #     logging.info('retile_fields has received the following list of fields '
+    #                  'to retile: %s' % (', '.join(str(f) for f in field_list)))
 
     logging.debug('Retiling fields w/ recorded datetime %s' % (
         tiling_time.strftime('%y-%m-%d %H:%M:%S'),
@@ -87,8 +87,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         sub_field_list = field_list[k * len(field_list) / bins:
                                     min((k + 1) * len(field_list) / bins,
                                         len(field_list))]
-        logging.info('This list has been trimmed to: %s' %
-                     (', '.join(str(f) for f in sub_field_list)))
+        # logging.info('This list has been trimmed to: %s' %
+        #              (', '.join(str(f) for f in sub_field_list)))
 
         if restrict_targets:
             fields_w_targets = rCAexec(cursor, field_list=sub_field_list)
@@ -102,9 +102,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         guide_targets = rGexec(cursor, field_list=fields_w_targets)
         standard_targets = rSexec(cursor, field_list=fields_w_targets)
         fields_to_tile = rCexec(cursor, field_ids=sub_field_list)
-        logging.info('retile_fields is tiling the following fields together:'
-                     ' %s' %
-                     (', '.join(str(t.field_id) for t in fields_to_tile)))
+        # logging.info('retile_fields is tiling the following fields together:'
+        #              ' %s' %
+        #              (', '.join(str(t.field_id) for t in fields_to_tile)))
 
         # Execute a re-tile of the affected fields to the required depth
         tile_list, targets_after_tile = \
