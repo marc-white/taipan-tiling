@@ -12,9 +12,18 @@ import numpy as np
 import math
 import traceback
 
+from utils.tiling import retile_fields
+
 from src.scripts.connection import get_connection
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
+from src.resources.v0_0_1.readout import readScienceTypes as rST
+
+from src.resources.v0_0_1.manipulate import makeScienceDiff as mScD
+from src.resources.v0_0_1.manipulate import makeSciencePriorities as mScP
+from src.resources.v0_0_1.manipulate import makeScienceTypes as mScTy
+
+import taipan.simulate.logic as tsl
 
 
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
@@ -147,7 +156,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                 }
             weather_fail_thresh = np.percentile(weather_fails.values(),
                                                 weather_loss * 100.)
-        if curr_date == datetime.date(2018,1,1):
+        if curr_date == datetime.date(2019,1,1):
             # Modify taipan.core.BUGPOS_MM to add in another 150
             # science fibres
             # We do this by adding a new fibre in between each pair of
@@ -174,8 +183,30 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             # Lose 30 days to the upgrade
             curr_date += datetime.timedelta(days=30.)
             # Need to now do:
-            # Complete re-compute of target priorities and difficulties
+            # Complete re-compute of target types, priorities and difficulties
+            target_types_db = rST.execute(cursor)
+            target_types_new = tsl.compute_target_types(target_types_db,
+                                                        prisci=False)
+            mScTy.execute(cursor, target_types_new['target_id'],
+                          target_types_new['is_h0_target'],
+                          target_types_new['is_vpec_target'],
+                          target_types_new['is_lowz_target'])
+            target_types_db = rST.execute(cursor)
+            new_priors = tsl.compute_target_priorities_tree(
+                target_types_db, prisci=False)
+            mScP.execute(cursor, target_types_db['target_id'], new_priors)
+            mScD.execute(cursor)
             # Complete re-tile of all fields
+            fields_to_retile = [t.field_id for t in rCexec(cursor)]
+            retile_fields(cursor, fields_to_retile, tiles_per_field=1,
+                          tiling_time=ts.utc_local_dt(datetime.datetime.combine(
+                              curr_date,
+                              datetime.time(12,0,0)
+                          )),
+                          disqualify_below_min=False,
+                          # prisci=prioritize_lowz_today,
+                          )
+
 
         # if curr_date == datetime.date(2017, 4, 5):
         #     break
