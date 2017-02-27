@@ -22,6 +22,7 @@ from src.resources.v0_0_1.readout import readScienceTypes as rST
 from src.resources.v0_0_1.manipulate import makeScienceDiff as mScD
 from src.resources.v0_0_1.manipulate import makeSciencePriorities as mScP
 from src.resources.v0_0_1.manipulate import makeScienceTypes as mScTy
+from src.resources.v0_0_1.manipulate import makeScienceDiff as mSD
 
 import taipan.simulate.logic as tsl
 
@@ -148,6 +149,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             logging.info('WEATHER LOSS: Lost %s to weather' %
                          curr_date.strftime('%Y-%m-%d'))
         curr_date += datetime.timedelta(1.)
+        if curr_date.day == 1:
+            mSD.execute(cursor)
         if curr_date not in weather_fails.keys():
             curr_date = date_start
             weather_fails = {

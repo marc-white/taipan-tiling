@@ -136,7 +136,8 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                     prob_bugfail=1./10000.,
                     prob_vpec_first=0.3, prob_vpec_second=0.7,
-                    prob_lowz_each=0.8, prisci=False):
+                    prob_lowz_each=0.8, prisci=False,
+                    do_diffs=False):
     # -------
     # FAKE DQ/SCIENCE ANALYSIS
     # -------
@@ -198,35 +199,36 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         new_priors = tsl.compute_target_priorities_tree(target_types_db,
                                                         prisci=prisci)
         mScPexec(cursor, target_types_db['target_id'], new_priors)
-        # Difficulties need to be re-done after types modified
-        # This needs to be done for the field observed, and all affected fields
-        # mSDexec(
-        #     cursor,
-        #     target_list=rSPexec(cursor,
-        #                         field_list=rCAexec(cursor,
-        #                                            tile_list=tiles_observed)
-        #                         )['target_id'])
-        # However, this is quite slow
-        # What we really need to do is do it for this tile, and all targets
-        # within TILE_RADIUS + EXCLUSION RADIUS of the field centre
-        # To do this, read in all targets in the affected fields, and then
-        # restrict them to a certain distance from the tile centre
-        # Read in targets from affected fields
-        # Need the tile info
-        tgts = rScexec(cursor, field_list=rCAexec(
-            cursor, tile_list=tiles_observed)
-                       )
-        # Reduce the target list to those within TILE_RADIUS + EXCLUSION_RADIUS
-        # of the observed tile
-        tile_data = rCexec(cursor, tile_list=tiles_observed)
-        # print tile_data
-        # print tgts
-        tgts = list(set(
-            np.concatenate([tp.targets_in_range(t.ra, t.dec, tgts,
-                                                tp.TILE_RADIUS +
-                                                tp.FIBRE_EXCLUSION_RADIUS)
-                            for t in tile_data])))
-        mSDexec(cursor, target_list=[t.idn for t in tgts])
+        if do_diffs:
+            # Difficulties need to be re-done after types modified
+            # This needs to be done for the field observed, and all affected fields
+            # mSDexec(
+            #     cursor,
+            #     target_list=rSPexec(cursor,
+            #                         field_list=rCAexec(cursor,
+            #                                            tile_list=tiles_observed)
+            #                         )['target_id'])
+            # However, this is quite slow
+            # What we really need to do is do it for this tile, and all targets
+            # within TILE_RADIUS + EXCLUSION RADIUS of the field centre
+            # To do this, read in all targets in the affected fields, and then
+            # restrict them to a certain distance from the tile centre
+            # Read in targets from affected fields
+            # Need the tile info
+            tgts = rScexec(cursor, field_list=rCAexec(
+                cursor, tile_list=tiles_observed)
+                           )
+            # Reduce the target list to those within TILE_RADIUS + EXCLUSION_RADIUS
+            # of the observed tile
+            tile_data = rCexec(cursor, tile_list=tiles_observed)
+            # print tile_data
+            # print tgts
+            tgts = list(set(
+                np.concatenate([tp.targets_in_range(t.ra, t.dec, tgts,
+                                                    tp.TILE_RADIUS +
+                                                    tp.FIBRE_EXCLUSION_RADIUS)
+                                for t in tile_data])))
+            mSDexec(cursor, target_list=[t.idn for t in tgts])
 
     # Mark the tiles as having been observed
     mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
