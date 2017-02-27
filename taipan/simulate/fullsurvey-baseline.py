@@ -232,8 +232,10 @@ if __name__ == '__main__':
         # logging.error(
         #     'My Error Information\nType: %s\nValue: %s\nTraceback: %s' %
         #     (exctype, value, traceback.print_tb(tb), ))
-        logging.error('Uncaught error/exception detected',
-                      exctype=(exctype, value, tb))
+        # logging.error('Uncaught error/exception detected',
+        #               exctype=(exctype, value, tb))
+        logging.critical(''.join(traceback.format_tb(tb)))
+        logging.critical('{0}: {1}'.format(exctype, value))
         # logging.error('Type:', exctype)
         # logging.error('Value:', value)
         # logging.error('Traceback:', tb)
