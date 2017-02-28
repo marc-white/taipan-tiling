@@ -221,7 +221,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 6, 1)
+    sim_start = datetime.date(2018, 12, 31)
     sim_end = datetime.date(2022, 6, 1)
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.timedelta(days=365.)
