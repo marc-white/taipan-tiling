@@ -149,8 +149,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             logging.info('WEATHER LOSS: Lost %s to weather' %
                          curr_date.strftime('%Y-%m-%d'))
         curr_date += datetime.timedelta(1.)
-        if curr_date.day == 1:
-            mSD.execute(cursor)
+        # if curr_date.day == 1:
+        #     mSD.execute(cursor)
         if curr_date not in weather_fails.keys():
             curr_date = date_start
             weather_fails = {
