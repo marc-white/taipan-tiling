@@ -201,7 +201,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             new_priors = tsl.compute_target_priorities_tree(
                 target_types_db, prisci=False)
             mScP.execute(cursor, target_types_db['target_id'], new_priors)
-            mScD.execute(cursor)
+            # mScD.execute(cursor)
             # Complete re-tile of all fields
             fields_to_retile = [t.field_id for t in rCexec(cursor)]
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
