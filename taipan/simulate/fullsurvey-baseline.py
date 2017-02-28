@@ -183,6 +183,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                     math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
                 )
                 tp.FIBRES_NORMAL.append(last_fibre + i + 1)
+            tp.TARGET_PER_TILE = 270
+            tp.FIBRES_PER_TILE = 309
+            tp.INSTALLED_FIBRES = 309
             # Lose 30 days to the upgrade
             curr_date += datetime.timedelta(days=30.)
             # Need to now do:
