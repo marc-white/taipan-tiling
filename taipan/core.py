@@ -256,6 +256,90 @@ TARGET_PRIORITY_MAX = 100
 TARGET_PRIORITY_MS = 50
 
 
+# -----
+# RECONFIGURATION FUNCTIONS
+# These functions are 'hidden' to denote they should be used with
+# *extreme* caution, not because they're actually not meant to be used
+# -----
+
+def _alter_fibres(no_fibres=150):
+    """
+    Alter module parameters so that we change the number of 'normal'
+    (i.e. science-capable) fibres. The number (9) and position of guide
+    fibres are not changed.
+
+    IMPORTANT: This function is designed to increase the number of fibres to
+    300, or decrease it back down to 150. Sensible behaviour cannot be
+    guaranteed if you raise the number of fibres above the default 150,
+    and then lower it to a number that isn't 150!
+
+    Parameters
+    ----------
+    no_fibres : int, defaults to 150
+        The number of science-capable fibres to place on the tile.
+        If no_fibres > the current number of fibres, new fibres will be
+        'spawned' half-way between adjacent fibres. If no_fibres < the current
+        number of fibres, the fibres dict will simply be trimmed to the
+        correct length.
+        Due to the identification of guide fibres, no_fibres may not be less
+        than max(FIBRES_GUIDE).
+
+    Returns
+    -------
+    Nil. Module parameters are updated.
+    """
+    # Input checking
+    no_fibres = int(no_fibres)
+
+    global FIBRES_NORMAL
+    global BUGPOS_MM
+    global BUGPOS_ARCSEC
+    global BUGPOS_OFFSET
+    global TARGET_PER_TILE
+    global FIBRES_PER_TILE
+    global INSTALLED_FIBRES
+
+    if no_fibres == len(FIBRES_NORMAL):
+        return  # No action required
+    if no_fibres < max(FIBRES_GUIDE):
+        raise ValueError('Cannot reduce number of fibres below %d' %
+                         max(FIBRES_GUIDE))
+
+    if no_fibres > len(FIBRES_NORMAL):
+        FIBRES_NORMAL.sort()
+        last_fibre = np.max(BUGPOS_MM.keys())
+        for i in range(len(FIBRES_NORMAL)):
+            pos_avg = (
+                np.average([BUGPOS_MM[FIBRES_NORMAL[i]][0],
+                            BUGPOS_MM[FIBRES_NORMAL[i + 1]][0]]),
+                np.average([BUGPOS_MM[FIBRES_NORMAL[i]][1],
+                            BUGPOS_MM[FIBRES_NORMAL[i + 1]][1]]),
+            )
+            BUGPOS_MM[last_fibre + i + 1] = pos_avg
+            BUGPOS_ARCSEC[last_fibre + i + 1] = (
+                pos_avg[0] * ARCSEC_PER_MM,
+                pos_avg[1] * ARCSEC_PER_MM,
+            )
+            BUGPOS_OFFSET[last_fibre + i + 1] = (
+                math.sqrt(pos_avg[0] ** 2 + pos_avg[1] ** 2),
+                math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
+            )
+            FIBRES_NORMAL.append(last_fibre + i + 1)
+    else:
+        FIBRES_NORMAL = FIBRES_NORMAL[:no_fibres]
+        BUGPOS_MM = {k: v for k,v in BUGPOS_MM.items() if
+                     k in FIBRES_NORMAL or k in FIBRES_GUIDE}
+        BUGPOS_ARCSEC = {k: v for k, v in BUGPOS_ARCSEC.items() if
+                         k in FIBRES_NORMAL or k in FIBRES_GUIDE}
+        BUGPOS_OFFSET = {k: v for k, v in BUGPOS_OFFSET.items() if
+                         k in FIBRES_NORMAL or k in FIBRES_GUIDE}
+
+    # Re-compute relevant constants
+    TARGET_PER_TILE = len(FIBRES_NORMAL) - STANDARDS_PER_TILE - SKY_PER_TILE
+    FIBRES_PER_TILE = len(BUGPOS_MM.keys())
+    INSTALLED_FIBRES = len(BUGPOS_MM.keys())
+
+
 # ------
 # GLOBAL UTILITY FUNCTIONS
 # ------
