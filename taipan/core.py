@@ -1136,23 +1136,26 @@ class TaipanTarget(TaipanPoint):
     # Uncomment to have target equality decided on ID
     # WARNING - make sure your IDs are unique!
     # def __eq__(self, other):
-    #   if isinstance(other, self.__class__):
-    #       return (self.idn == other.idn) and (self.standard 
-    #           == other.standard) and (self.guide == other.guide)
-    #   return False
-
+    #     if isinstance(other, self.__class__):
+    #         return (self.idn == other.idn) and (self.standard
+    #                                             == other.standard) and (
+    #             self.guide == other.guide)
+    #     return False
+    #
     # def __ne__(self, other):
-    #   if isinstance(other, self.__class__):
-    #       return not((self.idn == other.idn) and (self.standard 
-    #           == other.standard) and (self.guide == other.guide))
-    #   return True
-
+    #     if isinstance(other, self.__class__):
+    #         return not((self.idn == other.idn) and (self.standard
+    #                                                 == other.standard) and (
+    #             self.guide == other.guide))
+    #     return True
+    #
     # def __cmp__(self, other):
-    #   if isinstance(other, self.__class__):
-    #       if (self.idn == other.idn) and (self.standard 
-    #           == other.standard) and (self.guide == other.guide):
-    #           return 0
-    #   return 1
+    #     if isinstance(other, self.__class__):
+    #         if (self.idn == other.idn) and (self.standard
+    #                                         == other.standard) and (
+    #                     self.guide == other.guide):
+    #             return 0
+    #     return 1
 
     @property
     def idn(self):
@@ -1162,6 +1165,7 @@ class TaipanTarget(TaipanPoint):
     @idn.setter
     def idn(self, d):
         if not d: raise Exception('ID may not be empty')
+        if not isinstance(d, int): raise Exception('ID must be an int')
         self._idn = d
 
     @property

@@ -10,6 +10,7 @@ import simulate as tsim
 
 from utils.tiling import retile_fields
 from utils.bugfail import simulate_bugfails
+from utils.updatesci import update_science_targets
 
 import pickle
 import numpy as np
@@ -188,47 +189,52 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
 
         # Recompute the target priorities and types for the observed targets
         # Will need fresh visits/repeats data
-        target_types_db = rSTyexec(cursor, target_ids=target_ids)
-        target_types_new = tsl.compute_target_types(target_types_db,
-                                                    prisci=prisci)
-        mScTyexec(cursor, target_types_new['target_id'],
-                  target_types_new['is_h0_target'],
-                  target_types_new['is_vpec_target'],
-                  target_types_new['is_lowz_target'])
-        target_types_db = rSTyexec(cursor, target_ids=target_ids)
-        new_priors = tsl.compute_target_priorities_tree(target_types_db,
-                                                        prisci=prisci)
-        mScPexec(cursor, target_types_db['target_id'], new_priors)
-        if do_diffs:
-            # Difficulties need to be re-done after types modified
-            # This needs to be done for the field observed, and all affected fields
-            # mSDexec(
-            #     cursor,
-            #     target_list=rSPexec(cursor,
-            #                         field_list=rCAexec(cursor,
-            #                                            tile_list=tiles_observed)
-            #                         )['target_id'])
-            # However, this is quite slow
-            # What we really need to do is do it for this tile, and all targets
-            # within TILE_RADIUS + EXCLUSION RADIUS of the field centre
-            # To do this, read in all targets in the affected fields, and then
-            # restrict them to a certain distance from the tile centre
-            # Read in targets from affected fields
-            # Need the tile info
-            tgts = rScexec(cursor, field_list=rCAexec(
-                cursor, tile_list=tiles_observed)
-                           )
-            # Reduce the target list to those within TILE_RADIUS + EXCLUSION_RADIUS
-            # of the observed tile
-            tile_data = rCexec(cursor, tile_list=tiles_observed)
-            # print tile_data
-            # print tgts
-            tgts = list(set(
-                np.concatenate([tp.targets_in_range(t.ra, t.dec, tgts,
-                                                    tp.TILE_RADIUS +
-                                                    tp.FIBRE_EXCLUSION_RADIUS)
-                                for t in tile_data])))
-            mSDexec(cursor, target_list=[t.idn for t in tgts])
+        # target_types_db = rSTyexec(cursor, target_ids=target_ids)
+        # target_types_new = tsl.compute_target_types(target_types_db,
+        #                                             prisci=prisci)
+        # mScTyexec(cursor, target_types_new['target_id'],
+        #           target_types_new['is_h0_target'],
+        #           target_types_new['is_vpec_target'],
+        #           target_types_new['is_lowz_target'])
+        # target_types_db = rSTyexec(cursor, target_ids=target_ids)
+        # new_priors = tsl.compute_target_priorities_tree(target_types_db,
+        #                                                 prisci=prisci)
+        # mScPexec(cursor, target_types_db['target_id'], new_priors)
+        # if do_diffs:
+        #     # Difficulties need to be re-done after types modified
+        #     # This needs to be done for the field observed, and all affected fields
+        #     # mSDexec(
+        #     #     cursor,
+        #     #     target_list=rSPexec(cursor,
+        #     #                         field_list=rCAexec(cursor,
+        #     #                                            tile_list=tiles_observed)
+        #     #                         )['target_id'])
+        #     # However, this is quite slow
+        #     # What we really need to do is do it for this tile, and all targets
+        #     # within TILE_RADIUS + EXCLUSION RADIUS of the field centre
+        #     # To do this, read in all targets in the affected fields, and then
+        #     # restrict them to a certain distance from the tile centre
+        #     # Read in targets from affected fields
+        #     # Need the tile info
+        #     tgts = rScexec(cursor, field_list=rCAexec(
+        #         cursor, tile_list=tiles_observed)
+        #                    )
+        #     # Reduce the target list to those within TILE_RADIUS + EXCLUSION_RADIUS
+        #     # of the observed tile
+        #     tile_data = rCexec(cursor, tile_list=tiles_observed)
+        #     # print tile_data
+        #     # print tgts
+        #     tgts = list(set(
+        #         np.concatenate([tp.targets_in_range(t.ra, t.dec, tgts,
+        #                                             tp.TILE_RADIUS +
+        #                                             tp.FIBRE_EXCLUSION_RADIUS)
+        #                         for t in tile_data])))
+        #     mSDexec(cursor, target_list=[t.idn for t in tgts])
+
+        # UDDATE 2017-03-02
+        # Use the new super-utility function to do this efficiently
+        update_science_targets(cursor, target_list=target_ids, do_d=do_diffs,
+                               prisci=prisci)
 
     # Mark the tiles as having been observed
     mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
@@ -782,7 +788,8 @@ def sim_do_night(cursor, date, date_start, date_end,
 
             if instant_dq:
                 # Do the DQ analysis now
-                sim_dq_analysis(cursor, [tile_to_obs], [local_utc_now])
+                sim_dq_analysis(cursor, [tile_to_obs], [local_utc_now],
+                                do_diffs=False)
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
@@ -849,7 +856,8 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     start = datetime.datetime.now()
     if len(tiles_observed) > 0 and not instant_dq:
-        sim_dq_analysis(cursor, tiles_observed, tiles_observed_at)
+        sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
+                        do_diffs=False)
 
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
