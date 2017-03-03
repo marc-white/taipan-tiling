@@ -21,6 +21,7 @@ from ...scheduling import localize_utc_dt, utc_local_dt, POINTING_TIME, \
     UKST_TELESCOPE
 from ...core import TILE_RADIUS, BUGPOS_MM, dist_points, PATROL_RADIUS, \
     ARCSEC_PER_MM
+import taipan.core as tp
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -2104,6 +2105,95 @@ def plot_total_visits(cursor, datetime_to=None,
         #     TILE_RADIUS/3600., 20,
         #     # facecolor=scalarMap.to_rgba(len(this_field_obs))
         # )
+
+    if pylab_mode:
+        plt.draw()
+        plt.show()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
+    return fig
+
+
+def plot_tile_config(pylab_mode=False,
+                      output_loc='.',
+                      output_prefix='tile_config_%d' % len(tp.FIBRES_NORMAL),
+                      output_fmt='png'):
+    """
+    Plot the initial configuration and layout of a tile (i.e. where the fibres
+    are positioned by default).
+
+    Parameters
+    ----------
+    pylab_mode : Boolean, optional
+        Whether or not to output the plot to a Pylab plotting window (True) or
+        not (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'tile_config'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig : matplotlig.pyplot.Figure instance
+        The matplotlib Figure the plot was made on
+    """
+    # Set up the Figure instance
+    if pylab_mode:
+        fig = plt.gcf()
+        fig.clf()
+        # fig.set_size_inches((14, 10.5))
+    else:
+        fig = plt.figure()
+        fig.set_size_inches((10, 10))
+
+    ax = fig.add_subplot(111)
+    ax.set_xlim((-TILE_RADIUS-20, TILE_RADIUS+20))
+    ax.set_ylim((-TILE_RADIUS - 20, TILE_RADIUS + 20))
+    ax.set_xlabel('x (")')
+    ax.set_ylabel('y (")')
+    ax.set_title('Home position of fibres')
+    ax.set_aspect(1)
+
+    # Plot the tile itself
+    tile_circ = Circle((0, 0), radius=TILE_RADIUS,
+                       edgecolor='red', linewidth=1.2,
+                       facecolor='none')
+    ax.add_artist(tile_circ)
+
+    # Plot the guide fibre positions
+    ax.scatter([tp.BUGPOS_ARCSEC[f][0] for f in tp.FIBRES_GUIDE],
+               [tp.BUGPOS_ARCSEC[f][1] for f in tp.FIBRES_GUIDE],
+               marker='x', facecolor='green', label='Guide')
+    for f in tp.FIBRES_GUIDE:
+        ax.text(tp.BUGPOS_ARCSEC[f][0]+3, tp.BUGPOS_ARCSEC[f][1]+3, str(f),
+                fontsize=4.5 if pylab_mode else 7.5,
+                color='green')
+
+    # Plot the normal fibre positions
+    ax.scatter([tp.BUGPOS_ARCSEC[f][0] for f in tp.FIBRES_NORMAL],
+               [tp.BUGPOS_ARCSEC[f][1] for f in tp.FIBRES_NORMAL],
+               marker='o', facecolor='black', label='Standard')
+    for f in tp.FIBRES_NORMAL:
+        ax.text(tp.BUGPOS_ARCSEC[f][0] + 3, tp.BUGPOS_ARCSEC[f][1] + 3,
+                str(f),
+                fontsize=4.5 if pylab_mode else 7.5,
+                color='black')
+        range_circ = Circle((tp.BUGPOS_ARCSEC[f][0],
+                             tp.BUGPOS_ARCSEC[f][1]),
+                            radius=tp.FIBRE_EXCLUSION_RADIUS,
+                            edgecolor='gray',
+                            linewidth=0.5,
+                            linestyle='dashed',
+                            facecolor='none')
+        ax.add_artist(range_circ)
+
+    leg = ax.legend()
 
     if pylab_mode:
         plt.draw()
