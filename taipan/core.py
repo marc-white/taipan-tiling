@@ -246,7 +246,8 @@ FIBRES_GUIDE.sort()
 FIBRES_NORMAL = [f for f in BUGPOS_OFFSET if f not in FIBRES_GUIDE]
 FIBRES_NORMAL.sort()
 
-FIBRE_EXCLUSION_RADIUS = 10.0 * 60.0  # arcsec
+FIBRE_EXCLUSION_DIAMETER = 10.0 * 60.0  # arcsec
+FIBRE_EXCLUSION_RADIUS = FIBRE_EXCLUSION_DIAMETER / 2.0
 TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec
 TILE_DIAMETER = 2.0 * TILE_RADIUS     # arcsec
 PATROL_RADIUS = 1.2 * 3600.           # arcsec
@@ -706,25 +707,25 @@ def compute_target_difficulties(target_list, full_target_list=None,
     else:
         tree = tree_function(full_cart_targets, leafsize=leafsize)
 
-    dist_check = dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.)
+    dist_check = dist_euclidean(FIBRE_EXCLUSION_DIAMETER/3600.)
 
     if tree_function == skKDTree:
         difficulties = tree.query_radius(cart_targets,
                                          dist_euclidean(
-                                             FIBRE_EXCLUSION_RADIUS/3600.))
+                                             FIBRE_EXCLUSION_DIAMETER/3600.))
     else:
         if len(target_list) < (100*leafsize):
             if verbose:
                 logging.debug('Computing difficulties...')
             difficulties = tree.query_ball_point(cart_targets,
-                dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
+                dist_euclidean(FIBRE_EXCLUSION_DIAMETER/3600.))
         else:
             if verbose:
                 logging.debug('Generating subtree for difficulties...')
             subtree = tree_function(cart_targets, leafsize=leafsize)
             difficulties = subtree.query_ball_tree(
                 tree,
-                dist_euclidean(FIBRE_EXCLUSION_RADIUS/3600.))
+                dist_euclidean(FIBRE_EXCLUSION_DIAMETER/3600.))
     difficulties = [len(d) for d in difficulties]
 
     if verbose:
@@ -1297,7 +1298,7 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def difficulty(self):
-        """Difficulty, i.e. number of targets within FIBRE_EXCLUSION_RADIUS"""
+        """Difficulty, i.e. number of targets within FIBRE_EXCLUSION_DIAMETER"""
         return self._difficulty
 
     @difficulty.setter
@@ -1401,7 +1402,7 @@ class TaipanTarget(TaipanPoint):
                        tiling as the calling target.
         """
         excluded_tgts = targets_in_range(self.ra, self.dec, tgts,
-                                         FIBRE_EXCLUSION_RADIUS)
+                                         FIBRE_EXCLUSION_DIAMETER)
         return excluded_tgts
 
     def excluded_targets_approx(self, tgts):
@@ -1422,7 +1423,7 @@ class TaipanTarget(TaipanPoint):
                        tiling as the calling target.
         """
         excluded_tgts = [t for t in tgts 
-            if self.dist_target_approx(t) < FIBRE_EXCLUSION_RADIUS]
+            if self.dist_target_approx(t) < FIBRE_EXCLUSION_DIAMETER]
 
         return excluded_tgts
 
@@ -1446,7 +1447,7 @@ class TaipanTarget(TaipanPoint):
         """
         excluded_tgts = [t for t in tgts 
             if self.dist_target_mixed(t, dec_cut=dec_cut) 
-            < FIBRE_EXCLUSION_RADIUS]
+            < FIBRE_EXCLUSION_DIAMETER]
 
         return excluded_tgts
 
@@ -1455,7 +1456,7 @@ class TaipanTarget(TaipanPoint):
         Calculate & set the difficulty of this target.
 
         Difficulty is defined as the number of targets within a 
-        FIBRE_EXCLUSION_RADIUS of the calling target. This means that this
+        FIBRE_EXCLUSION_DIAMETER of the calling target. This means that this
         function will need to be invoked every time the comparison list changes.
 
         Parameters
@@ -1525,7 +1526,7 @@ class TaipanTarget(TaipanPoint):
             return False
 
         if len(targets_in_range(self.ra, self.dec, tgts, 
-            FIBRE_EXCLUSION_RADIUS)) > 0:
+                                FIBRE_EXCLUSION_DIAMETER)) > 0:
             return True
         return False
 
@@ -2001,7 +2002,7 @@ class TaipanTile(TaipanPoint):
         Calculate which targets are excluded by targets already assigned.
 
         Compute which targets in the input list are excluded from this tile,
-        because they would violate the FIBRE_EXCLUSION_RADIUS of targets
+        because they would violate the FIBRE_EXCLUSION_DIAMETER of targets
         already assigned.
 
         Parameters
@@ -2208,7 +2209,7 @@ class TaipanTile(TaipanPoint):
         
         *most_diffucult* - Assign the target within the patrol radius
         that has the most other targets within its exclusion radius 
-        (FIBRE_EXCLUSION_RADIUS).
+        (FIBRE_EXCLUSION_DIAMETER).
         
         *priority* - Assign the highest-priority target within the patrol
         radius.
@@ -2407,13 +2408,13 @@ class TaipanTile(TaipanPoint):
         #     print '### WARNING - assign_fibre has mangled the target list'
 
         # Recompute target difficulties if requested
-        # Only targets within FIBRE_EXCLUSION_RADIUS of the newly-assigned
+        # Only targets within FIBRE_EXCLUSION_DIAMETER of the newly-assigned
         # target need be computed
         if recompute_difficulty:
             compute_target_difficulties(
                 targets_in_range(tgt.ra, tgt.dec,
                                  candidate_targets_return,
-                                 FIBRE_EXCLUSION_RADIUS))
+                                 FIBRE_EXCLUSION_DIAMETER))
 
         return candidate_targets_return, fibre_former_tgt
 
@@ -2435,7 +2436,7 @@ class TaipanTile(TaipanPoint):
         
         *most_difficult* - Attempt to assign the targets in order of descending
         difficulty, where difficulty is defined as the number of targets
-        within FIBRE_EXCLUSION_RADIUS of the target considered.
+        within FIBRE_EXCLUSION_DIAMETER of the target considered.
         NOTE: Difficulty is computed based on the entire candidate_targets
         list, not just those targets within the tile radius.
             
@@ -2464,7 +2465,7 @@ class TaipanTile(TaipanPoint):
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
-            function (targets affected are within FIBRE_EXCLUSION_RADIUS +
+            function (targets affected are within FIBRE_EXCLUSION_DIAMETER +
             TILE_RADIUS of the tile centre; targets for assignment are
             only within TILE_RADIUS). Defaults to True.
             
@@ -2631,7 +2632,7 @@ class TaipanTile(TaipanPoint):
         up to GUIDES_PER_TILE_MIN to be assigned. This is more complex than for
         standards, because we are not removing targets to assign standards to
         their fibres - rather, we have to work out the best targets to drop so
-        other fibres are no longer within FIBRE_EXCLUSION_RADIUS of the guide
+        other fibres are no longer within FIBRE_EXCLUSION_DIAMETER of the guide
         we wish to assign.
 
         Parameters
@@ -2889,7 +2890,7 @@ class TaipanTile(TaipanPoint):
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
-            function (targets affected are within FIBRE_EXCLUSION_RADIUS +
+            function (targets affected are within FIBRE_EXCLUSION_DIAMETER +
             TILE_RADIUS of the tile centre; targets for assignment are
             only within TILE_RADIUS). Defaults to True.
             
@@ -3270,7 +3271,7 @@ class TaipanTile(TaipanPoint):
             compute_target_difficulties([t for t in candidate_targets_return
                 if np.any(np.asarray([t.dist_point((at.ra, at.dec)) 
                     for at in assigned_targets_sci]) 
-                < FIBRE_EXCLUSION_RADIUS)],
+                < FIBRE_EXCLUSION_DIAMETER)],
                 full_target_list=candidate_targets_return)
 
         logging.info('Made tile with %d science, %d standard '

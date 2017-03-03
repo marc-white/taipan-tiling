@@ -899,7 +899,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
             logging.info('Re-computing target difficulties...')
             tp.compute_target_difficulties(tp.targets_in_range(
                 best_ra, best_dec, candidate_targets,
-                tp.TILE_RADIUS + 2.0*tp.FIBRE_EXCLUSION_RADIUS))
+                tp.TILE_RADIUS + tp.FIBRE_EXCLUSION_DIAMETER))
         # print 'e : %d' % len(candidate_targets)
 
         # Replace the removed tile in candidate_targets, repick any tiles
@@ -1321,7 +1321,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                 logging.info('Re-computing target difficulties...')
                 tp.compute_target_difficulties(tp.targets_in_range(
                     best_ra, best_dec, candidate_targets_range,
-                    tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_RADIUS))
+                    tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_DIAMETER))
             # print 'e : %d' % len(candidate_targets)
 
             # Replace the removed tile in candidate_tiles, repick any tiles
