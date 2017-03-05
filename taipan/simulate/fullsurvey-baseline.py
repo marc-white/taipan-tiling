@@ -152,7 +152,6 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         # if curr_date.day == 1:
         #     mSD.execute(cursor)
         if curr_date not in weather_fails.keys():
-            curr_date = date_start
             weather_fails = {
                 curr_date + datetime.timedelta(days=i): random.random() for
                 i in range(year_in_days)
