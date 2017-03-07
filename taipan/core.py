@@ -5,17 +5,19 @@
 # Created: Marc White, 2015-09-14
 # Last modified: Marc White, 2016-01-19
 
-import numpy as np
 import csv
-import os
+import logging
 import math
+import operator
+import os
 import random
 import string
-import operator
-import logging
+
+import numpy as np
 from matplotlib.cbook import flatten
-from scipy.spatial import KDTree, cKDTree
+from scipy.spatial import cKDTree
 from sklearn.neighbors import KDTree as skKDTree
+
 #XXX
 #import matplotlib.pyplot as plt
 
@@ -50,7 +52,319 @@ if FIBRES_PER_TILE > INSTALLED_FIBRES:
 
 # Fibre positioning
 # Comment out lines to render that fibre inoperable
-BUGPOS_MM = {
+
+BUGPOS_MM = {1: (-129, 87.4),
+             2: (-133.4, 70.9),
+             3: (-137.8, 54.5),
+             4: (-142.2, 38.1),
+             5: (-146.6, 21.7),
+             6: (-151, 5.3),
+             7: (-108.2, 108.2),
+             8: (-112.6, 91.8),
+             9: (-117, 75.3),
+             10: (-121.4, 58.9),
+             11: (-125.8, 42.5),
+             12: (-130.2, 26.1),
+             13: (-134.6, 9.7),
+             14: (-139, -6.8),
+             15: (-143.4, -23.2),
+             16: (-147.8, -39.6),
+             17: (-87.4, 129),
+             18: (-91.8, 112.6),
+             19: (-96.2, 96.2),
+             20: (-100.6, 79.7),
+             21: (-105, 63.3),
+             22: (-109.4, 46.9),
+             23: (-113.8, 30.5),
+             24: (-118.2, 14.1),
+             25: (-122.6, -2.4),
+             26: (-127, -18.8),
+             27: (-131.4, -35.2),
+             28: (-135.8, -51.6),
+             29: (-140.2, -68),
+             30: (-70.9, 133.4),
+             31: (-75.3, 117),
+             32: (-79.7, 100.6),
+             33: (-84.1, 84.1),
+             34: (-88.5, 67.7),
+             35: (-92.9, 51.3),
+             36: (-97.3, 34.9),
+             37: (-101.7, 18.5),
+             38: (-106.1, 2),
+             39: (-110.5, -14.4),
+             40: (-114.9, -30.8),
+             41: (-119.3, -47.2),
+             42: (-123.7, -63.6),
+             43: (-128.1, -80.1),
+             44: (-54.5, 137.8),
+             45: (-58.9, 121.4),
+             46: (-63.3, 105),
+             47: (-67.7, 88.5),
+             48: (-72.1, 72.1),
+             49: (-76.5, 55.7),
+             50: (-80.9, 39.3),
+             51: (-85.3, 22.9),
+             52: (-89.7, 6.4),
+             53: (-94.1, -10),
+             54: (-98.5, -26.4),
+             55: (-102.9, -42.8),
+             56: (-107.3, -59.2),
+             57: (-111.7, -75.7),
+             58: (-116.1, -92.1),
+             59: (-38.1, 142.2),
+             60: (-42.5, 125.8),
+             61: (-46.9, 109.4),
+             62: (-51.3, 92.9),
+             63: (-55.7, 76.5),
+             64: (-60.1, 60.1),
+             65: (-64.5, 43.7),
+             66: (-68.9, 27.3),
+             67: (-73.3, 10.8),
+             68: (-77.7, -5.6),
+             69: (-82.1, -22),
+             70: (-86.5, -38.4),
+             71: (-90.9, -54.8),
+             72: (-95.3, -71.3),
+             73: (-99.7, -87.7),
+             74: (-104.1, -104.1),
+             75: (-21.7, 146.6),
+             76: (-26.1, 130.2),
+             77: (-30.5, 113.8),
+             78: (-34.9, 97.3),
+             79: (-39.3, 80.9),
+             80: (-43.7, 64.5),
+             81: (-48.1, 48.1),
+             82: (-52.5, 31.7),
+             83: (-56.9, 15.2),
+             84: (-61.3, -1.2),
+             85: (-65.7, -17.6),
+             86: (-70.1, -34),
+             87: (-74.5, -50.4),
+             88: (-78.9, -66.9),
+             89: (-83.3, -83.3),
+             90: (-87.7, -99.7),
+             91: (-92.1, -116.1),
+             92: (-5.3, 151),
+             93: (-9.7, 134.6),
+             94: (-14.1, 118.2),
+             95: (-18.5, 101.7),
+             96: (-22.9, 85.3),
+             97: (-27.3, 68.9),
+             98: (-31.7, 52.5),
+             99: (-36.1, 36.1),
+             100: (-40.5, 19.6),
+             101: (-44.9, 3.2),
+             102: (-49.3, -13.2),
+             103: (-53.7, -29.6),
+             104: (-58.1, -46),
+             105: (-62.5, -62.5),
+             106: (-66.9, -78.9),
+             107: (-71.3, -95.3),
+             108: (-75.7, -111.7),
+             109: (-80.1, -128.1),
+             110: (6.8, 139),
+             111: (2.4, 122.6),
+             112: (-2, 106.1),
+             113: (-6.4, 89.7),
+             114: (-10.8, 73.3),
+             115: (-15.2, 56.9),
+             116: (-19.6, 40.5),
+             117: (-24, 24),
+             118: (-28.4, 7.6),
+             119: (-32.8, -8.8),
+             120: (-37.2, -25.2),
+             121: (-41.6, -41.6),
+             122: (-46, -58.1),
+             123: (-50.4, -74.5),
+             124: (-54.8, -90.9),
+             125: (-59.2, -107.3),
+             126: (-63.6, -123.7),
+             127: (-68, -140.2),
+             128: (23.2, 143.4),
+             129: (18.8, 127),
+             130: (14.4, 110.5),
+             131: (10, 94.1),
+             132: (5.6, 77.7),
+             133: (1.2, 61.3),
+             134: (-3.2, 44.9),
+             135: (-7.6, 28.4),
+             136: (-12, 12),
+             137: (-16.4, -4.4),
+             138: (-20.8, -20.8),
+             139: (-25.2, -37.2),
+             140: (-29.6, -53.7),
+             141: (-34, -70.1),
+             142: (-38.4, -86.5),
+             143: (-42.8, -102.9),
+             144: (-47.2, -119.3),
+             145: (-51.6, -135.8),
+             146: (39.6, 147.8),
+             147: (35.2, 131.4),
+             148: (30.8, 114.9),
+             149: (26.4, 98.5),
+             150: (22, 82.1),
+             151: (17.6, 65.7),
+             152: (13.2, 49.3),
+             153: (8.8, 32.8),
+             154: (4.4, 16.4),
+             155: (0, 0),
+             156: (-4.4, -16.4),
+             157: (-8.8, -32.8),
+             158: (-13.2, -49.3),
+             159: (-17.6, -65.7),
+             160: (-22, -82.1),
+             161: (-26.4, -98.5),
+             162: (-30.8, -114.9),
+             163: (-35.2, -131.4),
+             164: (-39.6, -147.8),
+             165: (51.6, 135.8),
+             166: (47.2, 119.3),
+             167: (42.8, 102.9),
+             168: (38.4, 86.5),
+             169: (34, 70.1),
+             170: (29.6, 53.7),
+             171: (25.2, 37.2),
+             172: (20.8, 20.8),
+             173: (16.4, 4.4),
+             174: (12, -12),
+             175: (7.6, -28.4),
+             176: (3.2, -44.9),
+             177: (-1.2, -61.3),
+             178: (-5.6, -77.7),
+             179: (-10, -94.1),
+             180: (-14.4, -110.5),
+             181: (-18.8, -127),
+             182: (-23.2, -143.4),
+             183: (68, 140.2),
+             184: (63.6, 123.7),
+             185: (59.2, 107.3),
+             186: (54.8, 90.9),
+             187: (50.4, 74.5),
+             188: (46, 58.1),
+             189: (41.6, 41.6),
+             190: (37.2, 25.2),
+             191: (32.8, 8.8),
+             192: (28.4, -7.6),
+             193: (24, -24),
+             194: (19.6, -40.5),
+             195: (15.2, -56.9),
+             196: (10.8, -73.3),
+             197: (6.4, -89.7),
+             198: (2, -106.1),
+             199: (-2.4, -122.6),
+             200: (-6.8, -139),
+             201: (80.1, 128.1),
+             202: (75.7, 111.7),
+             203: (71.3, 95.3),
+             204: (66.9, 78.9),
+             205: (62.5, 62.5),
+             206: (58.1, 46),
+             207: (53.7, 29.6),
+             208: (49.3, 13.2),
+             209: (44.9, -3.2),
+             210: (40.5, -19.6),
+             211: (36.1, -36.1),
+             212: (31.7, -52.5),
+             213: (27.3, -68.9),
+             214: (22.9, -85.3),
+             215: (18.5, -101.7),
+             216: (14.1, -118.2),
+             217: (9.7, -134.6),
+             218: (5.3, -151),
+             219: (92.1, 116.1),
+             220: (87.7, 99.7),
+             221: (83.3, 83.3),
+             222: (78.9, 66.9),
+             223: (74.5, 50.4),
+             224: (70.1, 34),
+             225: (65.7, 17.6),
+             226: (61.3, 1.2),
+             227: (56.9, -15.2),
+             228: (52.5, -31.7),
+             229: (48.1, -48.1),
+             230: (43.7, -64.5),
+             231: (39.3, -80.9),
+             232: (34.9, -97.3),
+             233: (30.5, -113.8),
+             234: (26.1, -130.2),
+             235: (21.7, -146.6),
+             236: (104.1, 104.1),
+             237: (99.7, 87.7),
+             238: (95.3, 71.3),
+             239: (90.9, 54.8),
+             240: (86.5, 38.4),
+             241: (82.1, 22),
+             242: (77.7, 5.6),
+             243: (73.3, -10.8),
+             244: (68.9, -27.3),
+             245: (64.5, -43.7),
+             246: (60.1, -60.1),
+             247: (55.7, -76.5),
+             248: (51.3, -92.9),
+             249: (46.9, -109.4),
+             250: (42.5, -125.8),
+             251: (38.1, -142.2),
+             252: (116.1, 92.1),
+             253: (111.7, 75.7),
+             254: (107.3, 59.2),
+             255: (102.9, 42.8),
+             256: (98.5, 26.4),
+             257: (94.1, 10),
+             258: (89.7, -6.4),
+             259: (85.3, -22.9),
+             260: (80.9, -39.3),
+             261: (76.5, -55.7),
+             262: (72.1, -72.1),
+             263: (67.7, -88.5),
+             264: (63.3, -105),
+             265: (58.9, -121.4),
+             266: (54.5, -137.8),
+             267: (128.1, 80.1),
+             268: (123.7, 63.6),
+             269: (119.3, 47.2),
+             270: (114.9, 30.8),
+             271: (110.5, 14.4),
+             272: (106.1, -2),
+             273: (101.7, -18.5),
+             274: (97.3, -34.9),
+             275: (92.9, -51.3),
+             276: (88.5, -67.7),
+             277: (84.1, -84.1),
+             278: (79.7, -100.6),
+             279: (75.3, -117),
+             280: (70.9, -133.4),
+             281: (140.2, 68),
+             282: (135.8, 51.6),
+             283: (131.4, 35.2),
+             284: (127, 18.8),
+             285: (122.6, 2.4),
+             286: (118.2, -14.1),
+             287: (113.8, -30.5),
+             288: (109.4, -46.9),
+             289: (105, -63.3),
+             290: (100.6, -79.7),
+             291: (96.2, -96.2),
+             292: (91.8, -112.6),
+             293: (87.4, -129),
+             294: (147.8, 39.6),
+             295: (143.4, 23.2),
+             296: (139, 6.8),
+             297: (134.6, -9.7),
+             298: (130.2, -26.1),
+             299: (125.8, -42.5),
+             300: (121.4, -58.9),
+             301: (117, -75.3),
+             302: (112.6, -91.8),
+             303: (108.2, -108.2),
+             304: (151, -5.3),
+             305: (146.6, -21.7),
+             306: (142.2, -38.1),
+             307: (137.8, -54.5),
+             308: (133.4, -70.9),
+             309: (129, -87.4),
+             }
+
+BUGPOS_MM_ORIG = {
              1: (-129.0, 87.4),
              2: (-133.4, 70.9),
              3: (-137.8, 54.5),
@@ -210,10 +524,7 @@ BUGPOS_MM = {
              157: (44.9, -3.2),
              158: (49.3, 13.2),
              159: (146.6, -21.7)}
-if len(BUGPOS_MM) != INSTALLED_FIBRES:
-    raise Exception('The number of fibre positions defined does'
-                    ' not match the set value for INSTALLED_FIBRES. Please '
-                    'check the fibre configuration variables in taipan.py.')
+
 ARCSEC_PER_MM = 67.2
 # Convert BUGPOS_MM to arcsec
 BUGPOS_ARCSEC = {key: (value[0]*ARCSEC_PER_MM, value[1]*ARCSEC_PER_MM)
@@ -227,15 +538,7 @@ BUGPOS_OFFSET = {key : ( math.sqrt(value[0]**2 + value[1]**2),
 
 # Define which fibres are the guide bundles
 FIBRES_GUIDE = [
-    40,
-    57,
-    74,
-    90,
-    55,
-    72,
-    88,
-    70,
-    86,
+    46, 51, 56, 149, 155, 161, 254, 259, 264,
 ]
 FIBRES_GUIDE.sort()
 # Uncomment the following code to force GUIDES_PER_TILE 
@@ -243,8 +546,178 @@ FIBRES_GUIDE.sort()
 # if len(GUIDE_FIBRES) != GUIDES_PER_TILE:
 #   raise Exception('Length of GUIDE_FIBRES array does not match'
 #       'GUIDES_PER_TILE. Check the constant in taipan.core')
-FIBRES_NORMAL = [f for f in BUGPOS_OFFSET if f not in FIBRES_GUIDE]
+FIBRES_NORMAL = [f for f in
+                 [3,
+                  4,
+                  5,
+                  6,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24,
+                  25,
+                  26,
+                  27,
+                  28,
+                  44,
+                  45,
+                  46,
+                  47,
+                  48,
+                  49,
+                  50,
+                  51,
+                  52,
+                  53,
+                  54,
+                  55,
+                  56,
+                  57,
+                  75,
+                  76,
+                  77,
+                  78,
+                  79,
+                  80,
+                  81,
+                  82,
+                  83,
+                  84,
+                  85,
+                  86,
+                  87,
+                  88,
+                  89,
+                  90,
+                  100,
+                  101,
+                  110,
+                  111,
+                  112,
+                  113,
+                  114,
+                  115,
+                  116,
+                  117,
+                  118,
+                  119,
+                  120,
+                  121,
+                  122,
+                  123,
+                  124,
+                  125,
+                  126,
+                  135,
+                  136,
+                  137,
+                  138,
+                  147,
+                  148,
+                  149,
+                  150,
+                  151,
+                  152,
+                  153,
+                  154,
+                  155,
+                  156,
+                  157,
+                  158,
+                  159,
+                  160,
+                  161,
+                  162,
+                  163,
+                  164,
+                  171,
+                  172,
+                  173,
+                  174,
+                  175,
+                  176,
+                  183,
+                  184,
+                  185,
+                  186,
+                  187,
+                  188,
+                  189,
+                  190,
+                  191,
+                  192,
+                  193,
+                  194,
+                  195,
+                  196,
+                  197,
+                  198,
+                  199,
+                  200,
+                  208,
+                  209,
+                  219,
+                  220,
+                  221,
+                  222,
+                  223,
+                  224,
+                  225,
+                  226,
+                  227,
+                  228,
+                  229,
+                  230,
+                  231,
+                  232,
+                  233,
+                  234,
+                  252,
+                  253,
+                  254,
+                  255,
+                  256,
+                  257,
+                  258,
+                  259,
+                  260,
+                  261,
+                  262,
+                  263,
+                  264,
+                  265,
+                  281,
+                  282,
+                  283,
+                  284,
+                  285,
+                  286,
+                  287,
+                  288,
+                  289,
+                  290,
+                  291,
+                  292,
+                  305,
+                  306,
+                  307,
+                  308]
+                 if f not in FIBRES_GUIDE]
+# FIBRES_NORMAL = [f for f in BUGPOS_OFFSET if f not in FIBRES_GUIDE]
 FIBRES_NORMAL.sort()
+FIBRES_NORMAL_150 = FIBRES_NORMAL[:]
+
+if len(FIBRES_NORMAL) + len(FIBRES_GUIDE) != INSTALLED_FIBRES:
+    raise Exception('The number of fibre positions defined'
+                    '(%d guides, %d normal) does'
+                    ' not match the set value for INSTALLED_FIBRES (%d). '
+                    'Please '
+                    'check the fibre configuration variables in taipan.py.' %
+                    (len(FIBRES_NORMAL), len(FIBRES_GUIDE), INSTALLED_FIBRES, ))
 
 FIBRE_EXCLUSION_DIAMETER = 10.0 * 60.0  # arcsec
 FIBRE_EXCLUSION_RADIUS = FIBRE_EXCLUSION_DIAMETER / 2.0
@@ -291,6 +764,9 @@ def _alter_fibres(no_fibres=150):
     """
     # Input checking
     no_fibres = int(no_fibres)
+    if no_fibres not in [150, 300]:
+        raise ValueError('Can only set the number of fibres '
+                         'to be 150 or 300')
 
     global FIBRES_NORMAL
     global BUGPOS_MM
@@ -302,43 +778,17 @@ def _alter_fibres(no_fibres=150):
 
     if no_fibres == len(FIBRES_NORMAL):
         return  # No action required
-    if no_fibres < max(FIBRES_GUIDE):
-        raise ValueError('Cannot reduce number of fibres below %d' %
-                         max(FIBRES_GUIDE))
 
     if no_fibres > len(FIBRES_NORMAL):
-        FIBRES_NORMAL.sort()
-        last_fibre = np.max(BUGPOS_MM.keys())
-        for i in range(len(FIBRES_NORMAL)):
-            pos_avg = (
-                np.average([BUGPOS_MM[FIBRES_NORMAL[i]][0],
-                            BUGPOS_MM[FIBRES_NORMAL[i + 1]][0]]),
-                np.average([BUGPOS_MM[FIBRES_NORMAL[i]][1],
-                            BUGPOS_MM[FIBRES_NORMAL[i + 1]][1]]),
-            )
-            BUGPOS_MM[last_fibre + i + 1] = pos_avg
-            BUGPOS_ARCSEC[last_fibre + i + 1] = (
-                pos_avg[0] * ARCSEC_PER_MM,
-                pos_avg[1] * ARCSEC_PER_MM,
-            )
-            BUGPOS_OFFSET[last_fibre + i + 1] = (
-                math.sqrt(pos_avg[0] ** 2 + pos_avg[1] ** 2),
-                math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
-            )
-            FIBRES_NORMAL.append(last_fibre + i + 1)
+        FIBRES_NORMAL = [f for f in BUGPOS_OFFSET.keys() if
+                         f not in FIBRES_GUIDE]
     else:
-        FIBRES_NORMAL = FIBRES_NORMAL[:no_fibres]
-        BUGPOS_MM = {k: v for k,v in BUGPOS_MM.items() if
-                     k in FIBRES_NORMAL or k in FIBRES_GUIDE}
-        BUGPOS_ARCSEC = {k: v for k, v in BUGPOS_ARCSEC.items() if
-                         k in FIBRES_NORMAL or k in FIBRES_GUIDE}
-        BUGPOS_OFFSET = {k: v for k, v in BUGPOS_OFFSET.items() if
-                         k in FIBRES_NORMAL or k in FIBRES_GUIDE}
+        FIBRES_NORMAL = FIBRES_NORMAL_150[:]
 
     # Re-compute relevant constants
+    INSTALLED_FIBRES = len(FIBRES_NORMAL) + len(FIBRES_GUIDE)
     TARGET_PER_TILE = len(FIBRES_NORMAL) - STANDARDS_PER_TILE - SKY_PER_TILE
-    FIBRES_PER_TILE = len(BUGPOS_MM.keys())
-    INSTALLED_FIBRES = len(BUGPOS_MM.keys())
+    FIBRES_PER_TILE = len(FIBRES_NORMAL) + len(FIBRES_GUIDE)
 
 
 # ------
@@ -1563,7 +2013,9 @@ class TaipanTile(TaipanPoint):
             self.compute_usposn()
         
         self._fibres = {}
-        for i in range(1, FIBRES_PER_TILE+1):
+        for i in FIBRES_NORMAL:
+            self._fibres[i] = None
+        for i in FIBRES_GUIDE:
             self._fibres[i] = None
         # self._fibres = self.fibres(fibre_init)
         self._field_id = None
@@ -1599,10 +2051,13 @@ class TaipanTile(TaipanPoint):
     def fibres(self, d):
         if (not isinstance(d, dict) or [i for
                                         i in d].sort() != [i for i in
-                                                           BUGPOS_MM].sort()):
+                                                           FIBRES_NORMAL +
+                                                           FIBRES_GUIDE
+                                                           ].sort()):
             raise Exception('Tile fibres must be a dictionary'
                             ' with keys %s' % (
-                                str(sorted([i for i in BUGPOS_MM])), )
+                                str(sorted([i for i in FIBRES_NORMAL +
+                                            FIBRES_GUIDE])), )
                             )
         self._fibres = d
 
@@ -1712,7 +2167,6 @@ class TaipanTile(TaipanPoint):
             self.fibres[t] = None
         # Remove these objects from the tile
         return removed_targets
-
 
     def unassign_fibre(self, fibre):
         """
@@ -1981,7 +2435,7 @@ class TaipanTile(TaipanPoint):
         empty_fibres : int
             The integer number of empty fibres.
         """
-        empty_fibres = len([f for f in self._fibres if f is None])
+        empty_fibres = len([f for f in self._fibres.values() if f is None])
         return empty_fibres
 
     def get_assigned_fibres(self):
@@ -3047,9 +3501,9 @@ class TaipanTile(TaipanPoint):
         # as long as the same target isn't passed twice, the following algorithm
         # will work.
         logging.debug('Assigning targets...')
-        assigned_tgts = len([t for t in self._fibres.values() 
-            if isinstance(t, TaipanTarget)
-            and t.science])
+        assigned_tgts = len([t for t in self._fibres.values()
+                             if isinstance(t, TaipanTarget)
+                             and t.science])
         extra_standard_targets = 0
         while assigned_tgts < TARGET_PER_TILE + extra_standard_targets and len(
             candidates_this_tile) > 0:
@@ -3067,7 +3521,9 @@ class TaipanTile(TaipanPoint):
             # print 'Done!'
 
             # Identify the closest fibres to this target
-            permitted_fibres = fibre_usposns_keys[tgt.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
+            permitted_fibres = fibre_usposns_keys[
+                tgt.ranked_index(fibre_usposns_values,
+                                 PATROL_RADIUS)].tolist()
             
             # Attempt to make assignment
             candidate_found = False
@@ -3078,13 +3534,15 @@ class TaipanTile(TaipanPoint):
                     # Target comes from either the input list, or from the
                     # removed targets list we generated earlier
                     tgt = candidates_this_tile.pop(i)
-                    burn = ranking_list.pop(i)
-                    self._fibres[permitted_fibres[0]] = candidate_targets_return.pop(
+                    _ = ranking_list.pop(i)
+                    self._fibres[
+                        permitted_fibres[0]] = candidate_targets_return.pop(
                         candidate_targets_return.index(tgt))
                     candidate_found = True
                     assigned_tgts += 1
-                    if allow_standard_targets and (extra_standard_targets < STANDARDS_PER_TILE) \
-                        and tgt.standard:
+                    if allow_standard_targets and (
+                                extra_standard_targets < STANDARDS_PER_TILE
+                    ) and tgt.standard:
                         extra_standard_targets += 1
                     # print 'Done!'
                 else:
@@ -3147,7 +3605,8 @@ class TaipanTile(TaipanPoint):
 
             # Identify the closest fibre to this target
             # print 'Finding available fibres...'
-            permitted_fibres = fibre_usposns_keys[std.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
+            permitted_fibres = fibre_usposns_keys[
+                std.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
 
             # Attempt to make assignment
             candidate_found = False
@@ -3178,6 +3637,10 @@ class TaipanTile(TaipanPoint):
         # Constitute lists of guides and standards that are not already assigned
         # to this plate
         assigned_objs = self.get_assigned_targets()
+        logging.debug('Currenly have assigned %d/%d/%d (Sci/Std/Gd) targets' %
+                      (self.count_assigned_targets_science(),
+                       self.count_assigned_targets_standard(),
+                       self.count_assigned_targets_guide()))
 
         if assigned_standards < STANDARDS_PER_TILE_MIN:
             standards_this_tile = [t for t in standard_targets
