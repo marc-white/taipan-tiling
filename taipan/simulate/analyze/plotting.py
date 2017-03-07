@@ -1459,6 +1459,7 @@ def plot_hours_observable(cursor, datetime_now, datetime_end,
 
 
 def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
+                          show_unassigned=True,
                           pylab_mode=False,
                           output_loc='.',
                           output_prefix='tile_stats',
@@ -1565,14 +1566,17 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
             )
         )
         for priority in priorities:
-            completeness[priority].append(
-                np.count_nonzero(np.in1d(target_types[
-                            target_types['priority'] == priority
-                        ]['target_id'],
-                        target_complete[target_complete['date_obs'] <=
-                                        tile['date_obs']]['target_id']))
-                / np.count_nonzero(target_types['priority'] == priority)
-            )
+            try:
+                completeness[priority].append(
+                    np.count_nonzero(np.in1d(target_types[
+                                target_types['priority'] == priority
+                            ]['target_id'],
+                            target_complete[target_complete['date_obs'] <=
+                                            tile['date_obs']]['target_id']))
+                    / np.count_nonzero(target_types['priority'] == priority)
+                )
+            except ZeroDivisionError:
+                pass
 
     datetime_curr = datetime_from
 
@@ -1906,6 +1910,35 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
             latlon=True, s=20, facecolor='purple', edgecolor='black',
             marker='D',
         )
+        # Unassigned fibres
+        # Need to show any bug_ids in FIBRES_NORMAL which don't exist in
+        # the target_field table
+        print(tile_curr['ra'] - np.asarray(
+                    [tp.BUGPOS_ARCSEC[f][0] for f in tp.FIBRES_NORMAL if
+                     f not in
+                     obs_log[
+                         obs_log['date_obs'] == tile_curr['date_obs']
+                     ]['bug_id']]
+                ) / 3600.)
+        if show_unassigned:
+            m3.scatter(
+                tile_curr['ra'] - np.asarray(
+                    [tp.BUGPOS_ARCSEC[f][0] for f in tp.FIBRES_NORMAL if
+                     f not in
+                     obs_log[
+                         obs_log['date_obs'] == tile_curr['date_obs']
+                     ]['bug_id']]
+                ) / 3600.,
+                tile_curr['dec'] - np.asarray(
+                    [tp.BUGPOS_ARCSEC[f][1] for f in tp.FIBRES_NORMAL if
+                     f not in
+                     obs_log[
+                         obs_log['date_obs'] == tile_curr['date_obs']
+                         ]['bug_id']]
+                ) / 3600.,
+                latlon=True, s=20, marker='x',
+                facecolor='cyan', edgecolor='cyan',
+            )
 
         # Axis 4 - No. of fibre allocations
         ax4 = plt.subplot2grid((2,5), (1,0))
@@ -1927,7 +1960,7 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
             range(len(fiber_alloc))[-100:][0] - 0.5,
             range(len(fiber_alloc))[-100:][0] + 101,
         ))
-        ax4.set_ylim((0, 140))
+        ax4.set_ylim((0, tp.TARGET_PER_TILE + 5))
         ax4.set_title('Fibre alloc')
         ax4.set_xlabel('Observation no.')
         ax4.set_ylabel('No. fibres assigned')
@@ -1942,19 +1975,22 @@ def plot_tile_information(cursor, datetime_from=None, datetime_to=None,
         ax5.set_xlim(0, len(obs_tile_info))
 
         for priority in priorities:
-            completeness[priority].append(
-                np.count_nonzero(np.in1d(target_types[
-                            target_types['priority'] == priority
-                        ]['target_id'],
-                        target_complete[target_complete['date_obs'] <=
-                                        tile['date_obs']]['target_id']))
-                / np.count_nonzero(target_types['priority'] == priority)
-            )
-            ax5.plot(
-                range(len(completeness[priority])), completeness[priority],
-                label='%2d (%.1f%%)' % (priority,
-                                        completeness[priority][-1]*100.),
-            )
+            try:
+                completeness[priority].append(
+                    np.count_nonzero(np.in1d(target_types[
+                                target_types['priority'] == priority
+                            ]['target_id'],
+                            target_complete[target_complete['date_obs'] <=
+                                            tile['date_obs']]['target_id']))
+                    / np.count_nonzero(target_types['priority'] == priority)
+                )
+                ax5.plot(
+                    range(len(completeness[priority])), completeness[priority],
+                    label='%2d (%.1f%%)' % (priority,
+                                            completeness[priority][-1] * 100.),
+                )
+            except ZeroDivisionError:
+                pass
         ax5.legend(loc='upper left')
 
         # Axis 6 - priority distribution on tile
@@ -2120,9 +2156,9 @@ def plot_total_visits(cursor, datetime_to=None,
 
 
 def plot_tile_config(pylab_mode=False,
-                      output_loc='.',
-                      output_prefix='tile_config_%d' % len(tp.FIBRES_NORMAL),
-                      output_fmt='png'):
+                     output_loc='.',
+                     output_prefix='tile_config_%d' % len(tp.FIBRES_NORMAL),
+                     output_fmt='png'):
     """
     Plot the initial configuration and layout of a tile (i.e. where the fibres
     are positioned by default).
@@ -2206,3 +2242,145 @@ def plot_tile_config(pylab_mode=False,
         ), fmt=output_fmt, dpi=300)
 
     return fig
+
+
+def plot_tile_object(tile_obj,
+                     sci_tgts=None, std_tgts=None, gd_tgts=None,
+                     pylab_mode=False,
+                     output_loc='.',
+                     output_prefix='tile_display',
+                     output_fmt='png'
+                     ):
+    """
+    Plot a diagnostic of a single TaipanTile object (positioning data only)
+
+    Parameters
+    ----------
+    tile_obj : taipan.core.TaipanTile object
+        The TaipanTile object to be plotted.
+    sci_tgts, std_tgts, gd_tgts : list of TaipanTarget objects, optional
+        List of science, standard and guide targets which were passed to this
+        tile as options to be assigned. Each defaults to None (so nothing
+        will be plotted re: target positions).
+    pylab_mode : Boolean, optional
+        Whether or not to output the plot to a Pylab plotting window (True) or
+        not (False). Defaults to False.
+    output_loc, output_prefix, output_fmt: strings
+        Strings denoting the location to write output (relative or absolute,
+        defaults to '.'),
+        the prefix of the output files (defaults to 'tile_config'), and the format
+        of the output (defaults to 'png').
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure object
+        The Figure instance the plot was drawn on
+    """
+    extent_m = np.radians(0.5+(TILE_RADIUS/3600.)) * EARTH_RADIUS
+
+    # Trim the target lists
+    if sci_tgts:
+        sci_tgts = tile_obj.available_targets(sci_tgts)
+    if std_tgts:
+        std_tgts = tile_obj.available_targets(std_tgts)
+    if gd_tgts:
+        gd_tgts = tile_obj.available_targets(gd_tgts)
+
+    # Set up the Figure instance
+    if pylab_mode:
+        fig = plt.gcf()
+        fig.clf()
+        # fig.set_size_inches((14, 10.5))
+    else:
+        fig = plt.figure()
+        fig.set_size_inches((10, 10))
+
+    # Set up the plot, based on the tile info
+    ax = fig.add_subplot(111)
+    m = Basemap(
+        projection='cass',
+        lon_0=tile_obj.ra, lat_0=tile_obj.dec,
+        width=2*extent_m, height=2*extent_m
+    )
+    m.tissot(tile_obj.ra, tile_obj.dec, TILE_RADIUS/3600., 50,
+             facecolor='none', edgecolor='black',
+             linewidth=2, linestyle='dashed')
+    m.drawmeridians(np.arange(0, 360., 1.),
+                    labels=[0, 0, 0, 1] if tile_obj.dec > -70. else [0, 1,
+                                                                         0, 0],
+                    labelstyle='+/-')
+    m.drawparallels(np.arange(-90., 90., 1.), labels=[1, 0, 0, 0],
+                    labelstyle='+/-')
+
+    # Plot the target positions
+    sct_tgts_plot = m.scatter(
+        [_.ra for _ in sci_tgts],
+        [_.dec for _ in sci_tgts],
+        latlon=True,
+        marker='o', s=1.3,
+        c=[_.priority for _ in sci_tgts], cmap='jet',
+        edgecolor='none',
+        vmin=tp.TARGET_PRIORITY_MIN,
+        vmax=tp.TARGET_PRIORITY_MAX
+    )
+
+    # Plot the guide positions
+    gd_tgts_plot = m.scatter(
+        [_.ra for _ in gd_tgts],
+        [_.dec for _ in gd_tgts],
+        latlon=True,
+        marker='d', s=2,
+        facecolor='grey', edgecolor='grey',
+    )
+
+    # Plot the assigned fibre positions
+    if np.any([_ is not None for _ in tile_obj._fibres.values()]):
+        # Science targets
+        if np.any([_.science for _ in tile_obj._fibres.values() if
+                   not isinstance(_, str)]):
+            xpts, ypts, cols = map(list, zip(*[
+                (tile_obj._fibres[f].ra,
+                 tile_obj._fibres[f].dec,
+                 tile_obj._fibres[f].priority, ) for f in tp.FIBRES_NORMAL if
+                not isinstance(tile_obj._fibres[f], str) and
+                tile_obj._fibres[f].science
+                ]))
+            m.scatter(
+                xpts, ypts, latlon=True,
+                marker='o', s=15, c=cols, cmap='jet',
+                edgecolor='none',
+                vmin=tp.TARGET_PRIORITY_MIN,
+                vmax=tp.TARGET_PRIORITY_MAX,
+            )
+            for i in range(len(xpts)):
+                m.tissot(xpts[i], ypts[i], tp.FIBRE_EXCLUSION_RADIUS/3600.,
+                         20, linewidth=0.7, linestyle='dashed',
+                         edgecolor='gray', facecolor='none')
+
+    # Plot the position of any unassigned fibres
+    if np.any([_ is None for _ in tile_obj._fibres.values()]):
+        xpts, ypts = map(list, zip(*[tile_obj.compute_fibre_posn(f) for
+                                     f in tp.FIBRES_NORMAL if
+                                     tile_obj._fibres[f] is None]))
+        logging.debug('Unassigned fibres @: %s' %
+                      ';'.join('%3.1f,%2.1f' % (xpts[i], ypts[i]) for
+                               i in range(len(xpts))))
+        m.scatter(
+            xpts, ypts, latlon=True,
+            marker='d', facecolor='grey', edgecolor='grey',
+        )
+
+    ax.set_aspect(1.)
+    fig.colorbar(sct_tgts_plot, label='Priority')
+
+
+    if pylab_mode:
+        plt.draw()
+        plt.show()
+    else:
+        fig.savefig('%s/%s.%s' % (
+            output_loc,
+            output_prefix,
+            output_fmt
+        ), fmt=output_fmt, dpi=300)
+
