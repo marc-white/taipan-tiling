@@ -9,21 +9,23 @@ import numpy as np
 
 import matplotlib.patches as mpatches
 
-ra_min = 60.
-ra_max = 160.
-dec_min = -60
+ra_min = 190.
+ra_max = 359.
+dec_min = -75
 dec_max = 20.
 
 # Generate the tiling
 print 'Making tiling...'
-# tile_list = tl.generate_SH_tiling('ipack.3.402.txt',
-tile_list = tl.generate_SH_tiling('ipack.3.8192.txt',
+#tile_list = tl.generate_SH_tiling('ipack.3.402.txt',
+#tile_list = tl.generate_SH_tiling('ipack.3.8192.txt',
+tile_list = tl.generate_SH_tiling('ipack.3.2040.txt',
+#tile_list = tl.generate_SH_tiling('ipack.3.4112.txt',
 	randomise_seed=True,
 	randomise_pa=True)
 print 'Done!'
 
-tile_list = [tile for tile in tile_list if tile.ra < 53.]
-tile_list = [tile for tile in tile_list if tile.dec > -36. and tile.dec < -26.]
+tile_list = [tile for tile in tile_list if ra_min < tile.ra < ra_max]
+tile_list = [tile for tile in tile_list if dec_min < tile.dec < dec_max]
 print len(tile_list)
 # sys.exit()
 

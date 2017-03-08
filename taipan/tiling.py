@@ -991,8 +991,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                                                      [7,8],
                                                      [9,10],
                                                      [11,12]],
-                              prioritise_extra=4,
-                              completeness_priority=4,
+                              prioritise_extra=2,
+                              priority_normal=2,
                               mag_ranges=[[5,8],[7,10],[9,12],[11,14]],
                               tiling_set_size=1000,
                               tile_unpick_method='combined_weighted',
@@ -1067,10 +1067,11 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         
     prioritise_extra :
         The additional priority to add within each of the mag_range_prioritise
-        
-    completeness_priority :
-        The priority level at which completeness is assessed.
     
+    priority_normal :
+        The standard priority level. Completeness is assessed at this priority level
+        for stars in the priority magnitude range.
+                
     tiling_set_size : 
         Not relevant at the current time.
         
@@ -1115,6 +1116,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         tile).
     """
     
+    completeness_priority = priority_normal + prioritise_extra
+    
     tile_lists = []
 
     # Input checking
@@ -1158,15 +1161,26 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
         except:
             mag_range_prioritise = None
             
-        #Find the candidates in the correct magnitude range.
-        candidate_targets_range = [t for t in candidate_targets 
-            if mag_range[0] <= t.mag < mag_range[1]]
-            
-        #Increase the priority for the priority magnitude range
-        if mag_range_prioritise: 
-            for t in candidate_targets_range:
-                if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
-                    t.priority += prioritise_extra
+        #Find the candidates in the correct magnitude range. If we are not in the faintest
+        #magnitude range, then we have to ignore high priority targets for now, as we'd
+        #rather them be observed with a long exposure time
+        if mag_range_prioritise:
+            if range_ix < len(mag_ranges)-1:
+                candidate_targets_range = [t for t in candidate_targets 
+                    if ( (mag_range_prioritise[1] <= t.mag < mag_range[1]) and #faint
+                    (t.priority <= priority_normal) ) or
+                    ( (mag_range[0] <= t.mag < mag_range_prioritise[1]) )] #bright
+                for t in candidate_targets_range:
+                    if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
+                        t.priority >= priority_normal):
+                        t.priority += prioritise_extra
+            else:
+                candidate_targets_range = [t for t in candidate_targets
+                    if (mag_range[0] <= t.mag < mag_range[1])]
+                for t in candidate_targets_range:
+                    if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
+                        t.priority == priority_normal):
+                        t.priority += prioritise_extra                
         
         #Also find the standards in the correct magnitude range.
         standard_targets_range = [t for t in standard_targets 
@@ -1300,8 +1314,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                     
                     #Change priorities back to normal for targets in our priority magnitude
                     #range
-                    if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
-                        t.priority -= prioritise_extra
+                    t.priority = t.priority_original
                 elif t.standard:
                     reobserved_standards.append(t)
                     logging.info('Re-allocating standard ' + t.idn + ' that is also a science target.')
@@ -1405,10 +1418,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                 #import pdb; pdb.set_trace()
                 
         # Now return the priorities to as they were for the remaining targets.
-        if mag_range_prioritise: 
-            for t in candidate_targets_range:
-                if mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]:
-                    t.priority -= prioritise_extra
+        for t in candidate_targets_range:
+            t.priority = t.priority_original
         #Log where we're up to:
         logging.info('** For mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], mag_range_prioritise[1]))
         logging.info('Total Tiles so far = {0:d}'.format(len(tile_list)))
