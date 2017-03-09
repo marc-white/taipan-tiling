@@ -726,7 +726,7 @@ TILE_DIAMETER = 2.0 * TILE_RADIUS     # arcsec
 PATROL_RADIUS = 1.2 * 3600.           # arcsec
 
 # Quadrant definition for sky fibre allocation
-QUAD_RADII = [TILE_RADIUS, 7000., 3500., 0.]
+QUAD_RADII = [TILE_RADIUS, 6830.52, 3415.26, 0.]
 QUAD_PER_RADII = [12, 6, 2]
 if len(QUAD_PER_RADII) != len(QUAD_RADII)-1:
     raise ValueError('QUAD_PER_RADII must have one less element than '
