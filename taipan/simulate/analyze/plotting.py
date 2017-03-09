@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import cm, colors
 from matplotlib.patches import Circle
+from matplotlib.lines import Line2D
 from mpl_toolkits.basemap import Basemap
 import datetime
 import time
@@ -37,6 +38,55 @@ import logging
 MIDDAY = datetime.time(12,0)
 
 EARTH_RADIUS = 6371000 # m
+
+matplotlib.rc('axes',edgecolor='k')
+matplotlib.rc('xtick',color='k')
+matplotlib.rc('ytick',color='k')
+matplotlib.rc('axes',labelcolor='k')
+#matplotlib.rc('xtick', labelsize=6)
+#matplotlib.rc('ytick', labelsize=6)
+matplotlib.rc('axes',linewidth=0.5)
+font = {'family': 'serif',
+        'weight': 'normal',
+        'size': 12}
+matplotlib.rc('font', **font)
+
+def rainbow_pjm():
+    """
+    Returns a rainbow color map desgined by Peter McGregor.
+
+    Inputs:
+    Nil.
+
+    Returns:
+    RainbowPJM - A rainbow-style colormap, with only bright colors, and
+                 black and white removed.
+    """
+
+    colordict = {'blue': ((0.0, 0.3, 0.3),
+                          (0.125, 0.6, 0.6),
+                          (0.25, 1.0, 1.0),
+                          (0.375, 0.6, 0.6),
+                          (0.5, 0.3, 0.3),
+                          (0.625, 0.0, 0.0),
+                          (1.0, 0.0, 0.0)),
+                 'green': ((0.0, 0.0, 0.0),
+                           (0.125, 0.0, 0.0),
+                           (0.25, 0.6, 0.6),
+                           (0.375, 1.0, 1.0),
+                           (0.625, 1.0, 1.0),
+                           (0.75, 0.6, 0.6),
+                           (0.875, 0.0, 0.0),
+                           (1.0, 0.0, 0.0)),
+                 'red': ((0.0, 0.0, 0.0),
+                         (0.25, 0.0, 0.0),
+                         (0.375, 0.3, 0.3),
+                         (0.5, 0.6, 0.6),
+                         (0.625, 1.0, 1.0),
+                         (1.0, 1.0, 1.0))}
+
+    return matplotlib.colors.LinearSegmentedColormap('RainbowPJM',
+                                                     colordict)
 
 
 def plot_tiles_per_night(cursor, start_date=None, end_date=None,
@@ -2206,19 +2256,29 @@ def plot_tile_config(pylab_mode=False,
     ax.scatter([tp.BUGPOS_ARCSEC[f][0] for f in tp.FIBRES_GUIDE],
                [tp.BUGPOS_ARCSEC[f][1] for f in tp.FIBRES_GUIDE],
                marker='x', facecolor='green', label='Guide')
+    sky_fibres = [19,23,26,77,81,
+                  85,88,]
     for f in tp.FIBRES_GUIDE:
-        ax.text(tp.BUGPOS_ARCSEC[f][0]+3, tp.BUGPOS_ARCSEC[f][1]+3, str(f),
-                fontsize=4.5 if pylab_mode else 7.5,
+        ax.text(tp.BUGPOS_ARCSEC[f][0]+20, tp.BUGPOS_ARCSEC[f][1]+20, str(f),
+                fontsize=6 if pylab_mode else 7.5,
                 color='green')
+        range_circ = Circle((tp.BUGPOS_ARCSEC[f][0],
+                             tp.BUGPOS_ARCSEC[f][1]),
+                            radius=tp.FIBRE_EXCLUSION_RADIUS,
+                            edgecolor='green',
+                            linewidth=0.5,
+                            linestyle='dashed',
+                            facecolor='none')
+        ax.add_artist(range_circ)
 
     # Plot the normal fibre positions
     ax.scatter([tp.BUGPOS_ARCSEC[f][0] for f in tp.FIBRES_NORMAL],
                [tp.BUGPOS_ARCSEC[f][1] for f in tp.FIBRES_NORMAL],
-               marker='o', facecolor='black', label='Standard')
+               marker='o', facecolor='black', label='Science')
     for f in tp.FIBRES_NORMAL:
-        ax.text(tp.BUGPOS_ARCSEC[f][0] + 3, tp.BUGPOS_ARCSEC[f][1] + 3,
+        ax.text(tp.BUGPOS_ARCSEC[f][0] + 20, tp.BUGPOS_ARCSEC[f][1] + 20,
                 str(f),
-                fontsize=4.5 if pylab_mode else 7.5,
+                fontsize=6 if pylab_mode else 7.5,
                 color='black')
         range_circ = Circle((tp.BUGPOS_ARCSEC[f][0],
                              tp.BUGPOS_ARCSEC[f][1]),
@@ -2228,6 +2288,34 @@ def plot_tile_config(pylab_mode=False,
                             linestyle='dashed',
                             facecolor='none')
         ax.add_artist(range_circ)
+
+    # Plot in sky selection quadrants
+    for i in range(len(tp.QUAD_RADII)):
+        quad_circ = Circle((0., 0.,), radius=tp.QUAD_RADII[i],
+                           edgecolor='gray', linewidth=1,
+                           linestyle='dashed', facecolor='none',
+                           zorder=-20)
+        ax.add_artist(quad_circ)
+        if i != len(tp.QUAD_RADII) - 1:
+            # Plot quadrant splits
+            theta = 360. / tp.QUAD_PER_RADII[i]
+            for j in range(tp.QUAD_PER_RADII[i]):
+                print j*theta
+                x1, y1 = tp.compute_offset_posn(0, 0,
+                                                tp.QUAD_RADII[i+1],
+                                                j * theta)
+                x2, y2 = tp.compute_offset_posn(0, 0,
+                                                tp.QUAD_RADII[i],
+                                                j * theta)
+                x1 *= 3600.
+                x2 *= 3600.
+                y1 *= 3600.
+                y2 *= 3600.
+                print x1, y1, x2, y2
+                quad_arc = Line2D([x1, x2], [y1, y2],
+                                  color='gray', linewidth=1,
+                                  linestyle='dashed', zorder=-20)
+                ax.add_artist(quad_arc)
 
     leg = ax.legend()
 
@@ -2276,7 +2364,7 @@ def plot_tile_object(tile_obj,
     fig : matplotlib.figure.Figure object
         The Figure instance the plot was drawn on
     """
-    extent_m = np.radians(0.5+(TILE_RADIUS/3600.)) * EARTH_RADIUS
+    extent_m = np.radians(0.4+(TILE_RADIUS/3600.)) * EARTH_RADIUS
 
     # Trim the target lists
     if sci_tgts:
@@ -2299,17 +2387,20 @@ def plot_tile_object(tile_obj,
     ax = fig.add_subplot(111)
     m = Basemap(
         projection='cass',
-        lon_0=tile_obj.ra, lat_0=tile_obj.dec,
-        width=2*extent_m, height=2*extent_m
+        lon_0=tile_obj.ra, lat_0=tile_obj.dec+0.34,
+        width=2*extent_m, height=2.06*extent_m
     )
     m.tissot(tile_obj.ra, tile_obj.dec, TILE_RADIUS/3600., 50,
              facecolor='none', edgecolor='black',
              linewidth=2, linestyle='dashed')
-    m.drawmeridians(np.arange(0, 360., 1.),
+    m.drawmeridians(np.arange(0, 360.,
+                              1. if tile_obj.dec > 60. else 2.),
                     labels=[0, 0, 0, 1] if tile_obj.dec > -70. else [0, 1,
                                                                          0, 0],
                     labelstyle='+/-')
-    m.drawparallels(np.arange(-90., 90., 1.), labels=[1, 0, 0, 0],
+    m.drawparallels(np.arange(-90., 90.,
+                              1.),
+                    labels=[1, 0, 0, 0],
                     labelstyle='+/-')
 
     # Plot the target positions
@@ -2317,8 +2408,10 @@ def plot_tile_object(tile_obj,
         [_.ra for _ in sci_tgts],
         [_.dec for _ in sci_tgts],
         latlon=True,
-        marker='o', s=1.3,
-        c=[_.priority for _ in sci_tgts], cmap='jet',
+        marker='o', s=2.5,
+        c=[_.priority for _ in sci_tgts],
+        # cmap='jet',
+        cmap=rainbow_pjm(),
         edgecolor='none',
         vmin=tp.TARGET_PRIORITY_MIN,
         vmax=tp.TARGET_PRIORITY_MAX
@@ -2337,25 +2430,104 @@ def plot_tile_object(tile_obj,
     if np.any([_ is not None for _ in tile_obj._fibres.values()]):
         # Science targets
         if np.any([_.science for _ in tile_obj._fibres.values() if
-                   not isinstance(_, str)]):
+                   not isinstance(_, str) and _ is not None]):
             xpts, ypts, cols = map(list, zip(*[
                 (tile_obj._fibres[f].ra,
                  tile_obj._fibres[f].dec,
                  tile_obj._fibres[f].priority, ) for f in tp.FIBRES_NORMAL if
                 not isinstance(tile_obj._fibres[f], str) and
+                tile_obj._fibres[f] is not None and
                 tile_obj._fibres[f].science
                 ]))
             m.scatter(
                 xpts, ypts, latlon=True,
-                marker='o', s=15, c=cols, cmap='jet',
+                marker='d', s=35, c=cols,
+                # cmap='jet',
+                cmap=rainbow_pjm(),
                 edgecolor='none',
                 vmin=tp.TARGET_PRIORITY_MIN,
                 vmax=tp.TARGET_PRIORITY_MAX,
+                label='Science'
             )
             for i in range(len(xpts)):
                 m.tissot(xpts[i], ypts[i], tp.FIBRE_EXCLUSION_RADIUS/3600.,
                          20, linewidth=0.7, linestyle='dashed',
+                         edgecolor='gray', facecolor='none',
+                         label='Fibre radius' if i==0 else None)
+
+        # Guide targets
+        if np.any([_.guide for _ in tile_obj._fibres.values() if
+                   not isinstance(_, str) and _ is not None]):
+            xpts, ypts = map(list, zip(*[
+                (t.ra,
+                 t.dec,) for t in tile_obj._fibres.values() if
+                not isinstance(t, str) and t is not None and
+                t.guide
+                ]))
+            # print(xpts)
+            # print(ypts)
+            m.scatter(
+                xpts, ypts, latlon=True,
+                marker='v', s=30, facecolor='black',
+                edgecolor='none',
+                label='Guide'
+            )
+            logging.debug('%d guides' % len(xpts))
+            for i in range(len(xpts)):
+                m.tissot(xpts[i], ypts[i], tp.FIBRE_EXCLUSION_RADIUS/3600.,
+                         20, linewidth=0.7, linestyle='dashed',
                          edgecolor='gray', facecolor='none')
+
+        # Standard targets
+        if np.any([_.standard for _ in tile_obj._fibres.values() if
+                   not isinstance(_, str) and _ is not None]):
+            xpts, ypts = map(list, zip(*[
+                (t.ra,
+                 t.dec,) for t in tile_obj._fibres.values() if
+                not isinstance(t, str) and
+                t is not None and
+                t.standard
+                ]))
+            # print(xpts)
+            # print(ypts)
+            m.scatter(
+                xpts, ypts, latlon=True,
+                marker='^', s=30, facecolor='black',
+                edgecolor='none',
+                label='Standard'
+            )
+            logging.debug('%d standards' % len(xpts))
+            for i in range(len(xpts)):
+                m.tissot(xpts[i], ypts[i],
+                         tp.FIBRE_EXCLUSION_RADIUS / 3600.,
+                         20, linewidth=0.7, linestyle='dashed',
+                         edgecolor='gray', facecolor='none')
+
+        # Sky fibres & patrol radii
+        if np.any([_ == 'sky' for _ in tile_obj._fibres.values()]):
+            xpts, ypts = map(list, zip(*[
+                tile_obj.compute_fibre_posn(f) for f in
+                tile_obj._fibres.keys() if
+                tile_obj._fibres[f] == 'sky']))
+            # print(xpts)
+            # print(ypts)
+            m.scatter(
+                xpts, ypts, latlon=True,
+                marker='x', s=30, facecolor='black',
+                edgecolor='none',
+                label='Sky (home posn.)'
+            )
+            logging.debug('%d sky fibres' % len(xpts))
+            # Plot a grid of allowed sky fibre positions
+            # xpts = np.arange(tile_obj.ra - TILE_RADIUS,
+            #                  tile_obj.ra + TILE_RADIUS,)
+            for i in range(len(xpts)):
+                m.tissot(xpts[i], ypts[i],
+                         tp.PATROL_RADIUS / 3600.,
+                         40, linewidth=0.7,
+                         edgecolor='none', facecolor='0.95',
+                         hatch='x|-', zorder=-10,
+                         label='Sky patrol area' if i==0 else None)
 
     # Plot the position of any unassigned fibres
     if np.any([_ is None for _ in tile_obj._fibres.values()]):
@@ -2367,12 +2539,23 @@ def plot_tile_object(tile_obj,
                                i in range(len(xpts))))
         m.scatter(
             xpts, ypts, latlon=True,
-            marker='d', facecolor='grey', edgecolor='grey',
+            marker='o', facecolor='none', edgecolor='grey',
+            s=40, label='Unassigned'
         )
 
-    ax.set_aspect(1.)
-    fig.colorbar(sct_tgts_plot, label='Priority')
+    leg = ax.legend(ncol=3, loc='upper center')
 
+    ax.set_aspect(1.)
+    fig.colorbar(sct_tgts_plot, label='Science target priority')
+
+    plt.subplots_adjust(top=0.94, bottom=0.06, left=-0.35, right=1.09)
+
+    ax.set_title('Tile %6d | field %5d' %
+                 (tile_obj.pk if tile_obj.pk is not None else -1,
+                  tile_obj.field_id if tile_obj.field_id is not None else -1,
+                  ))
+    ax.set_xlabel('RA (degrees)', labelpad=23)
+    ax.set_ylabel('Dec (degrees)', labelpad=37)
 
     if pylab_mode:
         plt.draw()
@@ -2383,4 +2566,6 @@ def plot_tile_object(tile_obj,
             output_prefix,
             output_fmt
         ), fmt=output_fmt, dpi=300)
+
+    return fig
 
