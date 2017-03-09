@@ -725,6 +725,28 @@ TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec
 TILE_DIAMETER = 2.0 * TILE_RADIUS     # arcsec
 PATROL_RADIUS = 1.2 * 3600.           # arcsec
 
+# Quadrant definition for sky fibre allocation
+QUAD_RADII = [TILE_RADIUS, 7000., 3500., 0.]
+QUAD_PER_RADII = [12, 6, 2]
+if len(QUAD_PER_RADII) != len(QUAD_RADII)-1:
+    raise ValueError('QUAD_PER_RADII must have one less element than '
+                     'QUAD_RADII')
+if sum(QUAD_PER_RADII) != SKY_PER_TILE:
+    raise UserWarning('The number of defined tile quandrants does not match '
+                      'SKY_PER_TILE. These are meant to be the same!')
+
+FIBRES_PER_QUAD = []
+for i in range(len(QUAD_RADII))[:-1]:
+    theta = 360. / QUAD_PER_RADII[i]
+    for j in range(QUAD_PER_RADII[i]):
+        FIBRES_PER_QUAD.append(
+            [k for k in BUGPOS_OFFSET.keys() if
+             k not in FIBRES_GUIDE and
+             QUAD_RADII[i+1] <= BUGPOS_OFFSET[k][0] < QUAD_RADII[i] and
+             j*theta <= BUGPOS_OFFSET[k][1] < (j+1)*theta]
+        )
+
+
 TARGET_PRIORITY_MIN = 0
 TARGET_PRIORITY_MAX = 100
 TARGET_PRIORITY_MS = 50
@@ -2653,6 +2675,107 @@ class TaipanTile(TaipanPoint):
         self._fibres[fibre] = tgt
         return
 
+    def assign_sky(self):
+        """
+        Assign sky fibres by randomly selecting one fibre in each of the
+        pre-defined quadrants of the tile.
+
+        Returns
+        -------
+        Nil. Fibres on the tile are assigned as 'sky'.
+        """
+        logging.info('Assigning sky fibres')
+
+        # Remove existing sky fibres
+        for f in self._fibres.keys():
+            if self._fibres[f] == 'sky':
+                _ = self.unassign_fibre(f)
+
+        def random_or_none(l):
+            try:
+                return random.choice(l)
+            except IndexError:
+                return None
+
+        sky_fibres = []
+        assigned_sky = 0
+        while assigned_sky < SKY_PER_TILE:
+            assigned_this_pass = 0
+            sky_fibres_this_pass = [
+                random_or_none([x for x in l if x in FIBRES_NORMAL and
+                               self._fibres[x] is None and
+                                x not in sky_fibres]) for
+                l in FIBRES_PER_QUAD
+            ]
+            assigned_sky += np.count_nonzero(sky_fibres_this_pass)
+            assigned_this_pass = np.count_nonzero(sky_fibres_this_pass)
+            sky_fibres += sky_fibres_this_pass
+            if assigned_this_pass == 0:
+                break
+
+        for f in [_ for _ in sky_fibres if _ is not None]:
+            self._fibres[f] = 'sky'
+            logging.debug('Added sky to fibre %d' % f)
+
+    def assign_sky_seed(self, seed_fibre=None):
+        """
+        Assign sky fibres in a psuedo-random fashion to (attempt to) guarantee
+        relatively even sky coverage.
+
+        The algorithm for this procedure was developed by Nuria Lorente for
+        the SAMI survey:
+        1) Select a 'seed' normal fibre at random. This is the first sky fibre.
+        2) Select the fibre farthest from the 'seed' fibre as a new sky fibre.
+        3) Repeat step 2 by selecting the (on average) farthest fibre from the
+        existing sky fibres as a new sky fibre, until the correct number of
+        sky fibres are assigned (or we run out of fibres)
+
+        Returns
+        -------
+        Nil. Sky fibres are updated on the parent tile.
+        """
+        sky_fibres = []
+        logging.info('Assigning sky fibres')
+
+        # Remove existing sky fibres
+        for f in self._fibres.keys():
+            if self._fibres[f] == 'sky':
+                _ = self.unassign_fibre(f)
+
+        if seed_fibre is None:
+            # Pick a random seed fibre & append to fibre list
+            sky_fibres.append(random.choice(FIBRES_NORMAL))
+        else:
+            if seed_fibre not in FIBRES_NORMAL:
+                raise ValueError('Invalid seed fibre (%d) passed to '
+                                 'assign_sky' % seed_fibre)
+            sky_fibres.append(seed_fibre)
+        logging.debug('Added sky to fibre %d' % sky_fibres[-1])
+
+        while len(sky_fibres) < SKY_PER_TILE and np.any(
+            [self._fibres[f] is None for f in FIBRES_NORMAL]
+        ):
+            # Compute the farthest fibre from the current sky fibres
+            avg_dists = {f: np.average([
+                                       np.abs(dist_points(
+                                           *self.compute_fibre_posn(s)+
+                                            self.compute_fibre_posn(f)) -
+                                              2.75*PATROL_RADIUS) for s in
+                                       sky_fibres
+                                       ])
+                         for f in FIBRES_NORMAL if
+                         self._fibres[f] is None and
+                         f not in sky_fibres}
+            sky_fibres.append(
+                min(avg_dists.iteritems(), key=operator.itemgetter(1))[0]
+            )
+            logging.debug('Added sky to fibre %d' % sky_fibres[-1])
+
+        for f in sky_fibres:
+            self.set_fibre(f, 'sky')
+
+        return
+
     def assign_fibre(self, fibre, candidate_targets, 
                      check_patrol_radius=True, check_tile_radius=True,
                      recompute_difficulty=True,
@@ -3311,7 +3434,8 @@ class TaipanTile(TaipanPoint):
                     rank_supplements=False,
                     repick_after_complete=True,
                     consider_removed_targets=True,
-                    allow_standard_targets=False):
+                    allow_standard_targets=False,
+                    assign_sky_first=True):
         """
         Unpick this tile, i.e. make a full allocation of targets, guides etc.
 
@@ -3399,6 +3523,15 @@ class TaipanTile(TaipanPoint):
             Boolean value denoting whether to
             place targets removed (due to having overwrite_existing=True) back
             into the candidate_targets list. Defaults to True.
+
+        assign_sky_first : bool, optional
+            Flag denoting whether to assign to sky fibres as the first step
+            of unpicking (True), or simply make the 'leftover' fibres sky at
+            the end of unpicking (False). Defaults to True. Assigning the
+            sky fibres semi-randomly first via the self.assign_sky() method
+            has the advantage of avoiding systematic issues with making
+            certain fibres the desginated sky fibres, and attempts to ensure
+            an even distribution of sky fibres.
 
         Returns
         -------    
@@ -3511,6 +3644,9 @@ class TaipanTile(TaipanPoint):
         # First, assign the science targets to the tile
         # This step will only fill TARGET_PER_TILE fibres; that is, it assumes
         # that we will want an optimal number of standards, guides and skies
+
+        if assign_sky_first:
+            self.assign_sky()
         
         # For FunnelWeb, some of the targets are also standards. This is fine - 
         # as long as the same target isn't passed twice, the following algorithm
@@ -3728,10 +3864,11 @@ class TaipanTile(TaipanPoint):
                     # print 'Failure detected!'
 
         # Assign remaining fibres to sky, up to SKY_PER_TILE fibres
-        for f in [f for f in self._fibres 
-            if self._fibres[f] is None 
-            and f not in FIBRES_GUIDE][:SKY_PER_TILE]:
-            self._fibres[f] = 'sky'
+        if not assign_sky_first:
+            for f in [f for f in self._fibres
+                if self._fibres[f] is None
+                and f not in FIBRES_GUIDE][:SKY_PER_TILE]:
+                self._fibres[f] = 'sky'
 
         # Perform a repick if requested
         if repick_after_complete:
@@ -3799,7 +3936,8 @@ class TaipanTile(TaipanPoint):
         of fibres is found. This should reduce the number of non-configurable
         tiles generated.
 
-        Note that guide fibres are NOT included in the repick process.
+        Guide and 'standard' fibres are repicked separately. Note that sky
+        fibres are NOT available to be repicked.
         """
 
         # Do unpicking separately for guides and science/standards/skies
@@ -3810,7 +3948,7 @@ class TaipanTile(TaipanPoint):
             
             # Calculate rest positions for all fibres
             fibre_usposns = {fibre: self.compute_fibre_usposn(fibre) 
-                for fibre in fibres_list}
+                for fibre in fibres_list if self._fibres != 'sky'}
             # More messy but FAST
             fibre_usposns_values = np.asarray(fibre_usposns.values())
             fibre_usposns_keys = np.asarray(fibre_usposns.keys())
@@ -3855,7 +3993,8 @@ class TaipanTile(TaipanPoint):
                 # ID any other fibres that could potentially take this target
                 # Identify the closest fibre to this target
                 # print 'Finding available fibres...'
-                candidate_fibres = fibre_usposns_keys[tgt_wf.ranked_index(fibre_usposns_values, PATROL_RADIUS)].tolist()
+                candidate_fibres = fibre_usposns_keys[tgt_wf.ranked_index(
+                    fibre_usposns_values, PATROL_RADIUS)].tolist()
             
                 #candidate_fibres = [fibre for fibre in fibre_posns 
                 #    if tgt_wf.dist_point(fibre_posns[fibre]) < PATROL_RADIUS] #ZZZ
@@ -3871,7 +4010,8 @@ class TaipanTile(TaipanPoint):
                 # 'worst fibre'
                 candidate_fibres_better = [fibre for fibre in candidate_fibres
                     if (self._fibres[fibre] is None 
-                        or self._fibres[fibre] == 'sky')
+                        # or self._fibres[fibre] == 'sky'
+                        )
                         and tgt_wf.dist_usposn(fibre_usposns[fibre]) < dist_wf]
                 candidate_fibres_better += [fibre for fibre in candidate_fibres
                     if isinstance(self._fibres[fibre], TaipanTarget)
