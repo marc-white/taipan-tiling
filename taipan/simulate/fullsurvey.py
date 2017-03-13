@@ -47,6 +47,7 @@ from src.resources.v0_0_1.manipulate.makeTilesReset import execute as mTRexec
 from src.resources.v0_0_1.manipulate.makeScienceTypes import execute as mScTyexec
 from src.resources.v0_0_1.manipulate.makeSciencePriorities import execute as mScPexec
 from src.resources.v0_0_1.manipulate.makeScienceDiff import execute as mSDexec
+from src.resources.v0_0_1.manipulate import makeObservingLog as mOL
 
 import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
 
@@ -181,6 +182,11 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                                                 prob_vpec_second=
                                                 prob_vpec_second,
                                                 prob_lowz_each=prob_lowz_each)
+
+        # Record the observing log at this point to capture data at time
+        # of assignment/observation
+        mOL.execute(cursor, tiles_observed, target_ids, success_targets,
+                    datetime_at=tiles_observed_at)
 
         # Set relevant targets as observed successfully, all others
         # observed but unsuccessfully
