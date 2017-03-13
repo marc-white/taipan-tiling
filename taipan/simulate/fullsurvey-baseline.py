@@ -13,6 +13,7 @@ import math
 import traceback
 
 from utils.tiling import retile_fields
+from utils.updatesci import update_science_targets
 
 from src.scripts.connection import get_connection
 
@@ -163,43 +164,36 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             # science fibres
             # We do this by adding a new fibre in between each pair of
             # consecutive science fibres
-            tp.FIBRES_NORMAL.sort()
-            last_fibre = np.max(tp.BUGPOS_MM.keys())
-            for i in range(len(tp.FIBRES_NORMAL)):
-                pos_avg = (
-                    np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][0],
-                                tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][0]]),
-                    np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][1],
-                                tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][1]]),
-                )
-                tp.BUGPOS_MM[last_fibre + i + 1] = pos_avg
-                tp.BUGPOS_ARCSEC[last_fibre + i + 1] = (
-                    pos_avg[0] * tp.ARCSEC_PER_MM,
-                    pos_avg[1] * tp.ARCSEC_PER_MM,
-                )
-                tp.BUGPOS_OFFSET[last_fibre + i + 1] = (
-                    math.sqrt(pos_avg[0]**2 + pos_avg[1]**2),
-                    math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
-                )
-                tp.FIBRES_NORMAL.append(last_fibre + i + 1)
-            tp.TARGET_PER_TILE = 270
-            tp.FIBRES_PER_TILE = 309
-            tp.INSTALLED_FIBRES = 309
+            # tp.FIBRES_NORMAL.sort()
+            # last_fibre = np.max(tp.BUGPOS_MM.keys())
+            # for i in range(len(tp.FIBRES_NORMAL)):
+            #     pos_avg = (
+            #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][0],
+            #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][0]]),
+            #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][1],
+            #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][1]]),
+            #     )
+            #     tp.BUGPOS_MM[last_fibre + i + 1] = pos_avg
+            #     tp.BUGPOS_ARCSEC[last_fibre + i + 1] = (
+            #         pos_avg[0] * tp.ARCSEC_PER_MM,
+            #         pos_avg[1] * tp.ARCSEC_PER_MM,
+            #     )
+            #     tp.BUGPOS_OFFSET[last_fibre + i + 1] = (
+            #         math.sqrt(pos_avg[0]**2 + pos_avg[1]**2),
+            #         math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
+            #     )
+            #     tp.FIBRES_NORMAL.append(last_fibre + i + 1)
+            # tp.TARGET_PER_TILE = 270
+            # tp.FIBRES_PER_TILE = 309
+            # tp.INSTALLED_FIBRES = 309
+            tp._alter_fibres(no_fibres=300)
             # Lose 30 days to the upgrade
             curr_date += datetime.timedelta(days=30.)
             # Need to now do:
             # Complete re-compute of target types, priorities and difficulties
-            target_types_db = rST.execute(cursor)
-            target_types_new = tsl.compute_target_types(target_types_db,
-                                                        prisci=False)
-            mScTy.execute(cursor, target_types_new['target_id'],
-                          target_types_new['is_h0_target'],
-                          target_types_new['is_vpec_target'],
-                          target_types_new['is_lowz_target'])
-            target_types_db = rST.execute(cursor)
-            new_priors = tsl.compute_target_priorities_tree(
-                target_types_db, prisci=False)
-            mScP.execute(cursor, target_types_db['target_id'], new_priors)
+            update_science_targets(cursor, target_list=None,
+                                   do_d=True,
+                                   prisci=False)
             # mScD.execute(cursor)
             # Complete re-tile of all fields
             fields_to_retile = [t.field_id for t in rCexec(cursor)]
@@ -223,10 +217,10 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 6, 1)
-    sim_end = datetime.date(2022, 6, 1)
+    sim_start = datetime.date(2017, 7, 1)
+    sim_end = datetime.date(2022, 7, 1)
     global_start = datetime.datetime.now()
-    prior_lowz_end = datetime.timedelta(days=365.)
+    prior_lowz_end = datetime.date(2019, 1, 1) - sim_start
 
     kill_time = None
     # kill_time = datetime.datetime(2017, 7, 23, 9, 25, 0)
