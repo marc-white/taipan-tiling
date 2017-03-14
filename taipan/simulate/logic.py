@@ -185,19 +185,20 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         in_census_region_iband = np.logical_and(in_census_region,
                                                 target_info_array['is_iband'])
         # No success yet
+        # This means we should use visits, not observations
         priorities[np.logical_and(in_census_region_iband,
                                   np.logical_and(~target_info_array['success'],
-                                                 target_info_array['observations'] <
+                                                 target_info_array['visits'] <
                                                  5))
         ] = 99 - target_info_array[np.logical_and(in_census_region_iband,
                                   np.logical_and(~target_info_array['success'],
-                                                 target_info_array['observations'] <
+                                                 target_info_array['visits'] <
                                                  5))
         ]['visits']
 
         priorities[np.logical_and(in_census_region_iband,
                                   np.logical_and(~target_info_array['success'],
-                                                 target_info_array['observations'] >=
+                                                 target_info_array['visits'] >=
                                                  5))
         ] = 50
 
@@ -242,46 +243,49 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         out_census_region_nir = np.logical_and(~in_census_region,
                                                target_info_array['is_nir'])
         # Standard incomplete target defns.
+        # Because these are incomplete, we should use visits, not observations
         # nir_priority_defs
         priorities[np.logical_and(
             np.logical_and(
                 out_census_region_nir,
                 ~target_info_array['success']
             ),
-            target_info_array['observations'] < 1
+            target_info_array['visits'] < 1
         )] = 79 - np.clip(5 - (target_info_array[np.logical_and(
             np.logical_and(
                 out_census_region_nir,
                 ~target_info_array['success']
             ),
-            target_info_array['observations'] < 1
-        )]['col_jk'] - 1.0) * 10, 0, 4).astype('i')
+            target_info_array['visits'] < 1
+        )]['col_jk'] - 1.0) * 10, 0, 3).astype('i')
 
         priorities[np.logical_and(
             np.logical_and(
                 out_census_region_nir,
                 ~target_info_array['success']
             ),
-            target_info_array['observations'] >= 1
+            target_info_array['visits'] >= 1
         )] = 0
 
         priorities[np.logical_and(
             np.logical_and(
-                out_census_region_nir,
-                ~target_info_array['success']
+                np.logical_and(target_info_array['col_jk'] < 1.2,
+                               np.logical_and(out_census_region_nir,
+                                              ~target_info_array['success']))
             ),
             np.logical_and(
-                target_info_array['observations'] >= 1,
-                target_info_array['observations'] < 3
+                target_info_array['visits'] >= 1,
+                target_info_array['visits'] < 3
             )
         )] = 67 - target_info_array[np.logical_and(
             np.logical_and(
-                out_census_region_nir,
-                ~target_info_array['success']
+                np.logical_and(target_info_array['col_jk'] < 1.2,
+                               np.logical_and(out_census_region_nir,
+                                              ~target_info_array['success']))
             ),
             np.logical_and(
-                target_info_array['observations'] >= 1,
-                target_info_array['observations'] < 3
+                target_info_array['visits'] >= 1,
+                target_info_array['visits'] < 3
             )
         )]['visits']
 
@@ -291,10 +295,10 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                 ~target_info_array['success']
             ),
             np.logical_and(
-                target_info_array['observations'] >= 1,
+                target_info_array['visits'] >= 1,
                 np.logical_and(
-                    target_info_array['observations'] < 4,
-                    target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT
+                    target_info_array['visits'] < 4,
+                    target_info_array['col_jk'] > 1.2
                 )
             )
         )] = 70 - target_info_array[np.logical_and(
@@ -303,10 +307,10 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                 ~target_info_array['success']
             ),
             np.logical_and(
-                target_info_array['observations'] >= 1,
+                target_info_array['visits'] >= 1,
                 np.logical_and(
-                    target_info_array['observations'] < 4,
-                    target_info_array['col_jk'] > NIR_JKCOL_SELECTION_LIMIT
+                    target_info_array['visits'] < 4,
+                    target_info_array['col_jk'] > 1.2
                 )
             )
         )]['visits']
@@ -341,17 +345,17 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         priorities[np.logical_and(
             target_info_array['is_iband'],
             np.logical_and(~target_info_array['success'],
-                           target_info_array['observations'] < 5)
+                           target_info_array['visits'] < 5)
         )] = 99 - target_info_array[np.logical_and(
             target_info_array['is_iband'],
             np.logical_and(~target_info_array['success'],
-                           target_info_array['observations'] < 5)
+                           target_info_array['visits'] < 5)
         )]['visits']
 
         priorities[np.logical_and(
             target_info_array['is_iband'],
             np.logical_and(~target_info_array['success'],
-                           target_info_array['observations'] >= 5)
+                           target_info_array['visits'] >= 5)
         )] = 50
 
         # iband selected, redshift, vpec target
@@ -393,11 +397,11 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         priorities[np.logical_and(
             target_info_array['is_lrg'],
             np.logical_and(~target_info_array['success'],
-                           target_info_array['observations'] < 1)
+                           target_info_array['visits'] < 1)
         )] = 74 - np.clip(5 - (target_info_array[np.logical_and(
             target_info_array['is_lrg'],
             np.logical_and(~target_info_array['success'],
-                           target_info_array['observations'] < 1)
+                           target_info_array['visits'] < 1)
         )]['col_gi'] - 1.4) * 10, 0, 4).astype('i')
 
         priorities[np.logical_and(
@@ -405,21 +409,21 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                            target_info_array['col_gi'] >
                            LRG_GICOL_SELECTION_LIMIT),
             np.logical_and(~target_info_array['success'],
-                           np.logical_and(0 < target_info_array['observations'],
-                                          target_info_array['observations'] < 6))
+                           np.logical_and(0 < target_info_array['visits'],
+                                          target_info_array['visits'] < 6))
         )] = 65 - target_info_array[np.logical_and(
             np.logical_and(target_info_array['is_lrg'],
                            target_info_array['col_gi'] >
                            LRG_GICOL_SELECTION_LIMIT),
             np.logical_and(~target_info_array['success'],
-                           np.logical_and(0 < target_info_array['observations'],
-                                          target_info_array['observations'] < 6))
+                           np.logical_and(0 < target_info_array['visits'],
+                                          target_info_array['visits'] < 6))
         )]['visits']
 
         priorities[np.logical_and(
             target_info_array['is_lrg'],
             np.logical_and(~target_info_array['success'],
-                           np.logical_or(target_info_array['observations'] > 6,
+                           np.logical_or(target_info_array['visits'] > 6,
                                          target_info_array['col_gi'] <=
                                          LRG_GICOL_SELECTION_LIMIT)
                            )
@@ -519,14 +523,14 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
     _set_priority_array_values(priorities,
                                [
                                    target_info_array['is_nir'],
-                                   target_info_array['col_jk'] >= 1.,
+                                   # target_info_array['col_jk'] >= 1.,
                                    target_info_array['col_jk'] < 1.2,
                                    target_info_array['observations'] == 2,
                                ], 65)
     _set_priority_array_values(priorities,
                                [
                                    target_info_array['is_nir'],
-                                   target_info_array['col_jk'] >= 1.,
+                                   # target_info_array['col_jk'] >= 1.,
                                    target_info_array['col_jk'] < 1.2,
                                    target_info_array['observations'] == 1,
                                ], 66)
@@ -579,16 +583,16 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
                                    target_info_array['is_lrg'],
                                    target_info_array['col_gi'] >= 1.8,
                                ], 74)
+    # _set_priority_array_values(priorities,
+    #                            [
+    #                                target_info_array['is_nir'],
+    #                                target_info_array['col_jk'] >= 1.0,
+    #                                target_info_array['col_jk'] < 1.1,
+    #                            ], 75)
     _set_priority_array_values(priorities,
                                [
                                    target_info_array['is_nir'],
-                                   target_info_array['col_jk'] >= 1.0,
-                                   target_info_array['col_jk'] < 1.1,
-                               ], 75)
-    _set_priority_array_values(priorities,
-                               [
-                                   target_info_array['is_nir'],
-                                   target_info_array['col_jk'] >= 1.1,
+                                   # target_info_array['col_jk'] >= 1.1,
                                    target_info_array['col_jk'] < 1.2,
                                ], 76)
     _set_priority_array_values(priorities,
