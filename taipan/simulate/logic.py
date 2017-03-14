@@ -268,21 +268,17 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         )] = 0
 
         priorities[np.logical_and(
-            np.logical_and(
-                np.logical_and(target_info_array['col_jk'] < 1.2,
-                               np.logical_and(out_census_region_nir,
-                                              ~target_info_array['success']))
-            ),
+            np.logical_and(target_info_array['col_jk'] < 1.2,
+                           np.logical_and(out_census_region_nir,
+                                          ~target_info_array['success'])),
             np.logical_and(
                 target_info_array['visits'] >= 1,
                 target_info_array['visits'] < 3
             )
         )] = 67 - target_info_array[np.logical_and(
-            np.logical_and(
-                np.logical_and(target_info_array['col_jk'] < 1.2,
-                               np.logical_and(out_census_region_nir,
-                                              ~target_info_array['success']))
-            ),
+            np.logical_and(target_info_array['col_jk'] < 1.2,
+                           np.logical_and(out_census_region_nir,
+                                          ~target_info_array['success'])),
             np.logical_and(
                 target_info_array['visits'] >= 1,
                 target_info_array['visits'] < 3
