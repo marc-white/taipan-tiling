@@ -2548,8 +2548,6 @@ def plot_tile_object(tile_obj,
     ax.set_aspect(1.)
     fig.colorbar(sct_tgts_plot, label='Science target priority')
 
-    plt.subplots_adjust(top=0.94, bottom=0.06, left=-0.35, right=1.09)
-
     ax.set_title('Tile %6d | field %5d' %
                  (tile_obj.pk if tile_obj.pk is not None else -1,
                   tile_obj.field_id if tile_obj.field_id is not None else -1,
@@ -2558,9 +2556,12 @@ def plot_tile_object(tile_obj,
     ax.set_ylabel('Dec (degrees)', labelpad=37)
 
     if pylab_mode:
+        plt.subplots_adjust(top=0.94, bottom=0.06, left=-0.35, right=1.09)
         plt.draw()
         plt.show()
     else:
+        matplotlib.pyplot.tight_layout()
+        matplotlib.pyplot.tight_layout()
         fig.savefig('%s/%s.%s' % (
             output_loc,
             output_prefix,

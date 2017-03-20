@@ -74,7 +74,7 @@ def update_science_targets(cursor,
         # targets_for_diff = rSc.execute(
         #     cursor, target_ids=target_list)
         # print targets_for_diff
-        if target_list:
+        if target_list is not None:
             affected_fields = rCA.execute(
                 cursor, field_list=list(rScP.execute(cursor,
                                                      target_list=
@@ -87,14 +87,14 @@ def update_science_targets(cursor,
             # print targets_for_comp
             targets_for_diff = [tgt for tgt in targets_for_comp if
                                 tgt.idn in target_list]
-            print len(targets_for_diff)
-            print len(targets_for_comp)
+            # print len(targets_for_diff)
+            # print len(targets_for_comp)
             compute_target_difficulties([tgt for tgt in targets_for_comp if
                                          tgt.idn in target_list],
                                         full_target_list=targets_for_comp)
         else:
             targets_for_diff = rSc.execute(
-                cursor, target_ids=target_list)
+                cursor)
             compute_target_difficulties(targets_for_diff)
 
         # Re-insert the new difficulties into the target_info_array
