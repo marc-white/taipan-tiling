@@ -9,6 +9,8 @@ from src.resources.v0_0_1.readout import readScienceTypes as rScTy
 import taipan.simulate.logic as tsl
 from taipan.core import compute_target_difficulties
 
+import numpy as np
+
 
 def update_science_targets(cursor,
                            target_list=None, field_list=None,
@@ -100,10 +102,16 @@ def update_science_targets(cursor,
         # Re-insert the new difficulties into the target_info_array
         # Note that we can't guarantee that the ordering of targets_for_diff
         # and target_info_array matches
-        for tgt in targets_for_diff:
-            target_info_array[
-                target_info_array['target_id'] == tgt.idn
-            ]['difficulty'] = tgt.difficulty
+        target_info_array.sort(order='target_id')
+        targets_for_diff = np.array(
+            [(t.idn, t.difficulty) for t in targets_for_diff],
+            dtypes={
+                'names': ['target_id', 'difficulty'],
+                'formats': ['i8', 'i8']
+            }
+        )
+        targets_for_diff.sort(order='target_id')
+        target_info_array['difficulty'] = targets_for_diff['difficulty']
 
     # Write the result back to the DB
     mScU.execute(cursor, target_info_array)
