@@ -8,6 +8,10 @@ import logging
 LRG_GICOL_SELECTION_LIMIT = 1.4
 NIR_JKCOL_SELECTION_LIMIT = 1.0
 
+NORTHERN_DEC_LIMIT = 13.5
+FOREGROUND_EBV_LIMIT = 1. / 3.1
+GALACTIC_LATITUDE_LIMIT = 10.
+
 def _set_priority_array_values(priorities, bool_arrays, priority):
     """
     INTERNAL HELPER FUNCTION - automates the generation of statements to
@@ -436,6 +440,15 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ~target_info_array['is_iband'],
             ~target_info_array['is_lrg']
         )] = 0
+
+    # For all epochs, if target is outside survey footprint, set to 0
+    priorities[~np.logical_and(
+        np.logical_and(
+            np.abs(target_info_array['glat']) > GALACTIC_LATITUDE_LIMIT,
+            target_info_array['dec'] < NORTHERN_DEC_LIMIT
+        ),
+        target_info_array['ebv'] < FOREGROUND_EBV_LIMIT
+    )] = 0
 
     return priorities
 
