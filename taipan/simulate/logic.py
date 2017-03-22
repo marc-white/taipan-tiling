@@ -209,12 +209,18 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         # 'done' vpec target in census region
         priorities[np.logical_and(
             in_census_region_iband,
-            np.logical_and(target_info_array['is_vpec_target'],
-                           target_info_array['success'])
+            # np.logical_and(target_info_array['is_vpec_target'],
+            #                target_info_array['success'])
+            # CHANGE 170322 - ENT was 80s assigned to all vpecs regardless of
+            # status
+            target_info_array['is_vpec_target']
         )] = 89 - np.clip(10 * target_info_array[np.logical_and(
             in_census_region_iband,
-            np.logical_and(target_info_array['is_vpec_target'],
-                           target_info_array['success'])
+            # np.logical_and(target_info_array['is_vpec_target'],
+            #                target_info_array['success'])
+            # CHANGE 170322 - ENT was 80s assigned to all vpecs regardless of
+            # status
+            target_info_array['is_vpec_target']
         )]['zspec'], 0, 9).astype('i')
 
         # 'done' lowz targets in census region
@@ -318,12 +324,16 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         # 'done' vpec targets in the area
         priorities[np.logical_and(
             out_census_region_nir,
-            np.logical_and(target_info_array['is_vpec_target'],
-                           target_info_array['success'])
+            # np.logical_and(target_info_array['is_vpec_target'],
+            #                target_info_array['success'])
+            # CHANGE 170322 - ENT wants this done regardless of success status
+            target_info_array['is_vpec_target'],
         )] = 89 - np.clip(10. * target_info_array[np.logical_and(
             out_census_region_nir,
-            np.logical_and(target_info_array['is_vpec_target'],
-                           target_info_array['success'])
+            # np.logical_and(target_info_array['is_vpec_target'],
+            #                target_info_array['success'])
+            # CHANGE 170322 - ENT wants this done regardless of success status
+            target_info_array['is_vpec_target'],
         )]['zspec'], 0, 9).astype('i')
 
         # Other targets in region
@@ -359,17 +369,24 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         )] = 50
 
         # iband selected, redshift, vpec target
+        # CHANGE 170322 - Ensure prisci vpec targets remain in the 80s as well
         priorities[np.logical_and(
             target_info_array['is_iband'],
-            np.logical_and(
-                target_info_array['success'],
-                target_info_array['is_vpec_target']
+            np.logical_or(
+                np.logical_and(
+                    target_info_array['success'],
+                    target_info_array['is_vpec_target']
+                ),
+                target_info_array['is_prisci_vpec_target']
             )
         )] = 89 - np.clip(target_info_array[np.logical_and(
             target_info_array['is_iband'],
-            np.logical_and(
-                target_info_array['success'],
-                target_info_array['is_vpec_target']
+            np.logical_or(
+                np.logical_and(
+                    target_info_array['success'],
+                    target_info_array['is_vpec_target']
+                ),
+                target_info_array['is_prisci_vpec_target']
             )
         )]['zspec'], 0, 9).astype('i')
 
@@ -476,6 +493,9 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
     priorities: list of ints
         A list of priorities, corresponding to the target_info_array provided.
     """
+
+    raise UserWarning('You are using compute_target_priorities_percase - this '
+                      'is not up-to-date!')
 
     default_priority = int(default_priority)
 
