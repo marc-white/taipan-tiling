@@ -89,21 +89,17 @@ def compute_target_types(target_info_array, prisci=False):
                                            ).astype(bool)
 
     # Work out which of the targets are vpec
-    if prisci:
-        tgt_types['is_vpec_target'][
-            target_info_array['is_prisci_vpec_target']] = True
-    else:
-        tgt_types['is_vpec_target'][
-            np.logical_or(
-                target_info_array['is_prisci_vpec_target'],
-                np.logical_and(
-                    np.logical_or(
-                        target_info_array['success'],
-                        target_info_array['observations'] > 0),
-                    target_info_array['is_full_vpec_target']
-                )
+    tgt_types['is_vpec_target'][
+        np.logical_or(
+            target_info_array['is_prisci_vpec_target'],
+            np.logical_and(
+                np.logical_or(
+                    target_info_array['success'],
+                    target_info_array['observations'] > 0),
+                target_info_array['is_full_vpec_target']
             )
-        ] = True
+        )
+    ] = True
 
 
     # Work out which of the targets are H0
@@ -114,6 +110,9 @@ def compute_target_types(target_info_array, prisci=False):
         np.logical_and(priorities >= 60,
                        priorities <= 79)
     ] = True
+
+    # Send back the original is_lowz_target
+    tgt_types['is_lowz_target'] = target_info_array['is_lowz_target']
 
     # Work out which of the targets are lowz
     # Currently, none (doesn't really affect anything under current logic)
