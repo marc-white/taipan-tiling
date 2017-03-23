@@ -105,7 +105,7 @@ def update_science_targets(cursor,
         target_info_array.sort(order='target_id')
         targets_for_diff = np.array(
             [(t.idn, t.difficulty) for t in targets_for_diff],
-            dtypes={
+            dtype={
                 'names': ['target_id', 'difficulty'],
                 'formats': ['i8', 'i8']
             }
