@@ -213,7 +213,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             # CHANGE 170322 - ENT was 80s assigned to all vpecs regardless of
             # status
             target_info_array['is_vpec_target']
-        )] = 89 - np.clip(10 * target_info_array[np.logical_and(
+        )] = 89 - np.clip(100 * target_info_array[np.logical_and(
             in_census_region_iband,
             # np.logical_and(target_info_array['is_vpec_target'],
             #                target_info_array['success'])
