@@ -266,7 +266,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                 ~target_info_array['success']
             ),
             target_info_array['visits'] < 1
-        )]['col_jk'] - 1.0) * 10, 0, 3).astype('i')
+        )]['col_jk'] - 1.0) * 10, 0, 4).astype('i')
 
         priorities[np.logical_and(
             np.logical_and(
