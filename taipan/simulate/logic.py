@@ -241,6 +241,23 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             )
         )] = 0
 
+        # 'done' vpec target in census region
+        priorities[np.logical_and(
+            in_census_region_iband,
+            # np.logical_and(target_info_array['is_vpec_target'],
+            #                target_info_array['success'])
+            # CHANGE 170322 - ENT was 80s assigned to all vpecs regardless of
+            # status
+            target_info_array['is_vpec_target']
+        )] = 89 - np.clip(100 * target_info_array[np.logical_and(
+            in_census_region_iband,
+            # np.logical_and(target_info_array['is_vpec_target'],
+            #                target_info_array['success'])
+            # CHANGE 170322 - ENT was 80s assigned to all vpecs regardless of
+            # status
+            target_info_array['is_vpec_target']
+        )]['zspec'], 0, 9).astype('i')
+
         # Remaining non-iband targets in region are fillers
         priorities[np.logical_and(
             in_census_region,
@@ -456,6 +473,28 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
             ~target_info_array['is_iband'],
             ~target_info_array['is_lrg']
         )] = 0
+
+        # iband selected, redshift, vpec target
+        # CHANGE 170322 - Ensure prisci vpec targets remain in the 80s as well
+        priorities[np.logical_and(
+            target_info_array['is_iband'],
+            np.logical_or(
+                np.logical_and(
+                    target_info_array['success'],
+                    target_info_array['is_vpec_target']
+                ),
+                target_info_array['is_prisci_vpec_target']
+            )
+        )] = 89 - np.clip(target_info_array[np.logical_and(
+            target_info_array['is_iband'],
+            np.logical_or(
+                np.logical_and(
+                    target_info_array['success'],
+                    target_info_array['is_vpec_target']
+                ),
+                target_info_array['is_prisci_vpec_target']
+            )
+        )]['zspec'], 0, 9).astype('i')
 
     # For all epochs, if target is outside survey footprint, set to 0
     priorities[~np.logical_and(

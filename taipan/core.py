@@ -3505,7 +3505,7 @@ class TaipanTile(TaipanPoint):
             in which order to sequence potential targets. It must
             contain the integers 1 and 2, which correspond to the
             position of most_difficult (1) and priority (2)
-            in the ordering sequence. Defaults to (1, 2).
+            in the ordering sequence. Defaults to (2, 1).
             
         rank_supplements : bool, optional
             Boolean value, denoting whether for rank the lists
