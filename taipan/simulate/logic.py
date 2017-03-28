@@ -122,6 +122,238 @@ def compute_target_types(target_info_array, prisci=False):
 
 def compute_target_priorities_tree(target_info_array, default_priority=0,
                                    prisci=False):
+    # TODO want to add/include Jmag in future XXX
+    # TODO want to add/include Jmag in future XXX
+    # TODO want to add/include Jmag in future XXX
+
+    # TODO want access to glat as well as glon in future XXX
+    # TODO want access to glat as well as glon in future XXX
+    # TODO want access to glat as well as glon in future XXX
+
+    # Initialize the priorities array with the default value
+    priorities = np.zeros(target_info_array['target_id'].shape).astype('i')
+    priorities += int(default_priority)
+
+    is_in_survey = in_survey_footprint(target_info_array)
+
+    # __________________________________________________________________________
+    #
+    #                                        all sky BAO target priorities block
+    # __________________________________________________________________________
+
+    is_Jselected = np.logical_and(is_in_survey, target_info_array['is_nir'])
+    # is_Jselected = is_in_survey & ( target_info_array[ 'is_nir' ] == True )
+    JminusK = target_info_array['col_jk']  # [ 'jkcol' ]
+
+    # print np.sort( JminusK[ is_Jselected ] )
+
+    num_visits = target_info_array['visits']
+
+    # ___________________ BAO targets not yet observed, prioritised by J-K color
+
+    is_unobs_Jsel = np.logical_and(is_Jselected,
+                                   num_visits == 0)
+    # is_unobs_Jsel = is_Jselected & ( num_visits == 0 )
+
+    priorities[np.logical_and(is_unobs_Jsel,
+                              JminusK > 1.4)] = 79
+    priorities[np.logical_and(is_unobs_Jsel,
+                              np.logical_and(1.3 <= JminusK,
+                                             JminusK < 1.4))] = 78
+    priorities[np.logical_and(is_unobs_Jsel,
+                              np.logical_and(1.2 <= JminusK,
+                                             JminusK < 1.3))] = 78
+    # Original code
+    # priorities[ is_unobs_Jsel &                      ( JminusK > 1.4 ) ] = 79
+    # priorities[ is_unobs_Jsel & ( 1.3 <= JminusK ) & ( JminusK < 1.4 ) ] = 78
+    # priorities[ is_unobs_Jsel & ( 1.2 <= JminusK ) & ( JminusK < 1.3 ) ] = 77
+
+    # TODO insert Jmag selection aimed at finding new vpec targets here XXX
+    # TODO insert Jmag selection aimed at finding new vpec targets here XXX
+    # TODO insert Jmag selection aimed at finding new vpec targets here XXX
+
+    priorities[np.logical_and(is_unobs_Jsel,
+                              1.2 <= JminusK)] = 75
+    # Original code
+    # priorities[ is_unobs_Jsel & ( 1.2 <= JminusK )                     ] = 75
+
+
+    # ___________________________ BAO targets to be reobserved at lower priority
+
+    no_good_redshift = (target_info_array['success'] == False)
+
+    is_noz_Jsel = np.logical_and(is_Jselected,
+                                 no_good_redshift)
+    is_noz_Jsel = np.logical_and(is_noz_Jsel, num_visits > 1)
+    # Original code
+    # is_noz_Jsel = ( is_Jselected & no_good_redshift & ( num_visits > 1 ) )
+
+    is_noz_Jsel_red = np.logical_and(is_noz_Jsel, JminusK > 1.2)
+    # Original code
+    # is_noz_Jsel_red  = is_noz_Jsel & ( JminusK > 1.2 )
+
+    priorities[np.logical_and(is_noz_Jsel_red, num_visits == 1)] = 69
+    priorities[np.logical_and(is_noz_Jsel_red, num_visits == 2)] = 68
+    priorities[np.logical_and(is_noz_Jsel_red, num_visits == 3)] = 67
+    # Original code
+    priorities[is_noz_Jsel_red & (num_visits == 1)] = 69
+    priorities[is_noz_Jsel_red & (num_visits == 2)] = 68
+    priorities[is_noz_Jsel_red & (num_visits == 3)] = 67
+
+    is_noz_Jsel_blue = np.logical_and(is_noz_Jsel, JminusK <= 1.2)
+    # Original code
+    # is_noz_Jsel_blue = is_noz_Jsel & ( JminusK <= 1.2 )
+
+    priorities[np.logical_and(is_noz_Jsel_blue, num_visits == 1)] = 66
+    priorities[np.logical_and(is_noz_Jsel_blue, num_visits == 2)] = 65
+    # Original code
+    # priorities[ is_noz_Jsel_blue & ( num_visits == 1 ) ] = 66
+    # priorities[ is_noz_Jsel_blue & ( num_visits == 2 ) ] = 65
+
+    if not prisci:  # _________ add LRG selection after priority science period
+
+        is_lrg_selected = np.logical_and(is_in_survey, is_Jselected == False)
+        is_lrg_selected = np.logical_and(is_lrg_selected,
+                                         target_info_array['is_lrg'])
+        # Original code
+        # is_lrg_selected = ( is_in_survey & ( is_Jselected == False )
+        #                     & target_info_array[ 'is_lrg' ] )
+
+        is_noz_lrg = np.logical_and(is_lrg_selected,
+                                    no_good_redshift)
+        # Original code
+        # is_noz_lrg = is_lrg_selected & no_good_redshift
+
+        priorities[np.logical_and(is_noz_lrg, num_visits == 0)] = 74
+        priorities[np.logical_and(is_noz_lrg, num_visits == 1)] = 73
+        priorities[np.logical_and(is_noz_lrg, num_visits == 2)] = 72
+        priorities[np.logical_and(is_noz_lrg, num_visits == 3)] = 71
+        priorities[np.logical_and(is_noz_lrg, num_visits == 4)] = 70
+        # Original code
+        # priorities[ is_noz_lrg & ( num_visits == 0 ) ] = 74
+        # priorities[ is_noz_lrg & ( num_visits == 1 ) ] = 73
+        # priorities[ is_noz_lrg & ( num_visits == 2 ) ] = 72
+        # priorities[ is_noz_lrg & ( num_visits == 3 ) ] = 71
+        # priorities[ is_noz_lrg & ( num_visits == 4 ) ] = 70
+
+    # __________________________________________________________________________
+    #
+    #                                                 galaxy census target block
+    # __________________________________________________________________________
+
+    # _______________________________ NOTE: these priorities override BAO values
+
+    is_iband_selected = target_info_array['is_iband']
+    no_good_redshift = (target_info_array['success'] == False)
+
+    if prisci:  # _________________ in prisci period, only condsider KiDS fields
+
+        is_in_census_region = in_census_region(target_info_array)
+
+    else:  # ____________________ and whole sky once full survey is underway
+
+        is_in_census_region = is_in_survey
+
+    is_live_census_target = np.logical_and(is_in_census_region,
+                                           is_iband_selected)
+    is_live_census_target = np.logical_and(is_live_census_target,
+                                           no_good_redshift)
+    # Original code
+    # is_live_census_target = (
+    #     is_in_census_region & is_iband_selected & no_good_redshift )
+
+    # _______________________ census targets prioritised according to num_visits
+
+    num_visits = target_info_array['visits']
+
+    priorities[np.logical_and(is_live_census_target, num_visits == 0)] = 99
+    priorities[np.logical_and(is_live_census_target, num_visits == 1)] = 98
+    priorities[np.logical_and(is_live_census_target, num_visits == 2)] = 97
+    priorities[np.logical_and(is_live_census_target, num_visits == 3)] = 96
+    priorities[np.logical_and(is_live_census_target, num_visits == 4)] = 95
+    # Original code
+    # priorities[ is_live_census_target & ( num_visits == 0 ) ] = 99
+    # priorities[ is_live_census_target & ( num_visits == 1 ) ] = 98
+    # priorities[ is_live_census_target & ( num_visits == 2 ) ] = 97
+    # priorities[ is_live_census_target & ( num_visits == 3 ) ] = 96
+    # priorities[ is_live_census_target & ( num_visits == 4 ) ] = 95
+
+    retired = np.logical_and(is_live_census_target, num_visits >= 5)
+    # Original code
+    # retired = is_live_census_target & ( num_visits >= 5 )
+    priorities[retired] = 10
+
+    # __________________________________________________________________________
+
+    #                                                  all sky vpec target block
+    # __________________________________________________________________________
+
+    # __________________________ NOTE: vpec priorities override all other values
+
+    is_6df_preselected = target_info_array['is_prisci_vpec_target']
+    is_found_in_taipan = np.logical_and(
+        target_info_array['is_full_vpec_target'],
+        target_info_array['visits'] > 0
+    )
+    # Original code
+    #     is_found_in_taipan = ( target_info_array[ 'is_full_vpec_target' ]
+    # #                           & ( target_info_array[ 'observations' ] > 0 ) )
+    #                            & ( target_info_array[ 'visits' ] > 0 ) )
+    is_live_vpec_target = np.logical_or(is_6df_preselected,
+                                        is_found_in_taipan)
+    is_live_vpec_target = np.logical_and(is_live_vpec_target,
+                                         target_info_array['success'] == False)
+    # Original code
+    # is_live_vpec_target = ( ( is_6df_preselected | is_found_in_taipan )
+    #                         & ( target_info_array[ 'success' ] == False ) )
+
+    # ________________________________ targets prioritised according to redshift
+
+    zspec = target_info_array['zspec']
+
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.00 <= zspec, zspec < 0.01))] = 89
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.01 <= zspec, zspec < 0.02))] = 88
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.02 <= zspec, zspec < 0.03))] = 87
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.03 <= zspec, zspec < 0.04))] = 86
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.04 <= zspec, zspec < 0.05))] = 85
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.05 <= zspec, zspec < 0.06))] = 84
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.06 <= zspec, zspec < 0.07))] = 83
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.07 <= zspec, zspec < 0.08))] = 82
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.08 <= zspec, zspec < 0.09))] = 81
+    priorities[np.logical_and(is_live_vpec_target,
+                              np.logical_and(0.09 <= zspec, zspec < 0.10))] = 80
+    # Original code
+    # priorities[ is_live_vpec_target & (0.00 <= zspec ) & ( zspec < 0.01 ) ] = 89
+    # priorities[ is_live_vpec_target & (0.01 <= zspec ) & ( zspec < 0.02 ) ] = 88
+    # priorities[ is_live_vpec_target & (0.02 <= zspec ) & ( zspec < 0.03 ) ] = 87
+    # priorities[ is_live_vpec_target & (0.03 <= zspec ) & ( zspec < 0.04 ) ] = 86
+    # priorities[ is_live_vpec_target & (0.04 <= zspec ) & ( zspec < 0.05 ) ] = 85
+    # priorities[ is_live_vpec_target & (0.05 <= zspec ) & ( zspec < 0.06 ) ] = 84
+    # priorities[ is_live_vpec_target & (0.06 <= zspec ) & ( zspec < 0.07 ) ] = 83
+    # priorities[ is_live_vpec_target & (0.07 <= zspec ) & ( zspec < 0.08 ) ] = 82
+    # priorities[ is_live_vpec_target & (0.08 <= zspec ) & ( zspec < 0.09 ) ] = 81
+    # priorities[ is_live_vpec_target & (0.09 <= zspec ) & ( zspec < 0.10 ) ] = 80
+
+    retired = np.logical_and(is_live_vpec_target, num_visits >= 5)
+    # Original code
+    retired = is_live_vpec_target & (num_visits >= 5)
+    priorities[retired] = 10
+
+    return priorities
+
+
+def compute_target_priorities_tree_deprecated(
+        target_info_array, default_priority=0,
+        prisci=False):
     """
     Compute priority values for a list of targets.
 
@@ -770,3 +1002,56 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
                                ], 99)
 
     return priorities
+
+
+# -----
+# HELPER FUNCTIONS
+
+def in_survey_footprint( target ):
+    glat = target[ 'glat' ]
+    ebv = target[ 'ebv' ]
+    dec = target[ 'dec' ]
+
+    result = np.logical_and(np.abs( glat ) > GALACTIC_LATITUDE_LIMIT,
+                            ebv < FOREGROUND_EBV_LIMIT)
+    result = np.logical_and(result,
+                            dec < NORTHERN_DEC_LIMIT)
+    return result
+    # Original code
+    # return ( ( np.abs( glat ) > GALACTIC_LATITUDE_LIMIT )
+    #          & ( ebv < FOREGROUND_EBV_LIMIT )
+    #          & ( dec < NORTHERN_DEC_LIMIT )
+    #     )
+
+def in_kids_north( target ):
+    ra, dec = target['ra'], target['dec']
+    result1 = np.logical_and(156. < ra, ra <= 225.)
+    result1 = np.logical_and(result1, -5. < dec)
+    result1 = np.logical_and(result1, dec < +4.)
+
+    result2 = np.logical_and(225. < ra , ra < 238.)
+    result2 = np.logical_and(result2, -3. < dec)
+    result2 = np.logical_and(result2, dec < +4.)
+
+    return np.logical_or(result1, result2)
+    # Original code
+    # return ( ( (156. < ra) & (ra <= 225.) & (-5. < dec) & (dec < +4.) )
+    #          | ( (225. < ra ) & (ra < 238.) & (-3. < dec ) & (dec < +4.) ) )
+
+def in_kids_south( target, ra=None, dec=None ):
+    ra, dec = target['ra'], target['dec']
+    result = np.logical_or(329.5 < ra,
+                           ra < 53.5)
+    result = np.logical_and(result,
+                            -35.6 < dec)
+    result = np.logical_and(result,
+                            dec < -25.7)
+    return result
+    # Original code
+    # return ( ((329.5 < ra) | (ra < 53.5)) & (-35.6 < dec) & (dec < -25.7) )
+
+def in_census_region( target ):
+    return np.logical_or(in_kids_north(target),
+                         in_kids_south(target))
+    # Original code
+    # return ( in_kids_north( target ) | in_kids_south( target ) )
