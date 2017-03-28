@@ -59,15 +59,14 @@ def update_science_targets(cursor,
     target_info_array = rScTy.execute(cursor, target_ids=target_list)
 
     if do_tp:
-        temp = tsl.compute_target_types(
-            target_info_array, prisci=prisci)
-        for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
-            target_info_array[t] = temp[t]
-
         # Recompute the priorities
         target_info_array['priority'] = tsl.compute_target_priorities_tree(
             target_info_array, prisci=prisci
         )
+        temp = tsl.compute_target_types(
+            target_info_array, prisci=prisci)
+        for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
+            target_info_array[t] = temp[t]
 
     if do_d:
         # Read in the science targets as TaipanTarget objects
