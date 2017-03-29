@@ -175,12 +175,12 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     # Original code
     priorities[np.logical_and(is_unobs_Jsel,
-                              np.logical_and(1.2 <= JminusK,
+                              np.logical_and(1.2 < JminusK,
                                              target_info_array['mag_j']
                                              <= JBRIGHT_MAGNITUDE_LIMIT)
                               )] = 76
     priorities[np.logical_and(is_unobs_Jsel,
-                              np.logical_and(1.2 <= JminusK,
+                              np.logical_and(1.2 < JminusK,
                                              target_info_array['mag_j']
                                              > JBRIGHT_MAGNITUDE_LIMIT)
                               )] = 75
