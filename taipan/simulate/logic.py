@@ -163,7 +163,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                                              JminusK < 1.4))] = 78
     priorities[np.logical_and(is_unobs_Jsel,
                               np.logical_and(1.2 <= JminusK,
-                                             JminusK < 1.3))] = 78
+                                             JminusK < 1.3))] = 77
     # Original code
     # priorities[ is_unobs_Jsel &                      ( JminusK > 1.4 ) ] = 79
     # priorities[ is_unobs_Jsel & ( 1.3 <= JminusK ) & ( JminusK < 1.4 ) ] = 78
