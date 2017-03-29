@@ -153,7 +153,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     # print np.sort( JminusK[ is_Jselected ] )
 
-    num_visits = target_info_array['visits']
+    num_visits = target_info_array['observations']
 
     # ___________________ BAO targets not yet observed, prioritised by J-K color
 
