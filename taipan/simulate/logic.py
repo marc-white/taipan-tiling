@@ -124,15 +124,7 @@ def compute_target_types(target_info_array, prisci=False):
 
 def compute_target_priorities_tree(target_info_array, default_priority=0,
                                    prisci=False):
-    # TODO want to add/include Jmag in future XXX
-    # TODO want to add/include Jmag in future XXX
-    # TODO want to add/include Jmag in future XXX
-
-    # TODO want access to glat as well as glon in future XXX
-    # TODO want access to glat as well as glon in future XXX
-    # TODO want access to glat as well as glon in future XXX
-
-    # Initialize the priorities array with the default value
+        # Initialize the priorities array with the default value
     priorities = np.zeros(target_info_array['target_id'].shape).astype('i')
     priorities += int(default_priority)
 
@@ -175,10 +167,6 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     # priorities[ is_unobs_Jsel &                      ( JminusK > 1.4 ) ] = 79
     # priorities[ is_unobs_Jsel & ( 1.3 <= JminusK ) & ( JminusK < 1.4 ) ] = 78
     # priorities[ is_unobs_Jsel & ( 1.2 <= JminusK ) & ( JminusK < 1.3 ) ] = 77
-
-    # TODO insert Jmag selection aimed at finding new vpec targets here XXX
-    # TODO insert Jmag selection aimed at finding new vpec targets here XXX
-    # TODO insert Jmag selection aimed at finding new vpec targets here XXX
 
     # Original code
     priorities[np.logical_and(is_unobs_Jsel,
