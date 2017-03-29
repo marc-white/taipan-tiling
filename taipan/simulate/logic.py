@@ -149,6 +149,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     is_Jselected = np.logical_and(is_in_survey,
                                   Jmag < ALLSKY_MAGNITUDE_LIMIT)
     JminusK = target_info_array['col_jk']  # [ 'jkcol' ]
+    no_good_redshift = (target_info_array['success'] == False)
 
     # print np.sort( JminusK[ is_Jselected ] )
 
@@ -158,6 +159,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     is_unobs_Jsel = np.logical_and(is_Jselected,
                                    num_visits == 0)
+    is_unobs_Jsel = np.logical_and(is_unobs_Jsel,
+                                   no_good_redshift)
     # is_unobs_Jsel = is_Jselected & ( num_visits == 0 )
 
     priorities[np.logical_and(is_unobs_Jsel,
@@ -262,7 +265,6 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     # _______________________________ NOTE: these priorities override BAO values
 
     is_iband_selected = target_info_array['is_iband']
-    no_good_redshift = (target_info_array['success'] == False)
 
     if prisci:  # _________________ in prisci period, only condsider KiDS fields
 
