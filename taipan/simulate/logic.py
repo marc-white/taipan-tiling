@@ -12,6 +12,7 @@ NORTHERN_DEC_LIMIT = 13.5
 FOREGROUND_EBV_LIMIT = 1. / 3.1
 GALACTIC_LATITUDE_LIMIT = 10.
 JBRIGHT_MAGNITUDE_LIMIT = 14.2
+ALLSKY_MAGNITUDE_LIMIT = 15.35
 
 def _set_priority_array_values(priorities, bool_arrays, priority):
     """
@@ -142,8 +143,11 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     #                                        all sky BAO target priorities block
     # __________________________________________________________________________
 
-    is_Jselected = np.logical_and(is_in_survey, target_info_array['is_nir'])
+    # is_Jselected = np.logical_and(is_in_survey, target_info_array['is_nir'])
     # is_Jselected = is_in_survey & ( target_info_array[ 'is_nir' ] == True )
+    Jmag = target_info_array['mag_j']
+    is_Jselected = np.logical_and(is_in_survey,
+                                  Jmag < ALLSKY_MAGNITUDE_LIMIT)
     JminusK = target_info_array['col_jk']  # [ 'jkcol' ]
 
     # print np.sort( JminusK[ is_Jselected ] )
