@@ -317,6 +317,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
                                         is_found_in_taipan)
     is_live_vpec_target = np.logical_and(is_live_vpec_target,
                                          target_info_array['success'] == False)
+    is_live_vpec_target = np.logical_and(is_live_vpec_target,
+                                         is_in_survey)
     # Original code
     # is_live_vpec_target = ( ( is_6df_preselected | is_found_in_taipan )
     #                         & ( target_info_array[ 'success' ] == False ) )
