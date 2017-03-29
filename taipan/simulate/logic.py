@@ -284,7 +284,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     # _______________________ census targets prioritised according to num_visits
 
-    num_visits = target_info_array['visits']
+    num_visits = target_info_array['observations']
 
     priorities[np.logical_and(is_live_census_target, num_visits == 0)] = 99
     priorities[np.logical_and(is_live_census_target, num_visits == 1)] = 98
@@ -313,7 +313,7 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     is_6df_preselected = target_info_array['is_prisci_vpec_target']
     is_found_in_taipan = np.logical_and(
         target_info_array['is_full_vpec_target'],
-        target_info_array['visits'] > 0
+        target_info_array['observations'] > 0
     )
     # Original code
     #     is_found_in_taipan = ( target_info_array[ 'is_full_vpec_target' ]
