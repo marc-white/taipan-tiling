@@ -11,6 +11,7 @@ NIR_JKCOL_SELECTION_LIMIT = 1.0
 NORTHERN_DEC_LIMIT = 13.5
 FOREGROUND_EBV_LIMIT = 1. / 3.1
 GALACTIC_LATITUDE_LIMIT = 10.
+JBRIGHT_MAGNITUDE_LIMIT = 14.2
 
 def _set_priority_array_values(priorities, bool_arrays, priority):
     """
@@ -172,8 +173,21 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     # TODO insert Jmag selection aimed at finding new vpec targets here XXX
     # TODO insert Jmag selection aimed at finding new vpec targets here XXX
 
+    # Original code
     priorities[np.logical_and(is_unobs_Jsel,
-                              1.2 <= JminusK)] = 75
+                              np.logical_and(1.2 <= JminusK,
+                                             target_info_array['mag_j']
+                                             <= JBRIGHT_MAGNITUDE_LIMIT)
+                              )] = 76
+    priorities[np.logical_and(is_unobs_Jsel,
+                              np.logical_and(1.2 <= JminusK,
+                                             target_info_array['mag_j']
+                                             > JBRIGHT_MAGNITUDE_LIMIT)
+                              )] = 75
+
+    # -- DEPRECATED --
+    # priorities[np.logical_and(is_unobs_Jsel,
+    #                           1.2 <= JminusK)] = 75
     # Original code
     # priorities[ is_unobs_Jsel & ( 1.2 <= JminusK )                     ] = 75
 
