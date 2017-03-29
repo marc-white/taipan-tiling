@@ -5,7 +5,7 @@ import logging
 def test_redshift_success(target_types_db, num_visits,
                           prob_vpec_first=0.3,
                           prob_vpec_second=0.7,
-                          prob_lowz_each=0.8):
+                          prob_lowz_each=0.85):
     """
     FOR TEST USE ONLY
 
@@ -89,8 +89,8 @@ def test_redshift_success(target_types_db, num_visits,
     # H0 targets will only be observed once; ie. success is guaranteed
     # Therefore, we can just leave prob as 1 for these targets
 
-    # 80% success for lowz targets on each pass
-    prob = np.where(is_lowz, np.minimum(prob_lowz_each, prob), prob)
+    # 85% success for non-vpec targets on each pass
+    prob = np.where(~is_vpec, np.minimum(prob_lowz_each, prob), prob)
 
     # success for 20% vpec targets on first visit
     prob = np.where(np.logical_and(is_vpec, num_visits == 1),
