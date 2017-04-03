@@ -568,7 +568,7 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
 def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
                  save_new_almanacs=True, instant_dq=False,
-                 prisci=True,
+                 # prisci=True,
                  check_almanacs=True,
                  commit=True, kill_time=None,
                  prisci_end=None):
@@ -663,7 +663,10 @@ def sim_do_night(cursor, date, date_start, date_end,
                                                                          0)))
 
     if prisci_end is not None:
+        # Change prisci_end to the actual end datetime
         prisci_end = midday_start + prisci_end
+        # Compare with midday today to work out if prisci=True or False
+        prisci = prisci_end > midday
 
     if check_almanacs:
         logging.info('Checking almanacs for night %s' %
@@ -800,6 +803,10 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
             fields_to_retile = rCAexec(cursor, tile_list=[tile_to_obs])
+            # Re-do the priorities just to be sure
+            update_science_targets(cursor, field_list=fields_to_retile,
+                                   do_tp=True, do_d=False,
+                                   prisci=prisci)
             logging.info('Retiling fields %s' % ', '.join(str(i) for i in
                                                           fields_to_retile))
             # Switch the logger to DEBUG

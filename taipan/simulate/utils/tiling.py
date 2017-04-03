@@ -16,11 +16,13 @@ from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 
 from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
+from taipan.simulate.utils.updatesci import update_science_targets
 
 def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
                   disqualify_below_min=True, restrict_targets=True,
-                  delete_queued=False, bins=1):
+                  delete_queued=False, bins=1,
+                  do_priorities=True):
     """
     Re-tile the fields passed.
 
@@ -112,7 +114,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                                               standard_targets,
                                               guide_targets, tiles_per_field,
                                               tiles=fields_to_tile,
-                                              sequential_ordering=(2, 1))
+                                              sequential_ordering=(2, 1),
+                                              recompute_difficulty=False)
 
         # Write the new tiles back to the database
         iTexec(cursor, tile_list, config_time=tiling_time,

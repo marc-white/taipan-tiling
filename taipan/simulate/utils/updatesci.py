@@ -60,9 +60,10 @@ def update_science_targets(cursor,
 
     if do_tp:
         # Recompute the priorities
-        target_info_array['priority'] = tsl.compute_target_priorities_tree(
+        priors_temp = tsl.compute_target_priorities_tree(
             target_info_array, prisci=prisci
         )
+        target_info_array['priority'] = priors_temp
         temp = tsl.compute_target_types(
             target_info_array, prisci=prisci)
         for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
