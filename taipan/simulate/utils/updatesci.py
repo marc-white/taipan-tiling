@@ -58,63 +58,64 @@ def update_science_targets(cursor,
     # Read in the input target information
     target_info_array = rScTy.execute(cursor, target_ids=target_list)
 
-    if do_tp:
-        # Recompute the priorities
-        priors_temp = tsl.compute_target_priorities_tree(
-            target_info_array, prisci=prisci
-        )
-        target_info_array['priority'] = priors_temp
-        temp = tsl.compute_target_types(
-            target_info_array, prisci=prisci)
-        for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
-            target_info_array[t] = temp[t]
-
-    if do_d:
-        # Read in the science targets as TaipanTarget objects
-        # Note field_list will have been set to None if target_list is not
-        # None
-        # targets_for_diff = rSc.execute(
-        #     cursor, target_ids=target_list)
-        # print targets_for_diff
-        if target_list is not None:
-            affected_fields = rCA.execute(
-                cursor, field_list=list(rScP.execute(cursor,
-                                                     target_list=
-                                                     target_list
-                                                     )['field_id'])
+    if len(target_info_array) > 0:
+        if do_tp:
+            # Recompute the priorities
+            priors_temp = tsl.compute_target_priorities_tree(
+                target_info_array, prisci=prisci
             )
-            targets_for_comp = rSc.execute(
-                cursor, field_list=list(affected_fields)
+            target_info_array['priority'] = priors_temp
+            temp = tsl.compute_target_types(
+                target_info_array, prisci=prisci)
+            for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
+                target_info_array[t] = temp[t]
+
+        if do_d:
+            # Read in the science targets as TaipanTarget objects
+            # Note field_list will have been set to None if target_list is not
+            # None
+            # targets_for_diff = rSc.execute(
+            #     cursor, target_ids=target_list)
+            # print targets_for_diff
+            if target_list is not None:
+                affected_fields = rCA.execute(
+                    cursor, field_list=list(rScP.execute(cursor,
+                                                         target_list=
+                                                         target_list
+                                                         )['field_id'])
+                )
+                targets_for_comp = rSc.execute(
+                    cursor, field_list=list(affected_fields)
+                )
+                # print targets_for_comp
+                targets_for_diff = [tgt for tgt in targets_for_comp if
+                                    tgt.idn in target_list]
+                # print len(targets_for_diff)
+                # print len(targets_for_comp)
+                compute_target_difficulties([tgt for tgt in targets_for_comp if
+                                             tgt.idn in target_list],
+                                            full_target_list=targets_for_comp)
+            else:
+                targets_for_diff = rSc.execute(
+                    cursor)
+                compute_target_difficulties(targets_for_diff)
+
+            # Re-insert the new difficulties into the target_info_array
+            # Note that we can't guarantee that the ordering of targets_for_diff
+            # and target_info_array matches
+            target_info_array.sort(order='target_id')
+            targets_for_diff = np.array(
+                [(t.idn, t.difficulty) for t in targets_for_diff],
+                dtype={
+                    'names': ['target_id', 'difficulty'],
+                    'formats': ['i8', 'i8']
+                }
             )
-            # print targets_for_comp
-            targets_for_diff = [tgt for tgt in targets_for_comp if
-                                tgt.idn in target_list]
-            # print len(targets_for_diff)
-            # print len(targets_for_comp)
-            compute_target_difficulties([tgt for tgt in targets_for_comp if
-                                         tgt.idn in target_list],
-                                        full_target_list=targets_for_comp)
-        else:
-            targets_for_diff = rSc.execute(
-                cursor)
-            compute_target_difficulties(targets_for_diff)
+            targets_for_diff.sort(order='target_id')
+            target_info_array['difficulty'] = targets_for_diff['difficulty']
 
-        # Re-insert the new difficulties into the target_info_array
-        # Note that we can't guarantee that the ordering of targets_for_diff
-        # and target_info_array matches
-        target_info_array.sort(order='target_id')
-        targets_for_diff = np.array(
-            [(t.idn, t.difficulty) for t in targets_for_diff],
-            dtype={
-                'names': ['target_id', 'difficulty'],
-                'formats': ['i8', 'i8']
-            }
-        )
-        targets_for_diff.sort(order='target_id')
-        target_info_array['difficulty'] = targets_for_diff['difficulty']
-
-    # Write the result back to the DB
-    mScU.execute(cursor, target_info_array)
+        # Write the result back to the DB
+        mScU.execute(cursor, target_info_array)
 
 
 
