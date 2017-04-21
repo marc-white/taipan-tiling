@@ -104,6 +104,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         logging.info('Completed DB prep in %d:%2.1f' %
                      (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
+
+
     fields = rCexec(cursor)
     # Construct the almanacs required
     # start = datetime.datetime.now()

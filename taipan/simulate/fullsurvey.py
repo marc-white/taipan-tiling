@@ -817,6 +817,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                           # prisci=prioritize_lowz_today,
                           )
             # logger.setLevel(logging.INFO)
+            sys.exit()
 
             # Increment time_now and move to observe the next field
             local_utc_now += datetime.timedelta(ts.POINTING_TIME)
