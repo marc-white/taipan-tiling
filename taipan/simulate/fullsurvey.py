@@ -567,7 +567,8 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
 
 def sim_do_night(cursor, date, date_start, date_end,
                  almanac_dict=None, dark_almanac=None,
-                 save_new_almanacs=True, instant_dq=False,
+                 save_new_almanacs=True,
+                 instant_dq=False,
                  # prisci=True,
                  check_almanacs=True,
                  commit=True, kill_time=None,
@@ -817,8 +818,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                           # prisci=prioritize_lowz_today,
                           )
             # logger.setLevel(logging.INFO)
-            if fields_by_tile[tile_to_obs] == 1218:
-                logging.warning('Reached field 1218 - ABORT ABORT ABORT')
+            if fields_by_tile[tile_to_obs] == 1592:
+                logging.warning('Reached field 1592 - ABORT ABORT ABORT')
                 sys.exit()
 
             # Increment time_now and move to observe the next field
