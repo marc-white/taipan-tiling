@@ -818,9 +818,10 @@ def sim_do_night(cursor, date, date_start, date_end,
                           # prisci=prioritize_lowz_today,
                           )
             # logger.setLevel(logging.INFO)
-            if fields_by_tile[tile_to_obs] == 1592:
-                logging.warning('Reached field 1592 - ABORT ABORT ABORT')
-                sys.exit()
+            # Test use only
+            # if fields_by_tile[tile_to_obs] == 1592:
+            #     logging.warning('Reached field 1592 - ABORT ABORT ABORT')
+            #     sys.exit()
 
             # Increment time_now and move to observe the next field
             local_utc_now += datetime.timedelta(ts.POINTING_TIME)
