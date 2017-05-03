@@ -2335,6 +2335,7 @@ def plot_tile_config(pylab_mode=False,
 def plot_tile_object(tile_obj,
                      sci_tgts=None, std_tgts=None, gd_tgts=None,
                      pylab_mode=False,
+                     title=False,
                      output_loc='.',
                      output_prefix='tile_display',
                      output_fmt='png'
@@ -2387,12 +2388,13 @@ def plot_tile_object(tile_obj,
     ax = fig.add_subplot(111)
     m = Basemap(
         projection='cass',
-        lon_0=tile_obj.ra, lat_0=tile_obj.dec+0.34,
-        width=2*extent_m, height=2.06*extent_m
+        lon_0=tile_obj.ra+1.0, lat_0=tile_obj.dec+0.34,
+        width=2*extent_m + np.radians(3.0)*EARTH_RADIUS, height=2.06*extent_m
     )
     m.tissot(tile_obj.ra, tile_obj.dec, TILE_RADIUS/3600., 50,
              facecolor='none', edgecolor='black',
-             linewidth=2, linestyle='dashed')
+             linewidth=2, linestyle='dashed',
+             label='Tile boundary')
     m.drawmeridians(np.arange(0, 360.,
                               1. if tile_obj.dec > 60. else 2.),
                     labels=[0, 0, 0, 1] if tile_obj.dec > -70. else [0, 1,
@@ -2409,12 +2411,14 @@ def plot_tile_object(tile_obj,
         [_.dec for _ in sci_tgts],
         latlon=True,
         marker='o', s=2.5,
-        c=[_.priority for _ in sci_tgts],
+        # c=[_.priority for _ in sci_tgts],
         # cmap='jet',
-        cmap=rainbow_pjm(),
+        # cmap=rainbow_pjm(),
+        c='black',
         edgecolor='none',
         vmin=tp.TARGET_PRIORITY_MIN,
-        vmax=tp.TARGET_PRIORITY_MAX
+        vmax=tp.TARGET_PRIORITY_MAX,
+        label='Science (remain)'
     )
 
     # Plot the guide positions
@@ -2424,6 +2428,17 @@ def plot_tile_object(tile_obj,
         latlon=True,
         marker='d', s=2,
         facecolor='grey', edgecolor='grey',
+        label='Guides (remain)'
+    )
+
+    # Plot the standards positions
+    std_tgts_plot = m.scatter(
+        [_.ra for _ in gd_tgts],
+        [_.dec for _ in gd_tgts],
+        latlon=True,
+        marker='s', s=2,
+        facecolor='grey', edgecolor='grey',
+        label='Standards (remain)'
     )
 
     # Plot the assigned fibre positions
@@ -2441,9 +2456,11 @@ def plot_tile_object(tile_obj,
                 ]))
             m.scatter(
                 xpts, ypts, latlon=True,
-                marker='d', s=35, c=cols,
+                marker='d', s=35,
+                # c=cols,
                 # cmap='jet',
-                cmap=rainbow_pjm(),
+                # cmap=rainbow_pjm(),
+                c='orange',
                 edgecolor='none',
                 vmin=tp.TARGET_PRIORITY_MIN,
                 vmax=tp.TARGET_PRIORITY_MAX,
@@ -2468,7 +2485,7 @@ def plot_tile_object(tile_obj,
             # print(ypts)
             m.scatter(
                 xpts, ypts, latlon=True,
-                marker='v', s=30, facecolor='black',
+                marker='v', s=30, facecolor='green',
                 edgecolor='none',
                 label='Guide'
             )
@@ -2492,7 +2509,7 @@ def plot_tile_object(tile_obj,
             # print(ypts)
             m.scatter(
                 xpts, ypts, latlon=True,
-                marker='^', s=30, facecolor='black',
+                marker='^', s=30, facecolor='blue',
                 edgecolor='none',
                 label='Standard'
             )
@@ -2513,7 +2530,7 @@ def plot_tile_object(tile_obj,
             # print(ypts)
             m.scatter(
                 xpts, ypts, latlon=True,
-                marker='x', s=30, facecolor='black',
+                marker='x', s=30, facecolor='red',
                 edgecolor='none',
                 label='Sky (home posn.)'
             )
@@ -2526,7 +2543,8 @@ def plot_tile_object(tile_obj,
                          tp.PATROL_RADIUS / 3600.,
                          40, linewidth=0.7,
                          edgecolor='none', facecolor='0.95',
-                         hatch='x|-', zorder=-10,
+                         # hatch='x',
+                         zorder=-10,
                          label='Sky patrol area' if i==0 else None)
 
     # Plot the position of any unassigned fibres
@@ -2540,18 +2558,21 @@ def plot_tile_object(tile_obj,
         m.scatter(
             xpts, ypts, latlon=True,
             marker='o', facecolor='none', edgecolor='grey',
-            s=40, label='Unassigned'
+            s=40, label='Unassigned fibre'
         )
 
-    leg = ax.legend(ncol=3, loc='upper center')
+    leg = ax.legend(ncol=1, loc='center right',
+                    # bbox_to_anchor=(1.4, 1.01)
+                    )
 
     ax.set_aspect(1.)
-    fig.colorbar(sct_tgts_plot, label='Science target priority')
+    # fig.colorbar(sct_tgts_plot, label='Science target priority')
 
-    ax.set_title('Tile %6d | field %5d' %
-                 (tile_obj.pk if tile_obj.pk is not None else -1,
-                  tile_obj.field_id if tile_obj.field_id is not None else -1,
-                  ))
+    if title:
+        ax.set_title('Tile %6d | field %5d' %
+                     (tile_obj.pk if tile_obj.pk is not None else -1,
+                      tile_obj.field_id if tile_obj.field_id is not None else -1,
+                      ))
     ax.set_xlabel('RA (degrees)', labelpad=23)
     ax.set_ylabel('Dec (degrees)', labelpad=37)
 

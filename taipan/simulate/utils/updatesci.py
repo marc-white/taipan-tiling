@@ -7,6 +7,7 @@ from src.resources.v0_0_1.readout import readSciencePosn as rScP
 from src.resources.v0_0_1.readout import readScienceTypes as rScTy
 
 import taipan.simulate.logic as tsl
+from taipan.simulate.simulate import test_redshift_success
 from taipan.core import compute_target_difficulties
 
 import numpy as np
@@ -66,7 +67,19 @@ def update_science_targets(cursor,
             )
             target_info_array['priority'] = priors_temp
             temp = tsl.compute_target_types(
-                target_info_array, prisci=prisci)
+                target_info_array, prisci=prisci
+            )
+            # TODO Needs to be implemented properly
+            # Anything newly-identified as vpec needs to have its
+            # success re-evaluated
+            # target_info_array[np.logical_and(
+            #     temp['is_vpec_target'],
+            #     ~target_info_array['is_vpec_target']
+            # )]['success'] = test_redshift_success(
+            #     target_info_array[np.logical_and(
+            #         temp['is_vpec_target'],
+            #         ~target_info_array['is_vpec_target']
+            #     )])
             for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
                 target_info_array[t] = temp[t]
 

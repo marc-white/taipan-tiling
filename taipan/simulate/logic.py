@@ -125,6 +125,7 @@ def compute_target_types(target_info_array, prisci=False):
 def compute_target_priorities_tree(target_info_array, default_priority=0,
                                    prisci=False):
         # Initialize the priorities array with the default value
+    logging.info('Computing target priorities with prisci: %s' % str(prisci))
     priorities = np.zeros(target_info_array['target_id'].shape).astype('i')
     priorities += int(default_priority)
 
@@ -219,19 +220,27 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     # priorities[ is_noz_Jsel_blue & ( num_visits == 1 ) ] = 66
     # priorities[ is_noz_Jsel_blue & ( num_visits == 2 ) ] = 65
 
+    is_lrg_selected = np.logical_and(is_in_survey, is_Jselected == False)
+    is_lrg_selected = np.logical_and(is_lrg_selected,
+                                     target_info_array['is_lrg'])
+    # Original code
+    # is_lrg_selected = ( is_in_survey & ( is_Jselected == False )
+    #                     & target_info_array[ 'is_lrg' ] )
+
+    is_noz_lrg = np.logical_and(is_lrg_selected,
+                                no_good_redshift)
+    # Original code
+    # is_noz_lrg = is_lrg_selected & no_good_redshift
+
+    if prisci:  # _________________ in prisci period, only condsider KiDS fields
+
+        is_in_census_region = in_census_region(target_info_array)
+
+    else:  # ____________________ and whole sky once full survey is underway
+
+        is_in_census_region = is_in_survey
+
     if not prisci:  # _________ add LRG selection after priority science period
-
-        is_lrg_selected = np.logical_and(is_in_survey, is_Jselected == False)
-        is_lrg_selected = np.logical_and(is_lrg_selected,
-                                         target_info_array['is_lrg'])
-        # Original code
-        # is_lrg_selected = ( is_in_survey & ( is_Jselected == False )
-        #                     & target_info_array[ 'is_lrg' ] )
-
-        is_noz_lrg = np.logical_and(is_lrg_selected,
-                                    no_good_redshift)
-        # Original code
-        # is_noz_lrg = is_lrg_selected & no_good_redshift
 
         priorities[np.logical_and(is_noz_lrg, num_visits == 0)] = 74
         priorities[np.logical_and(is_noz_lrg, num_visits == 1)] = 73
@@ -245,6 +254,16 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
         # priorities[ is_noz_lrg & ( num_visits == 3 ) ] = 71
         # priorities[ is_noz_lrg & ( num_visits == 4 ) ] = 70
 
+    else:
+
+        is_noz_lrg = np.logical_and(is_noz_lrg, is_in_census_region)
+
+        priorities[np.logical_and(is_noz_lrg, num_visits == 0)] = 44
+        priorities[np.logical_and(is_noz_lrg, num_visits == 1)] = 43
+        priorities[np.logical_and(is_noz_lrg, num_visits == 2)] = 42
+        priorities[np.logical_and(is_noz_lrg, num_visits == 3)] = 41
+        priorities[np.logical_and(is_noz_lrg, num_visits == 4)] = 40
+
     # __________________________________________________________________________
     #
     #                                                 galaxy census target block
@@ -253,14 +272,6 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     # _______________________________ NOTE: these priorities override BAO values
 
     is_iband_selected = target_info_array['is_iband']
-
-    if prisci:  # _________________ in prisci period, only condsider KiDS fields
-
-        is_in_census_region = in_census_region(target_info_array)
-
-    else:  # ____________________ and whole sky once full survey is underway
-
-        is_in_census_region = is_in_survey
 
     is_live_census_target = np.logical_and(is_in_census_region,
                                            is_iband_selected)

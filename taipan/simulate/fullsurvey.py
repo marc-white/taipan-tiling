@@ -332,7 +332,7 @@ def select_best_tile(cursor, dt, per_end,
 
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
-                               unobserved=True)
+                               unobserved=True, threshold_value=50)
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   dt,
                                                   datetime_to=max(
@@ -668,6 +668,9 @@ def sim_do_night(cursor, date, date_start, date_end,
         prisci_end = midday_start + prisci_end
         # Compare with midday today to work out if prisci=True or False
         prisci = prisci_end > midday
+        logging.info('Prisci status for %s: %s' %
+                     (date.strftime('%Y-%m-%d'), bool(prisci))
+                     )
 
     if check_almanacs:
         logging.info('Checking almanacs for night %s' %
@@ -747,7 +750,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             field_periods, fields_by_tile, hours_obs = select_best_tile(
                 cursor, local_utc_now,
                 dark_end, midday_end_prior,
-                prioritize_lowz=prioritize_lowz_today)
+                prioritize_lowz=prioritize_lowz_today
+            )
             if tile_to_obs is None:
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
@@ -799,7 +803,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             if instant_dq:
                 # Do the DQ analysis now
                 sim_dq_analysis(cursor, [tile_to_obs], [local_utc_now],
-                                do_diffs=False)
+                                do_diffs=False, prisci=prisci)
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
@@ -875,7 +879,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     start = datetime.datetime.now()
     if len(tiles_observed) > 0 and not instant_dq:
         sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
-                        do_diffs=False)
+                        do_diffs=False, prisci=prisci)
 
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
