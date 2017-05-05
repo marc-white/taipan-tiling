@@ -17,6 +17,7 @@ from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
 from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
 
 from taipan.simulate.utils.updatesci import update_science_targets
+from taipan.core import compute_target_difficulties
 
 def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
@@ -100,7 +101,12 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         # Get the required targets from the database
         candidate_targets = rScexec(cursor, unobserved=False,
                                     # unassigned=True,
-                                    unqueued=True, field_list=fields_w_targets)
+                                    unqueued=True,
+                                    # Read in rCA fields for diff. calc.
+                                    field_list=fields_w_targets)
+        # New 170505 - recompute target diff. here, instead of in DB
+        compute_target_difficulties(candidate_targets)
+
         guide_targets = rGexec(cursor, field_list=fields_w_targets)
         standard_targets = rSexec(cursor, field_list=fields_w_targets)
         fields_to_tile = rCexec(cursor, field_ids=sub_field_list)
@@ -116,7 +122,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                                               tiles=fields_to_tile,
                                               sequential_ordering=(2, 1),
                                               recompute_difficulty=False,
-                                              repeat_targets=True)
+                                              repeat_targets=True,
+                                              # Already checks tile radius
+                                              )
 
         # Write the new tiles back to the database
         iTexec(cursor, tile_list, config_time=tiling_time,

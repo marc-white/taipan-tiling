@@ -5,6 +5,7 @@ from src.resources.v0_0_1.readout import readCentroidsAffected as rCA
 from src.resources.v0_0_1.readout import readScience as rSc
 from src.resources.v0_0_1.readout import readSciencePosn as rScP
 from src.resources.v0_0_1.readout import readScienceTypes as rScTy
+from src.resources.v0_0_1.readout import readScienceVisits as rSV
 
 import taipan.simulate.logic as tsl
 from taipan.simulate.simulate import test_redshift_success
@@ -58,6 +59,7 @@ def update_science_targets(cursor,
 
     # Read in the input target information
     target_info_array = rScTy.execute(cursor, target_ids=target_list)
+    target_info_array.sort(order='target_id')
 
     if len(target_info_array) > 0:
         if do_tp:
@@ -69,17 +71,6 @@ def update_science_targets(cursor,
             temp = tsl.compute_target_types(
                 target_info_array, prisci=prisci
             )
-            # TODO Needs to be implemented properly
-            # Anything newly-identified as vpec needs to have its
-            # success re-evaluated
-            # target_info_array[np.logical_and(
-            #     temp['is_vpec_target'],
-            #     ~target_info_array['is_vpec_target']
-            # )]['success'] = test_redshift_success(
-            #     target_info_array[np.logical_and(
-            #         temp['is_vpec_target'],
-            #         ~target_info_array['is_vpec_target']
-            #     )])
             for t in ['is_h0_target', 'is_vpec_target', 'is_lowz_target']:
                 target_info_array[t] = temp[t]
 
@@ -116,7 +107,7 @@ def update_science_targets(cursor,
             # Re-insert the new difficulties into the target_info_array
             # Note that we can't guarantee that the ordering of targets_for_diff
             # and target_info_array matches
-            target_info_array.sort(order='target_id')
+            # target_info_array.sort(order='target_id')
             targets_for_diff = np.array(
                 [(t.idn, t.difficulty) for t in targets_for_diff],
                 dtype={
