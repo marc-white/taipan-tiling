@@ -139,7 +139,8 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                     prob_bugfail=1./10000.,
                     prob_vpec_first=0.3, prob_vpec_second=0.7,
                     prob_lowz_each=0.8, prisci=False,
-                    do_diffs=False):
+                    do_diffs=False,
+                    hrs_better=None, airmass=None):
     # -------
     # FAKE DQ/SCIENCE ANALYSIS
     # -------
@@ -169,6 +170,13 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         visits_repeats.sort(order='target_id')
         target_ids.sort()
 
+        # Work out if there will be new vpec targets
+        # Note that anything observed at this point will have is_vpec_target
+        # set is is_full_vpec_target, so we can just copy to the other
+        target_types_db['is_vpec_target'] = np.logical_and(
+            target_types_db['is_full_vpec_target'],
+            target_types_db['is_vpec_target']
+        )
 
         # Calculate a success/failure rate for each target
         # Compute target success based on target type(s)
@@ -243,7 +251,8 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                                prisci=prisci)
 
     # Mark the tiles as having been observed
-    mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at)
+    mTOexec(cursor, tiles_observed, time_obs=tiles_observed_at,
+            hrs_better=hrs_better, airmass=airmass)
 
     # Reset all tiles to be unqueued (none should be, but this is just
     # a safety measure)
@@ -702,6 +711,8 @@ def sim_do_night(cursor, date, date_start, date_end,
 
     tiles_observed = []
     tiles_observed_at = []
+    tiles_observed_hrs_better = []
+    tiles_observed_airmass = []
 
     while dark_start is not None:
         logging.info('Commencing observing...')
@@ -799,6 +810,12 @@ def sim_do_night(cursor, date, date_start, date_end,
             mTQexec(cursor, [tile_to_obs], time_obs=None)
             # Record the time that this was done
             tiles_observed_at.append(local_utc_now)
+            tiles_observed_hrs_better.append(
+                hours_obs[fields_by_tile[tile_to_obs]]
+            )
+            tiles_observed_hrs_better.append(rAS.get_airmass(
+                cursor, fields_by_tile[tile_to_obs], local_utc_now
+            ))['airmass'][0]
 
             if instant_dq:
                 # Do the DQ analysis now
