@@ -821,8 +821,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # Do the DQ analysis now
                 sim_dq_analysis(cursor, [tile_to_obs], [local_utc_now],
                                 do_diffs=False, prisci=prisci,
-                                hrs_better=tiles_observed_hrs_better,
-                                airmass=tiles_observed_airmass)
+                                hrs_better=[tiles_observed_hrs_better[-1], ],
+                                airmass=[tiles_observed_airmass[-1], ])
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
@@ -854,6 +854,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Set the tile score to 0 so it's not re-observed tonight
             tiles_scores[tile_to_obs] = 0.
             tiles_observed.append(tile_to_obs)
+
 
         # When this dark period is exhausted, figure out when the next dark
         # period is tonight (if there is one)
@@ -898,7 +899,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     start = datetime.datetime.now()
     if len(tiles_observed) > 0 and not instant_dq:
         sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
-                        do_diffs=False, prisci=prisci)
+                        do_diffs=False, prisci=prisci,
+                        hrs_better=tiles_observed_hrs_better,
+                        airmass=tiles_observed_airmass)
 
         # Re-tile the affected fields
         # Work out which fields actually need re-tiling
