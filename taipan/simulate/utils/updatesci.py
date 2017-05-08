@@ -59,9 +59,9 @@ def update_science_targets(cursor,
 
     # Read in the input target information
     target_info_array = rScTy.execute(cursor, target_ids=target_list)
-    target_info_array.sort(order='target_id')
 
     if len(target_info_array) > 0:
+        target_info_array.sort(order='target_id')
         if do_tp:
             # Recompute the priorities
             priors_temp = tsl.compute_target_priorities_tree(
