@@ -815,7 +815,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             )
             tiles_observed_hrs_better.append(rAS.get_airmass(
                 cursor, fields_by_tile[tile_to_obs], local_utc_now
-            ))['airmass'][0]
+            )['airmass'][0])
 
             if instant_dq:
                 # Do the DQ analysis now
