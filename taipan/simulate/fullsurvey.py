@@ -820,7 +820,9 @@ def sim_do_night(cursor, date, date_start, date_end,
             if instant_dq:
                 # Do the DQ analysis now
                 sim_dq_analysis(cursor, [tile_to_obs], [local_utc_now],
-                                do_diffs=False, prisci=prisci)
+                                do_diffs=False, prisci=prisci,
+                                hrs_better=tiles_observed_hrs_better,
+                                airmass=tiles_observed_airmass)
 
             # Re-tile the affected areas (should be 7 tiles, modulo any areas
             # where we have deliberately added an over/underdense tiling)
