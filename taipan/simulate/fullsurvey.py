@@ -173,7 +173,7 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
         # Work out if there will be new vpec targets
         # Note that anything observed at this point will have is_vpec_target
         # set is is_full_vpec_target, so we can just copy to the other
-        target_types_db['is_vpec_target'] = np.logical_and(
+        target_types_db['is_vpec_target'] = np.logical_or(
             target_types_db['is_full_vpec_target'],
             target_types_db['is_vpec_target']
         )
