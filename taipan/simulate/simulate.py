@@ -3,8 +3,10 @@ import logging
 
 
 def test_redshift_success(target_types_db, num_visits,
-                          prob_vpec_first=0.3,
-                          prob_vpec_second=0.7,
+                          prob_vpec_first=0.18,
+                          prob_vpec_second=0.510,
+                          prob_vpec_third=0.675,
+                          prob_vpec_fourth=0.845,
                           prob_lowz_each=0.85):
     """
     FOR TEST USE ONLY
@@ -32,9 +34,12 @@ def test_redshift_success(target_types_db, num_visits,
         observed on the first pass. Float, 0.0 to 1.0 inclusive.
     prob_vpec_second:
         The probability that a peculiar velocity target will be successfully
-        observed after two passes. Note that this is a *cumulative* probability,
-        such that P(success in 1 || success in 2) = prob_vpec_second. Float,
-        0.0 to 1.0 inclusive.
+        observed after two passes. Note that this is a 
+        *conditional* probability, such that 
+        P(success in 2 | no success in 1) = prob_vpec_second. 
+        Float, 0.0 to 1.0 inclusive.
+    prob_vpec_third, prob_vpec_fourth:
+        As above, but for third and fourth passes.
     prob_lowz_each:
         The probability that a low-redshift target will be successfully observed
         on any pass. Float, 0.0 to 1.0 inclusive.
@@ -92,15 +97,23 @@ def test_redshift_success(target_types_db, num_visits,
     # 85% success for non-vpec targets on each pass
     prob = np.where(~is_vpec, np.minimum(prob_lowz_each, prob), prob)
 
-    # success for 20% vpec targets on first visit
+    # success for prob_vpec_first vpec targets on first visit
     prob = np.where(np.logical_and(is_vpec, num_visits == 1),
                     [prob_vpec_first] * len(prob), prob)
-    # success for 70% of vpec targets after two visits
+    # success for prob_vpec_second of vpec targets after two visits
     prob = np.where(np.logical_and(is_vpec, num_visits == 2),
                     [prob_vpec_second] * len(prob),
                     prob)
-    # success for 100% of vpec targets after two visits
-    prob = np.where(np.logical_and(is_vpec, num_visits >= 3), 1., prob)
+    # success for prob_vpec_third of vpec targets after two visits
+    prob = np.where(np.logical_and(is_vpec, num_visits == 3),
+                    [prob_vpec_third] * len(prob),
+                    prob)
+    # success for prob_vpec_fourth of vpec targets after two visits
+    prob = np.where(np.logical_and(is_vpec, num_visits == 4),
+                    [prob_vpec_fourth] * len(prob),
+                    prob)
+    # success for 100% of vpec targets after three visits
+    prob = np.where(np.logical_and(is_vpec, num_visits >= 5), 1., prob)
 
     # redshift success is when this score is less than Pr(success)
     success = score < prob

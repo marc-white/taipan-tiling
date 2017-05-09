@@ -137,7 +137,10 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 
 def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                     prob_bugfail=1./10000.,
-                    prob_vpec_first=0.3, prob_vpec_second=0.7,
+                    prob_vpec_first=0.18,
+                    prob_vpec_second=0.510,
+                    prob_vpec_third=0.675,
+                    prob_vpec_fourth=0.845,
                     prob_lowz_each=0.8, prisci=False,
                     do_diffs=False,
                     hrs_better=None, airmass=None):
@@ -189,6 +192,9 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                                                 prob_vpec_first=prob_vpec_first,
                                                 prob_vpec_second=
                                                 prob_vpec_second,
+                                                prob_vpec_third=prob_vpec_third,
+                                                prob_vpec_fourth=
+                                                prob_vpec_fourth,
                                                 prob_lowz_each=prob_lowz_each)
 
         # Record the observing log at this point to capture data at time
