@@ -359,7 +359,8 @@ def select_best_tile(cursor, dt, per_end,
                                                       datetime.
                                                       timedelta(30.)
                                                   ),
-                                                  hours_better=True) for
+                                                  hours_better=True,
+                                                  airmass_delta=0.05) for
                           f in list(set(fields_by_tile.values())) if
                           f in lowz_fields}
         hours_obs_oth = {f: rAS.hours_observable(cursor, f,
@@ -368,7 +369,8 @@ def select_best_tile(cursor, dt, per_end,
                                                  dt +
                                                  datetime.timedelta(
                                                      365.*2.),
-                                                 hours_better=True) for
+                                                 hours_better=True,
+                                                 airmass_delta=0.05) for
                          f in list(set(fields_by_tile.values())) if
                          f not in lowz_fields}
         # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
@@ -379,7 +381,8 @@ def select_best_tile(cursor, dt, per_end,
                                              datetime_to=
                                              dt +
                                              datetime.timedelta(365*2),
-                                             hours_better=True) for
+                                             hours_better=True,
+                                             airmass_delta=0.05) for
                      f in fields_by_tile.values()}
 
     # Need to replace any points where hours_obs=0 with the almanac resolution;
