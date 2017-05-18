@@ -347,17 +347,18 @@ def select_best_tile(cursor, dt, per_end,
 
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
-                               unobserved=True, threshold_value=50)
+                               unobserved=True, threshold_value=50,
+                               assigned_only=True)
         hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                   dt,
                                                   datetime_to=max(
                                                       midday_end
                                                       - datetime.timedelta(
-                                                          days=365)
+                                                          days=(7./12.)*365.)
                                                       ,
                                                       dt +
                                                       datetime.
-                                                      timedelta(30.)
+                                                      timedelta(365./2.)
                                                   ),
                                                   hours_better=True,
                                                   airmass_delta=0.05) for
@@ -1081,7 +1082,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 6, 1)
+    sim_start = datetime.date(2017, 9, 1)
     sim_end = datetime.date(2022, 6, 1)
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.timedelta(days=365.)
