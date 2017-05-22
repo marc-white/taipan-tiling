@@ -25,6 +25,17 @@ from sklearn.neighbors import KDTree as skKDTree
 # CONSTANTS
 # -------
 
+# Code marking & JSON write-out
+VERSION = 0.9
+NAME = 'TaipanSurveyTiler'
+SOFTWARE_TYPE = 'SurveySimulator'
+SURVEY = 'Taipan|Taipan'
+TILE_CONFIG_FILE_VERSION = 0.1
+INSTRUMENT_NAME = 'AAO.Taipan'
+FILE_PURPOSE = 'CoD.Testing'
+JSON_DTFORMAT_NAIVE = '%Y-%m-%dT%H:%M:%S'
+JSON_DTFORMAT_TZ = '%Y-%m-%dT%H:%M:%S%z'
+
 # Computational break-even points
 # Number of targets needed to make it worth doing difficulty calculations
 # with a KDTREE
@@ -2156,6 +2167,77 @@ class TaipanTile(TaipanPoint):
             assert (m > -10 and m < 30), "mag_min outside valid range"
         self._mag_min = m
 
+    def generate_json_dict(self):
+        """
+        Generate a dictionary that represents the JSON configuration file
+        used for passing this tile throughout the Taipan architecture
+        
+        Note that scheduling based fields (e.g. times, statuses) will *not*
+        be included. These should be computed/inserted after this base-level
+        dictionary is generated.
+        """
+        json_dict = dict()
+
+        # Top-level information
+        json_dict['configFormatVersion'] = TILE_CONFIG_FILE_VERSION
+        json_dict['instrumentName'] = INSTRUMENT_NAME
+        json_dict['filePurpose'] = FILE_PURPOSE
+        json_dict['origin'] = [{
+            'name': SOFTWARE_TYPE,
+            'version': VERSION,
+        }]
+
+        # Tile configuration
+        json_dict['tilePK'] = self.pk
+        json_dict['fieldID'] = self.field_id
+        json_dict['fieldCentre'] = {
+            'ra': self.ra,
+            'dec': self.dec,
+        }
+
+        json_dict['targets'] = [
+            {
+                'sbID': b,
+                'ra': tgt.ra,
+                'dec': tgt.dec,
+                'targetID': tgt.idn,
+            } for b, tgt in self.get_assigned_targets_science(
+                return_dict=True).items()
+        ]
+        json_dict['targets'] += [
+            {
+                'sbID': b,
+                'ra': tgt.ra,
+                'dec': tgt.dec,
+                'targetID': tgt.idn,
+            } for b, tgt in self.get_assigned_targets_standard(
+                return_dict=True).items()
+        ]
+        json_dict['guideStars'] = [
+            {
+                'sbID': b,
+                'ra': tgt.ra,
+                'dec': tgt.dec,
+                'targetID': tgt.idn,
+            } for b, tgt in self.get_assigned_targets_guide(
+                return_dict=True).items()
+        ]
+        json_dict['sky'] = [
+            {
+                'sbID': b,
+                'ra': self.compute_fibre_posn(b)[0],
+                'dec': self.compute_fibre_posn(b)[1],
+            } for b, tgt in self._fibres.items() if
+            isinstance(tgt, str) and tgt == 'sky'
+        ]
+
+        # Router information
+        json_dict['routable'] = 'Unknown'
+
+        return json_dict
+
+
+
     def priority(self):
         """
         Calculate the priority ranking of this tile. Do this by summing
@@ -2315,8 +2397,9 @@ class TaipanTile(TaipanPoint):
             return assigned_targets
         return assigned_targets.values()
 
-    def get_assigned_targets_science(self, return_dict=False, \
-        include_science_standards=True, only_science_standards=False):
+    def get_assigned_targets_science(self, return_dict=False,
+                                     include_science_standards=True,
+                                     only_science_standards=False):
         """
         Return a list of science TaipanTargets currently assigned to this tile.
 
@@ -2343,17 +2426,16 @@ class TaipanTile(TaipanPoint):
                             if isinstance(t, TaipanTarget)}
         if include_science_standards:
             assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
-                if t.science}
+                                if t.science}
         elif only_science_standards:
             assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
-                if t.science and t.standard}
+                                if t.science and t.standard}
         else:
             assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
-                if t.science and not t.standard}
+                                if t.science and not t.standard}
         if return_dict:
             return assigned_targets
         return assigned_targets.values()
-
 
     def count_assigned_targets_science(self, include_science_standards=True):
         """
