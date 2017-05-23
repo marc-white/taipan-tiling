@@ -271,7 +271,8 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     # _______________________________ NOTE: these priorities override BAO values
 
-    is_iband_selected = target_info_array['is_iband']
+    is_iband_selected = np.logical_or(target_info_array['is_iband'],
+                                      target_info_array['is_sdss_legacy'])
 
     is_live_census_target = np.logical_and(is_in_census_region,
                                            is_iband_selected)
