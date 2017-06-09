@@ -23,6 +23,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
                   disqualify_below_min=True, restrict_targets=True,
                   delete_queued=False, bins=1,
+                  repick_after_complete=False,
                   do_priorities=True):
     """
     Re-tile the fields passed.
@@ -123,6 +124,8 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                                               sequential_ordering=(2, 1),
                                               recompute_difficulty=False,
                                               repeat_targets=True,
+                                              repick_after_complete=
+                                              repick_after_complete,
                                               # Already checks tile radius
                                               )
 
