@@ -352,10 +352,12 @@ def select_best_tile(cursor, dt, per_end,
                             hours_better=True, airmass_delta=0.05):
         # Multipool process needs its own cursor
         cursor_int = cursor.connection.cursor()
-        return rAS.hours_observable(cursor_int, f, dt,
-                                    datetime_to=datetime_to,
-                                    hours_better=hours_better,
-                                    airmass_delta=airmass_delta)
+        hrs = rAS.hours_observable(cursor_int, f, dt,
+                                   datetime_to=datetime_to,
+                                   hours_better=hours_better,
+                                   airmass_delta=airmass_delta)
+        cursor_int.connection.close()
+        return hrs
 
     hours_obs_stan_partial = partial(hours_obs_reshuffle,
                                      cursor=cursor,
@@ -389,25 +391,24 @@ def select_best_tile(cursor, dt, per_end,
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
                                unobserved=True, threshold_value=50,
                                assigned_only=True)
+        lowz_of_interest = [f for f in fields_to_calculate if f in lowz_fields]
+        stan_fields = [f for f in fields_to_calculate if f not in
+                       lowz_of_interest]
         pool = multiprocessing.Pool(processes=multipool_workers)
         hrs = pool.map(hours_obs_lowz_partial, [f for f in
-                                                fields_to_calculate if
-                                                f in lowz_fields])
+                                                lowz_of_interest])
         pool.close()
         pool.join()
         hours_obs_lowz = {fields_to_calculate[i]: hrs[i] for i in
-                          range(len(fields_to_calculate)) if
-                          fields_to_calculate[i] in lowz_fields}
+                          range(len(lowz_of_interest))}
 
         pool = multiprocessing.Pool(processes=multipool_workers)
         hrs = pool.map(hours_obs_stan_partial, [f for f in
-                                                fields_to_calculate if
-                                                f not in lowz_fields])
+                                                stan_fields])
         pool.close()
         pool.join()
         hours_obs_oth = {fields_to_calculate[i]: hrs[i] for i in
-                         range(len(fields_to_calculate)) if
-                         fields_to_calculate[i] not in lowz_fields}
+                         range(len(stan_fields))}
         # OLD, LINEAR SCHEMA
         # hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
         #                                           dt,
