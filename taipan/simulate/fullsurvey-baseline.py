@@ -24,6 +24,7 @@ from src.resources.v0_0_1.manipulate import makeScienceDiff as mScD
 from src.resources.v0_0_1.manipulate import makeSciencePriorities as mScP
 from src.resources.v0_0_1.manipulate import makeScienceTypes as mScTy
 from src.resources.v0_0_1.manipulate import makeScienceDiff as mSD
+from src.resources.v0_0_1.manipulate import makeCentroidSwitch as mCS
 
 import taipan.simulate.logic as tsl
 
@@ -196,6 +197,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             update_science_targets(cursor, target_list=None,
                                    do_d=True,
                                    prisci=False)
+            # Switch the field statuses
+            mCS.execute(cursor)
             # mScD.execute(cursor)
             # Complete re-tile of all fields
             fields_to_retile = [t.field_id for t in rCexec(cursor)]
