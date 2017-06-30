@@ -21,6 +21,8 @@ import os
 import sys
 import datetime
 import random
+from functools import partial
+import multiprocessing
 
 from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
 from src.resources.v0_0_1.readout.readGuides import execute as rGexec
@@ -270,7 +272,8 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
 def select_best_tile(cursor, dt, per_end,
                      midday_end,
                      prioritize_lowz=True,
-                     resolution=15.):
+                     resolution=15.,
+                     multipool_workers=15):
     """
     Select the best tile to observe at the current datetime.
 
@@ -345,46 +348,110 @@ def select_best_tile(cursor, dt, per_end,
                       row in scores_array if
                       row['field_id'] in fields_available}
 
+    def hours_obs_reshuffle(f, cursor=cursor, dt=None, datetime_to=None,
+                            hours_better=True, airmass_delta=0.05):
+        # Multipool process needs its own cursor
+        cursor_int = cursor.connection.cursor()
+        return rAS.hours_observable(cursor_int, f, dt,
+                                    datetime_to=datetime_to,
+                                    hours_better=hours_better,
+                                    airmass_delta=airmass_delta)
+
+    hours_obs_stan_partial = partial(hours_obs_reshuffle,
+                                     cursor=cursor,
+                                     dt=dt,
+                                     datetime_to=dt + datetime.timedelta(
+                                         365. * 2.),
+                                     hours_better=True,
+                                     airmass_delta=0.05
+                                     )
+
+    hours_obs_lowz_partial = partial(hours_obs_reshuffle,
+                                     cursor=cursor,
+                                     dt=dt,
+                                     datetime_to=max(
+                                         midday_end
+                                         - datetime.timedelta(
+                                             days=(7./12.)*365.)
+                                         ,
+                                         dt +
+                                         datetime.
+                                         timedelta(365./2.)
+                                     ),
+                                     hours_better=True,
+                                     airmass_delta=0.05
+                                     )
+
+    fields_to_calculate = list(set(fields_by_tile.values()))
+    fields_to_calculate.sort()
+
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
                                unobserved=True, threshold_value=50,
                                assigned_only=True)
-        hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
-                                                  dt,
-                                                  datetime_to=max(
-                                                      midday_end
-                                                      - datetime.timedelta(
-                                                          days=(7./12.)*365.)
-                                                      ,
-                                                      dt +
-                                                      datetime.
-                                                      timedelta(365./2.)
-                                                  ),
-                                                  hours_better=True,
-                                                  airmass_delta=0.05) for
-                          f in list(set(fields_by_tile.values())) if
-                          f in lowz_fields}
-        hours_obs_oth = {f: rAS.hours_observable(cursor, f,
-                                                 dt,
-                                                 datetime_to=
-                                                 dt +
-                                                 datetime.timedelta(
-                                                     365.*2.),
-                                                 hours_better=True,
-                                                 airmass_delta=0.05) for
-                         f in list(set(fields_by_tile.values())) if
-                         f not in lowz_fields}
-        # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
+        pool = multiprocessing.Pool(processes=multipool_workers)
+        hrs = pool.map(hours_obs_lowz_partial, [f for f in
+                                                fields_to_calculate if
+                                                f in lowz_fields])
+        pool.close()
+        pool.join()
+        hours_obs_lowz = {fields_to_calculate[i]: hrs[i] for i in
+                          range(len(fields_to_calculate)) if
+                          fields_to_calculate[i] in lowz_fields}
+
+        pool = multiprocessing.Pool(processes=multipool_workers)
+        hrs = pool.map(hours_obs_stan_partial, [f for f in
+                                                fields_to_calculate if
+                                                f not in lowz_fields])
+        pool.close()
+        pool.join()
+        hours_obs_oth = {fields_to_calculate[i]: hrs[i] for i in
+                         range(len(fields_to_calculate)) if
+                         fields_to_calculate[i] not in lowz_fields}
+        # OLD, LINEAR SCHEMA
+        # hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
+        #                                           dt,
+        #                                           datetime_to=max(
+        #                                               midday_end
+        #                                               - datetime.timedelta(
+        #                                                   days=(7./12.)*365.)
+        #                                               ,
+        #                                               dt +
+        #                                               datetime.
+        #                                               timedelta(365./2.)
+        #                                           ),
+        #                                           hours_better=True,
+        #                                           airmass_delta=0.05) for
+        #                   f in list(set(fields_by_tile.values())) if
+        #                   f in lowz_fields}
+        # hours_obs_oth = {f: rAS.hours_observable(cursor, f,
+        #                                          dt,
+        #                                          datetime_to=
+        #                                          dt +
+        #                                          datetime.timedelta(
+        #                                              365.*2.),
+        #                                          hours_better=True,
+        #                                          airmass_delta=0.05) for
+        #                  f in list(set(fields_by_tile.values())) if
+        #                  f not in lowz_fields}
+        # # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
         hours_obs = hours_obs_lowz.copy()
         hours_obs.update(hours_obs_oth)
     else:
-        hours_obs = {f: rAS.hours_observable(cursor, f, dt,
-                                             datetime_to=
-                                             dt +
-                                             datetime.timedelta(365*2),
-                                             hours_better=True,
-                                             airmass_delta=0.05) for
-                     f in fields_by_tile.values()}
+        pool = multiprocessing.Pool(processes=multipool_workers)
+        hrs = pool.map(hours_obs_stan_partial, fields_to_calculate)
+        # OLD LINEAR SCHEMA
+        # hours_obs = {f: rAS.hours_observable(cursor, f, dt,
+        #                                      datetime_to=
+        #                                      dt +
+        #                                      datetime.timedelta(365*2),
+        #                                      hours_better=True,
+        #                                      airmass_delta=0.05) for
+        #              f in fields_by_tile.values()}
+        pool.close()
+        pool.join()
+        hours_obs = {fields_to_calculate[i]: hrs[i] for i in
+                     range(len(fields_to_calculate))}
 
     # Need to replace any points where hours_obs=0 with the almanac resolution;
     # otherwise, 0 hours fields will be forcibly observed, even if their score
