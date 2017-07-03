@@ -1463,7 +1463,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    repick_after_complete=True,
                                    recompute_difficulty=True,
                                    repeat_targets=False,
-                                   multicores=1):
+                                   multicores=8):
     """
     Generate a tiling based on the greedy algorithm, but instead of going
     to some completeness target, generate the n best tiles for each input tile
