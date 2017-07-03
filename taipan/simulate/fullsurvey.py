@@ -352,12 +352,11 @@ def select_best_tile(cursor, dt, per_end,
     def hours_obs_reshuffle(f, cursor=cursor, dt=None, datetime_to=None,
                             hours_better=True, airmass_delta=0.05):
         # Multipool process needs its own cursor
-        cursor_int = cursor.connection.cursor()
-        hrs = rAS.hours_observable(cursor_int, f, dt,
-                                   datetime_to=datetime_to,
-                                   hours_better=hours_better,
-                                   airmass_delta=airmass_delta)
-        cursor_int.connection.close()
+        with cursor.connection.cursor() as cursor_int:
+            hrs = rAS.hours_observable(cursor_int, f, dt,
+                                       datetime_to=datetime_to,
+                                       hours_better=hours_better,
+                                       airmass_delta=airmass_delta)
         return hrs
 
     hours_obs_stan_partial = partial(hours_obs_reshuffle,
@@ -395,7 +394,7 @@ def select_best_tile(cursor, dt, per_end,
         lowz_of_interest = [f for f in fields_to_calculate if f in lowz_fields]
         stan_fields = [f for f in fields_to_calculate if f not in
                        lowz_of_interest]
-        pool = multiprocessing.Pool(processes=multipool_workers)
+        pool = multiprocessing.Pool(multipool_workers)
         hrs = pool.map(hours_obs_lowz_partial, [f for f in
                                                 lowz_of_interest])
         pool.close()
@@ -403,7 +402,7 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs_lowz = {fields_to_calculate[i]: hrs[i] for i in
                           range(len(lowz_of_interest))}
 
-        pool = multiprocessing.Pool(processes=multipool_workers)
+        pool = multiprocessing.Pool(multipool_workers)
         hrs = pool.map(hours_obs_stan_partial, [f for f in
                                                 stan_fields])
         pool.close()
