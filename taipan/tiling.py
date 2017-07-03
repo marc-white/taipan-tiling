@@ -18,6 +18,8 @@ import copy
 import logging
 # import line_profiler
 from threading import Thread, Lock
+import multiprocessing
+import functools
 #XXX
 #import matplotlib.pyplot as plt
 
@@ -1461,7 +1463,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    repick_after_complete=True,
                                    recompute_difficulty=True,
                                    repeat_targets=False,
-                                   ):
+                                   multicores=1):
     """
     Generate a tiling based on the greedy algorithm, but instead of going
     to some completeness target, generate the n best tiles for each input tile
@@ -1582,32 +1584,59 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
     candidate_targets_master = candidate_targets[:]
 
-    for tile in tiles:
-        # Regenerate the target catalogue
-        logging.info('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
-                     (tile.field_id, tile.ra, tile.dec))
-        if repeat_targets:
-            candidate_targets_master = candidate_targets[:]
-        for i in range(npass):
-            logging.debug('Pass %d of %d' % (i+1, npass))
-            # Create a tile copy
-            candidate_tile = copy.copy(tile)
-            # Unpick the tile based on the candidate list
-            candidate_targets_master, _ = candidate_tile.unpick_tile(
-                candidate_targets_master,
-                standard_targets,
-                guide_targets,
-                overwrite_existing=True,
-                check_tile_radius=True,
-                method=tile_unpick_method,
-                combined_weight=combined_weight,
-                sequential_ordering=sequential_ordering,
-                rank_supplements=rank_supplements,
-                repick_after_complete=repick_after_complete,
-                consider_removed_targets=False,
-                recompute_difficulty=recompute_difficulty
-            )
-            output_tiles.append(candidate_tile)
+    if multicores == 1:
+        for tile in tiles:
+            # Regenerate the target catalogue
+            logging.info('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
+                         (tile.field_id, tile.ra, tile.dec))
+            if repeat_targets:
+                candidate_targets_master = candidate_targets[:]
+            for i in range(npass):
+                logging.debug('Pass %d of %d' % (i+1, npass))
+                # Create a tile copy
+                candidate_tile = copy.copy(tile)
+                # Unpick the tile based on the candidate list
+                candidate_targets_master, _ = candidate_tile.unpick_tile(
+                    candidate_targets_master,
+                    standard_targets,
+                    guide_targets,
+                    overwrite_existing=True,
+                    check_tile_radius=True,
+                    method=tile_unpick_method,
+                    combined_weight=combined_weight,
+                    sequential_ordering=sequential_ordering,
+                    rank_supplements=rank_supplements,
+                    repick_after_complete=repick_after_complete,
+                    consider_removed_targets=False,
+                    recompute_difficulty=recompute_difficulty
+                )
+                output_tiles.append(candidate_tile)
+    else:
+        # Do multicore processing
+        def multicore_greedy(obj, **kwargs):
+            ctm = copy.deepcopy(candidate_targets_master)
+            st = copy.deepcopy(standard_targets)
+            gt = copy.deepcopy(guide_targets)
+            _, _ = obj.unpick_tile(ctm, st, gt, **kwargs)
+            return obj
+
+        multicore_greedy_partial = functools.partial(
+            multicore_greedy,
+            overwrite_existing=True,
+            check_tile_radius=True,
+            method=tile_unpick_method,
+            combined_weight=combined_weight,
+            sequential_ordering=sequential_ordering,
+            rank_supplements=rank_supplements,
+            repick_after_complete=repick_after_complete,
+            consider_removed_targets=False,
+            recompute_difficulty=recompute_difficulty
+        )
+
+        pool = multiprocessing.Pool(multicores)
+        output_tiles = pool.map(multicore_greedy_partial, tiles)
+        pool.close()
+        pool.join()
 
     # Send the returned tiles back
     return output_tiles, candidate_targets_master

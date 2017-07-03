@@ -198,7 +198,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                                    do_d=True,
                                    prisci=False)
             # Switch the field statuses
-            mCS.execute(cursor)
+            mCS.execute(cursor, remove_inactive_tiles=True)
             # mScD.execute(cursor)
             # Complete re-tile of all fields
             fields_to_retile = [t.field_id for t in rCexec(cursor)]
