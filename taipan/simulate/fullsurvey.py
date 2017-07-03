@@ -61,7 +61,8 @@ SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
 # HELPER FUNCITONS
 
-def hours_obs_reshuffle(f, cursor=get_connection.cursor(), dt=None, datetime_to=None,
+def hours_obs_reshuffle(f, cursor=get_connection().cursor(),
+                        dt=None, datetime_to=None,
                         hours_better=True, airmass_delta=0.05):
     # Multipool process needs its own cursor
     with cursor.connection.cursor() as cursor_int:
