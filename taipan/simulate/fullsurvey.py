@@ -458,6 +458,9 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs = {fields_to_calculate[i]: hrs[i] for i in
                      range(len(fields_to_calculate))}
 
+    logging.info('Hours_observable:')
+    logging.info(hours_obs)
+
     # Need to replace any points where hours_obs=0 with the almanac resolution;
     # otherwise, 0 hours fields will be forcibly observed, even if their score
     # does not warrant it
