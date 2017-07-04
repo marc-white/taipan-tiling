@@ -404,15 +404,15 @@ def select_best_tile(cursor, dt, per_end,
         hrs = pool.map(hours_obs_lowz_partial, lowz_of_interest)
         pool.close()
         pool.join()
-        hours_obs_lowz = {fields_to_calculate[i]: hrs[i] for i in
-                          lowz_of_interest}
+        hours_obs_lowz = {lowz_of_interest[i]: hrs[i] for i in
+                          range(len(lowz_of_interest))}
 
         pool = multiprocessing.Pool(multipool_workers)
         hrs = pool.map(hours_obs_stan_partial, stan_fields)
         pool.close()
         pool.join()
-        hours_obs_oth = {fields_to_calculate[i]: hrs[i] for i in
-                         stan_fields}
+        hours_obs_oth = {stan_fields[i]: hrs[i] for i in
+                         range(len(stan_fields))}
         # OLD, LINEAR SCHEMA
         # hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
         #                                           dt,
@@ -456,7 +456,7 @@ def select_best_tile(cursor, dt, per_end,
         pool.close()
         pool.join()
         hours_obs = {fields_to_calculate[i]: hrs[i] for i in
-                     fields_to_calculate}
+                     range(len(fields_to_calculate))}
 
     logging.debug('Hours_observable:')
     logging.debug(hours_obs)
