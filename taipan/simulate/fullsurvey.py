@@ -351,6 +351,8 @@ def select_best_tile(cursor, dt, per_end,
                         field_periods[f][1] > dt + datetime.timedelta(
                             seconds=ts.OBS_TIME)
                         ]
+    logging.info('Currently %d fields available for observation' %
+                 len(fields_available))
 
     # Rank the available fields
     logging.info('Computing field scores')
