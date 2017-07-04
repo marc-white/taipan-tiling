@@ -401,16 +401,14 @@ def select_best_tile(cursor, dt, per_end,
         stan_fields = [f for f in fields_to_calculate if f not in
                        lowz_of_interest]
         pool = multiprocessing.Pool(multipool_workers)
-        hrs = pool.map(hours_obs_lowz_partial, [f for f in
-                                                lowz_of_interest])
+        hrs = pool.map(hours_obs_lowz_partial, lowz_of_interest)
         pool.close()
         pool.join()
         hours_obs_lowz = {fields_to_calculate[i]: hrs[i] for i in
                           range(len(lowz_of_interest))}
 
         pool = multiprocessing.Pool(multipool_workers)
-        hrs = pool.map(hours_obs_stan_partial, [f for f in
-                                                stan_fields])
+        hrs = pool.map(hours_obs_stan_partial, stan_fields)
         pool.close()
         pool.join()
         hours_obs_oth = {fields_to_calculate[i]: hrs[i] for i in
