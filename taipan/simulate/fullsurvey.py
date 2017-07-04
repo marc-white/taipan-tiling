@@ -405,14 +405,14 @@ def select_best_tile(cursor, dt, per_end,
         pool.close()
         pool.join()
         hours_obs_lowz = {fields_to_calculate[i]: hrs[i] for i in
-                          range(len(lowz_of_interest))}
+                          lowz_of_interest}
 
         pool = multiprocessing.Pool(multipool_workers)
         hrs = pool.map(hours_obs_stan_partial, stan_fields)
         pool.close()
         pool.join()
         hours_obs_oth = {fields_to_calculate[i]: hrs[i] for i in
-                         range(len(stan_fields))}
+                         stan_fields}
         # OLD, LINEAR SCHEMA
         # hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
         #                                           dt,
@@ -456,10 +456,10 @@ def select_best_tile(cursor, dt, per_end,
         pool.close()
         pool.join()
         hours_obs = {fields_to_calculate[i]: hrs[i] for i in
-                     range(len(fields_to_calculate))}
+                     fields_to_calculate}
 
-    logging.info('Hours_observable:')
-    logging.info(hours_obs)
+    logging.debug('Hours_observable:')
+    logging.debug(hours_obs)
 
     # Need to replace any points where hours_obs=0 with the almanac resolution;
     # otherwise, 0 hours fields will be forcibly observed, even if their score
