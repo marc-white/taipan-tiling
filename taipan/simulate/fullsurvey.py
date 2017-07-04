@@ -61,11 +61,12 @@ SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
 # HELPER FUNCITONS
 
-def hours_obs_reshuffle(f, cursor=get_connection().cursor(),
+
+def hours_obs_reshuffle(f,
                         dt=None, datetime_to=None,
                         hours_better=True, airmass_delta=0.05):
     # Multipool process needs its own cursor
-    with cursor.connection.cursor() as cursor_int:
+    with get_connection().cursor() as cursor_int:
         hrs = rAS.hours_observable(cursor_int, f, dt,
                                    datetime_to=datetime_to,
                                    hours_better=hours_better,
@@ -363,7 +364,7 @@ def select_best_tile(cursor, dt, per_end,
                       row['field_id'] in fields_available}
 
     hours_obs_stan_partial = partial(hours_obs_reshuffle,
-                                     cursor=cursor,
+                                     # cursor=cursor,
                                      dt=dt,
                                      datetime_to=dt + datetime.timedelta(
                                          365. * 2.),
@@ -372,7 +373,7 @@ def select_best_tile(cursor, dt, per_end,
                                      )
 
     hours_obs_lowz_partial = partial(hours_obs_reshuffle,
-                                     cursor=cursor,
+                                     # cursor=cursor,
                                      dt=dt,
                                      datetime_to=max(
                                          midday_end
