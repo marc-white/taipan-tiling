@@ -1449,6 +1449,23 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     return tile_list, final_completeness, candidate_targets
 
 
+def multicore_greedy(obj,
+                     candidate_targets_master=None,
+                     standard_targets=None,
+                     guide_targets=None,
+                     npass=1,
+                     **kwargs):
+    ctm = copy.deepcopy(candidate_targets_master)
+    st = copy.deepcopy(standard_targets)
+    gt = copy.deepcopy(guide_targets)
+    out_list = []
+    for i in range(npass):
+        t = copy.copy(obj)
+        _, _ = t.unpick_tile(ctm, st, gt, **kwargs)
+        out_list.append(t)
+    return out_list
+
+
 def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    guide_targets,
                                    npass,
@@ -1463,7 +1480,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    repick_after_complete=True,
                                    recompute_difficulty=True,
                                    repeat_targets=False,
-                                   multicores=8):
+                                   multicores=1):
     """
     Generate a tiling based on the greedy algorithm, but instead of going
     to some completeness target, generate the n best tiles for each input tile
@@ -1613,19 +1630,13 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                 output_tiles.append(candidate_tile)
     else:
         # Do multicore processing
-        def multicore_greedy(obj, **kwargs):
-            ctm = copy.deepcopy(candidate_targets_master)
-            st = copy.deepcopy(standard_targets)
-            gt = copy.deepcopy(guide_targets)
-            out_list = []
-            for i in range(npass):
-                t = copy.copy(obj)
-                _, _ = t.unpick_tile(ctm, st, gt, **kwargs)
-                out_list.append(t)
-            return out_list
 
         multicore_greedy_partial = functools.partial(
             multicore_greedy,
+            candidate_targets_master=candidate_targets_master,
+            standard_targets=standard_targets,
+            guide_targets=1,
+            npass=1,
             overwrite_existing=True,
             check_tile_radius=True,
             method=tile_unpick_method,
