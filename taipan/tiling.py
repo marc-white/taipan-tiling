@@ -1617,8 +1617,12 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
             ctm = copy.deepcopy(candidate_targets_master)
             st = copy.deepcopy(standard_targets)
             gt = copy.deepcopy(guide_targets)
-            _, _ = obj.unpick_tile(ctm, st, gt, **kwargs)
-            return obj
+            out_list = []
+            for i in range(npass):
+                t = copy.copy(obj)
+                _, _ = t.unpick_tile(ctm, st, gt, **kwargs)
+                out_list.append(t)
+            return out_list
 
         multicore_greedy_partial = functools.partial(
             multicore_greedy,
