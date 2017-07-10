@@ -163,6 +163,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             weather_fail_thresh = np.percentile(weather_fails.values(),
                                                 weather_loss * 100.)
         if curr_date == datetime.date(2019,1,1):
+            logging.warning('ABORTING at tile changeover')
+            sys.exit()
             # Modify taipan.core.BUGPOS_MM to add in another 150
             # science fibres
             # We do this by adding a new fibre in between each pair of
@@ -227,8 +229,8 @@ if __name__ == '__main__':
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.date(2019, 1, 1) - sim_start
 
-    kill_time = None
-    # kill_time = datetime.datetime(2017, 7, 23, 9, 25, 0)
+    # kill_time = None
+    kill_time = datetime.datetime(2019, 1, 1, 0, 0, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
