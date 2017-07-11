@@ -53,7 +53,7 @@ if __name__ == '__main__':
     tgts = readScience.execute(cursor)
     gds = readGuides.execute(cursor)
     stds = readStandards.execute(cursor)
-    fields = readCentroids(cursor)
+    fields = readCentroids.execute(cursor)
     logging.warning('...done!')
 
     # Do the tests
