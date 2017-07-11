@@ -58,6 +58,7 @@ if __name__ == '__main__':
 
     # Do the tests
     for workers in [10, 3, 1]:
+        logging.warning('Testing with %d workers...' % workers)
         for t in [1, 10, 50]:
             start = datetime.datetime.now()
 
@@ -76,3 +77,4 @@ if __name__ == '__main__':
             logging.warning('Tiled %d tiles w/ %d workers in %4.1f s' % (
                 t, workers, delta.total_seconds(),
             ))
+        logging.warning('...done with % workers!' % workers)
