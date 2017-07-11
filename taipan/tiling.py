@@ -1455,13 +1455,11 @@ def multicore_greedy(obj,
                      guide_targets=None,
                      npass=1,
                      **kwargs):
-    ctm = copy.deepcopy(candidate_targets_master)
-    st = copy.deepcopy(standard_targets)
-    gt = copy.deepcopy(guide_targets)
     out_list = []
     for i in range(npass):
         t = copy.copy(obj)
-        _, _ = t.unpick_tile(ctm, st, gt, **kwargs)
+        _, _ = t.unpick_tile(candidate_targets_master, standard_targets,
+                             guide_targets, **kwargs)
         out_list.append(t)
     return out_list
 
@@ -1633,9 +1631,9 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
         multicore_greedy_partial = functools.partial(
             multicore_greedy,
-            candidate_targets_master=candidate_targets_master,
-            standard_targets=standard_targets,
-            guide_targets=1,
+            candidate_targets_master=copy.deepcopy(candidate_targets_master),
+            standard_targets=copy.deepcopy(standard_targets),
+            guide_targets=copy.deepcopy(guide_targets),
             npass=1,
             overwrite_existing=True,
             check_tile_radius=True,
