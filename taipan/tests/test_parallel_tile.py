@@ -82,4 +82,4 @@ if __name__ == '__main__':
             logging.warning('Tiled %d tiles w/ %d workers in %4.1f s' % (
                 t, workers, delta.total_seconds(),
             ))
-        logging.warning('...done with % workers!' % workers)
+        logging.warning('...done with %d workers!' % workers)
