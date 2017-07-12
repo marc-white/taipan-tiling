@@ -1672,16 +1672,16 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         )
 
         pool = multiprocessing.Pool(multicores)
-        output_tiles = pool.apply_async(multicore_greedy_partial,
-                                        [(
-                                            _,
-                                            copy.deepcopy(_.available_targets(
-                                                candidate_targets_master)),
-                                            copy.deepcopy(_.available_targets(
-                                                standard_targets)),
-                                            copy.deepcopy(_.available_targets(
-                                                guide_targets)),
-                                        ) for _ in tiles])
+        output_tiles = pool.map(multicore_greedy_partial,
+                                [(
+                                    _,
+                                    copy.deepcopy(_.available_targets(
+                                        candidate_targets_master)),
+                                    copy.deepcopy(_.available_targets(
+                                        standard_targets)),
+                                    copy.deepcopy(_.available_targets(
+                                        guide_targets)),
+                                ) for _ in tiles])
         pool.close()
         pool.join()
 
