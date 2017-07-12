@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # Get the targets and fields
     logging.warning('Getting DB info...')
     fields = readCentroids.execute(cursor)
-    fields = random.sample(fields, 100)
+    fields = random.sample(fields, 50)
     tgts = readScience.execute(cursor,
                                field_list=[_.field_id for _ in fields])
     gds = readGuides.execute(cursor,

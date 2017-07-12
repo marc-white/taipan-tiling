@@ -1450,7 +1450,8 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     return tile_list, final_completeness, candidate_targets
 
 
-def multicore_greedy(obj, ns=None,
+def multicore_greedy(obj,
+                     # ns=None,
                      # candidate_targets_master=None,
                      # standard_targets=None,
                      # guide_targets=None,
@@ -1459,15 +1460,17 @@ def multicore_greedy(obj, ns=None,
     # ctm = obj.available_targets(ns.candidate_targets_master)
     # st = obj.available_targets(ns.standard_targets)
     # gd = obj.available_targets(ns.guide_targets)
-    ctm = obj[1]
-    st = obj[2]
-    gd = obj[3]
+    # ctm = obj[1]
+    # st = obj[2]
+    # gd = obj[3]
+    # it = obj[0]
+    ns = obj[1]
     it = obj[0]
     out_list = []
     for i in range(npass):
         t = copy.copy(it)
-        _, _ = t.unpick_tile(ctm, st,
-                             gd, **kwargs)
+        _, _ = t.unpick_tile(ns.ctm, ns.st,
+                             ns.gd, **kwargs)
         out_list.append(t)
     return out_list
 
@@ -1646,11 +1649,11 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         #     tp.TaipanTarget, guide_targets
         # )
 
-        # mgr = multiprocessing.Manager()
-        # ns = mgr.Namespace()
-        # ns.ctm = candidate_targets_master
-        # ns.std = standard_targets
-        # ns.gds = guide_targets
+        mgr = multiprocessing.Manager()
+        ns = mgr.Namespace()
+        ns.ctm = candidate_targets_master
+        ns.std = standard_targets
+        ns.gds = guide_targets
         # ns.is_running = True
 
         multicore_greedy_partial = functools.partial(
@@ -1675,12 +1678,13 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         output_tiles = pool.map(multicore_greedy_partial,
                                 [(
                                     _,
-                                    _.available_targets(
-                                        candidate_targets_master),
-                                    _.available_targets(
-                                        standard_targets),
-                                    _.available_targets(
-                                        guide_targets),
+                                    # _.available_targets(
+                                    #     candidate_targets_master),
+                                    # _.available_targets(
+                                    #     standard_targets),
+                                    # _.available_targets(
+                                    #     guide_targets),
+                                    ns
                                 ) for _ in tiles])
         pool.close()
         pool.join()
