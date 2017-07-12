@@ -11,6 +11,7 @@ import random
 import logging
 import sys
 import traceback
+import multiprocessing
 
 if __name__ == '__main__':
 
@@ -41,6 +42,8 @@ if __name__ == '__main__':
     console = logging.StreamHandler()
     console.setLevel(logging.WARNING)
     logging.warning('TESTING PARALLEL RE-TILE')
+    logging.warning('NOTE: Your system has %d cores' %
+                    multiprocessing.cpu_count())
 
     # Get a cursor
     # TODO: Correct package imports & references
