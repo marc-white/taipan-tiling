@@ -60,6 +60,7 @@ if __name__ == '__main__':
     for workers in [3, 10, 1]:
         logging.warning('Testing with %d workers...' % workers)
         for t in [1, 10, 50]:
+            logging.warning('Testing with %d input tiles...' % t)
             start = datetime.datetime.now()
 
             # Select some tiles
