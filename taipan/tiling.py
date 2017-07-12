@@ -1641,11 +1641,18 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
             tp.TaipanTarget, guide_targets
         )
 
+        mgr = multiprocessing.Manager()
+        ns = mgr.Namespace()
+        ns.ctm = candidate_targets_master
+        ns.std = standard_targets
+        ns.gds = guide_targets
+        ns.is_running = True
+
         multicore_greedy_partial = functools.partial(
             multicore_greedy,
-            candidate_targets_master=candidate_targets_master,
-            standard_targets=standard_targets,
-            guide_targets=guide_targets,
+            candidate_targets_master=ns.candidate_targets_master,
+            standard_targets=ns.standard_targets,
+            guide_targets=ns.guide_targets,
             npass=1,
             overwrite_existing=True,
             check_tile_radius=True,
@@ -1659,7 +1666,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         )
 
         pool = multiprocessing.Pool(multicores)
-        output_tiles = pool.map(multicore_greedy_partial, tiles)
+        output_tiles = pool.apply_async(multicore_greedy_partial, tiles)
         pool.close()
         pool.join()
 
