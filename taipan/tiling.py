@@ -1632,14 +1632,14 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
     else:
         # Do multicore processing
 
-        candidate_targets_master = multiprocessing.Array(
-            tp.TaipanTarget, candidate_targets_master)
-        standard_targets = multiprocessing.Array(
-            tp.TaipanTarget, standard_targets
-        )
-        guide_targets = multiprocessing.Array(
-            tp.TaipanTarget, guide_targets
-        )
+        # candidate_targets_master = multiprocessing.Array(
+        #     tp.TaipanTarget, candidate_targets_master)
+        # standard_targets = multiprocessing.Array(
+        #     tp.TaipanTarget, standard_targets
+        # )
+        # guide_targets = multiprocessing.Array(
+        #     tp.TaipanTarget, guide_targets
+        # )
 
         mgr = multiprocessing.Manager()
         ns = mgr.Namespace()
