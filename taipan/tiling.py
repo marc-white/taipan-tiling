@@ -1449,15 +1449,15 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     return tile_list, final_completeness, candidate_targets
 
 
-def multicore_greedy(obj,
-                     candidate_targets_master=None,
-                     standard_targets=None,
-                     guide_targets=None,
+def multicore_greedy(obj, ns=ns,
+                     # candidate_targets_master=None,
+                     # standard_targets=None,
+                     # guide_targets=None,
                      npass=1,
                      **kwargs):
-    ctm = copy.deepcopy(obj.available_targets(candidate_targets_master))
-    st = copy.deepcopy(obj.available_targets(standard_targets))
-    gd = copy.deepcopy(obj.available_targets(guide_targets))
+    ctm = obj.available_targets(ns.candidate_targets_master)
+    st = obj.available_targets(ns.standard_targets)
+    gd = obj.available_targets(ns.guide_targets)
     out_list = []
     for i in range(npass):
         t = copy.copy(obj)
@@ -1650,9 +1650,10 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
         multicore_greedy_partial = functools.partial(
             multicore_greedy,
-            candidate_targets_master=ns.candidate_targets_master,
-            standard_targets=ns.standard_targets,
-            guide_targets=ns.guide_targets,
+            # candidate_targets_master=candidate_targets_master,
+            # standard_targets=standard_targets,
+            # guide_targets=guide_targets,
+            ns=ns,
             npass=1,
             overwrite_existing=True,
             check_tile_radius=True,
@@ -1666,7 +1667,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         )
 
         pool = multiprocessing.Pool(multicores)
-        output_tiles = pool.apply_async(multicore_greedy_partial, tiles)
+        output_tiles = pool.apply_async(multicore_greedy_partial, (tiles))
         pool.close()
         pool.join()
 
