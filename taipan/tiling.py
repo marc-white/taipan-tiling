@@ -20,6 +20,7 @@ import logging
 from threading import Thread, Lock
 import multiprocessing
 import functools
+from matplotlib.cbook import flatten
 #XXX
 #import matplotlib.pyplot as plt
 
@@ -1683,6 +1684,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                         ) for _ in tiles])
         pool.close()
         pool.join()
+
+        output_tiles = flatten(output_tiles)
 
     # Send the returned tiles back
     return output_tiles, candidate_targets_master
