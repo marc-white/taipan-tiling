@@ -1465,7 +1465,7 @@ def multicore_greedy(obj,
     # gd = obj[3]
     # it = obj[0]
     ns = obj[1]
-    it = obj[0]
+    it = ns.tiles[obj[0]]
     out_list = []
     for i in range(npass):
         t = copy.copy(it)
@@ -1654,6 +1654,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         ns.ctm = candidate_targets_master
         ns.std = standard_targets
         ns.gds = guide_targets
+        ns.tiles = tiles
         # ns.is_running = True
 
         multicore_greedy_partial = functools.partial(
@@ -1677,7 +1678,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         pool = multiprocessing.Pool(multicores)
         output_tiles = pool.map(multicore_greedy_partial,
                                 [(
-                                    _,
+                                    i,
                                     # _.available_targets(
                                     #     candidate_targets_master),
                                     # _.available_targets(
@@ -1685,7 +1686,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                     # _.available_targets(
                                     #     guide_targets),
                                     ns
-                                ) for _ in tiles])
+                                ) for i in range(len(tiles))])
         pool.close()
         pool.join()
 
