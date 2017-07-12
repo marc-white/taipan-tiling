@@ -64,7 +64,8 @@ if __name__ == '__main__':
     logging.warning('...done!')
 
     # Do the tests
-    for workers in [1, 4, multiprocessing.cpu_count()]:
+    for workers in [1, 4, multiprocessing.cpu_count(),
+                    multiprocessing.cpu_count()*2]:
         logging.warning('Testing with %d workers...' % workers)
         for t in [1, 10, 50]:
             logging.warning('Testing with %d input tiles...' % t)
