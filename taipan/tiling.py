@@ -1449,7 +1449,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
     return tile_list, final_completeness, candidate_targets
 
 
-def multicore_greedy(obj, ns=ns,
+def multicore_greedy(obj, ns=None,
                      # candidate_targets_master=None,
                      # standard_targets=None,
                      # guide_targets=None,
