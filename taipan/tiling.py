@@ -1455,12 +1455,16 @@ def multicore_greedy(obj, ns=None,
                      # guide_targets=None,
                      npass=1,
                      **kwargs):
-    ctm = obj.available_targets(ns.candidate_targets_master)
-    st = obj.available_targets(ns.standard_targets)
-    gd = obj.available_targets(ns.guide_targets)
+    # ctm = obj.available_targets(ns.candidate_targets_master)
+    # st = obj.available_targets(ns.standard_targets)
+    # gd = obj.available_targets(ns.guide_targets)
+    ctm = obj[1]
+    st = obj[2]
+    gd = obj[3]
+    it = obj[0]
     out_list = []
     for i in range(npass):
-        t = copy.copy(obj)
+        t = copy.copy(it)
         _, _ = t.unpick_tile(ctm, st,
                              gd, **kwargs)
         out_list.append(t)
@@ -1641,22 +1645,22 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         #     tp.TaipanTarget, guide_targets
         # )
 
-        mgr = multiprocessing.Manager()
-        ns = mgr.Namespace()
-        ns.ctm = candidate_targets_master
-        ns.std = standard_targets
-        ns.gds = guide_targets
-        ns.is_running = True
+        # mgr = multiprocessing.Manager()
+        # ns = mgr.Namespace()
+        # ns.ctm = candidate_targets_master
+        # ns.std = standard_targets
+        # ns.gds = guide_targets
+        # ns.is_running = True
 
         multicore_greedy_partial = functools.partial(
             multicore_greedy,
             # candidate_targets_master=candidate_targets_master,
             # standard_targets=standard_targets,
             # guide_targets=guide_targets,
-            ns=ns,
+            # ns=ns,
             npass=1,
             overwrite_existing=True,
-            check_tile_radius=True,
+            check_tile_radius=False,
             method=tile_unpick_method,
             combined_weight=combined_weight,
             sequential_ordering=sequential_ordering,
@@ -1667,7 +1671,16 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         )
 
         pool = multiprocessing.Pool(multicores)
-        output_tiles = pool.apply_async(multicore_greedy_partial, (tiles))
+        output_tiles = pool.apply_async(multicore_greedy_partial,
+                                        [(
+                                            _,
+                                            copy.deepcopy(_.available_targets(
+                                                candidate_targets_master)),
+                                            copy.deepcopy(_.available_targets(
+                                                standard_targets)),
+                                            copy.deepcopy(_.available_targets(
+                                                guide_targets)),
+                                        ) for _ in tiles])
         pool.close()
         pool.join()
 
