@@ -50,10 +50,14 @@ if __name__ == '__main__':
 
     # Get the targets and fields
     logging.warning('Getting DB info...')
-    tgts = readScience.execute(cursor)
-    gds = readGuides.execute(cursor)
-    stds = readStandards.execute(cursor)
     fields = readCentroids.execute(cursor)
+    fields = random.sample(fields, 100)
+    tgts = readScience.execute(cursor,
+                               field_list=[_.field_id for _ in fields])
+    gds = readGuides.execute(cursor,
+                             field_list=[_.field_id for _ in fields])
+    stds = readStandards.execute(cursor,
+                                 field_list=[_.field_id for _ in fields])
     logging.warning('...done!')
 
     # Do the tests
