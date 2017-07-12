@@ -1469,8 +1469,8 @@ def multicore_greedy(obj,
     out_list = []
     for i in range(npass):
         t = copy.copy(it)
-        _, _ = t.unpick_tile(ns.ctm, ns.st,
-                             ns.gd, **kwargs)
+        _, _ = t.unpick_tile(ns.ctm, ns.std,
+                             ns.gds, **kwargs)
         out_list.append(t)
     return out_list
 
