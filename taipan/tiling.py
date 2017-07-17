@@ -1616,6 +1616,12 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         raise ValueError('tiles must be a list of TaipanTile objects')
     if not (np.all([isinstance(t, tp.TaipanTile) for t in tiles])):
         raise ValueError('tiles must be a list of TaipanTile objects')
+    if multicores < 1:
+        raise ValueError('multicores must be >= 1')
+    if not repeat_targets and multicores > 1:
+        raise UserWarning('Multi-thread tiling cannot be used with '
+                          'repeat_targets=False - setting multicores to 1')
+        multicores = 1
 
     # Push the coordinate limits into standard format
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max,
@@ -1722,7 +1728,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         results = Parallel(n_jobs=multicores,
                            backend="threading"
                            )(
-            delayed(do_repeating_target_tile_stuff)(t, npass, candidate_targets,
+            delayed(do_repeating_target_tile_stuff)(t, npass,
+                                                    candidate_targets_master,
                                                     standard_targets,
                                                     guide_targets,
                                                     overwrite_existing=True,
