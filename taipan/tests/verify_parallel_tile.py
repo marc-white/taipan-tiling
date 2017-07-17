@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     logging.warning('Getting DB info...')
     fields = readCentroids.execute(cursor)
-    tiles = random.sample(fields, 20)
+    tiles = random.sample(fields, 50)
     tgts = readScience.execute(cursor,
                                field_list=[_.field_id for _ in tiles])
     gds = readGuides.execute(cursor,
