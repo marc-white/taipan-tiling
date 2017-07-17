@@ -1722,7 +1722,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
             delayed(do_repeating_target_tile_stuff)(t, npass, candidate_targets,
                                                     standard_targets,
                                                     guide_targets,
-                                                    verwrite_existing=True,
+                                                    overwrite_existing=True,
                                                     check_tile_radius=True,
                                                     method=tile_unpick_method,
                                                     combined_weight=
