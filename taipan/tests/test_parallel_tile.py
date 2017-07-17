@@ -108,7 +108,7 @@ if __name__ == '__main__':
             logging.warning('...done with %d workers!' % workers)
 
     for i in range(len(workers_values)):
-        for j in range(len(workers_values)):
+        for j in range(len(no_tiles)):
             results_array[i, j] = np.average(results_array[i, j])
 
     logging.warning('RESULTS (%d passes)' % 5)
