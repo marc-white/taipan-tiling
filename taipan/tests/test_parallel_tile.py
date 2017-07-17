@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
     for i in range(len(workers_values)):
         for j in range(len(workers_values)):
-            results_array[i, j] = np.avg(results_array[i, j])
+            results_array[i, j] = np.average(results_array[i, j])
 
     logging.warning('RESULTS (%d passes)' % 5)
     logging.warning('-------')
