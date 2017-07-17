@@ -85,7 +85,7 @@ if __name__ == '__main__':
             logging.warning('Testing with %d workers...' % workers)
             for t in range(len(no_tiles)):
                 tile = no_tiles[t]
-                logging.warning('Testing with %d input tiles...' % t)
+                logging.warning('Testing with %d input tiles...' % tile)
                 start = datetime.datetime.now()
 
                 # Select some tiles
