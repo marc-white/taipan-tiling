@@ -117,7 +117,7 @@ if __name__ == '__main__':
     tiles_parall.sort(key=lambda x: x.field_id)
 
     def get_sky_fibre_id(tile):
-        return set([k for k, v in tile._fibres if v == 'sky'])
+        return set([k for k, v in tile._fibres.items() if v == 'sky'])
 
     def get_assigned_target_ids(tile):
         return set([t.idn for t in tile.get_assigned_targets()])
