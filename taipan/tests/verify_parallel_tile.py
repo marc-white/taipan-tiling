@@ -124,13 +124,14 @@ if __name__ == '__main__':
     problem_found = False
 
     for i in range(len(tiles_single)):
-        if get_sky_fibre_id(tiles_single(i)) != \
-                get_sky_fibre_id(tiles_parall(i)):
+        if get_sky_fibre_id(tiles_single[i]) != \
+                get_sky_fibre_id(tiles_parall[i]):
             logging.warning('Mismatch between sky assignments for field %d' %
                             tiles_single[i].field_id)
             problem_found = True
 
-        if get_assigned_target_ids(tiles_single[i]) != get_assigned_target_ids(tiles_parall[i]):
+        if get_assigned_target_ids(tiles_single[i]) != \
+                get_assigned_target_ids(tiles_parall[i]):
             logging.warning('Mismatch between target (of some type) '
                             'assignments for field %d' %
                             tiles_single[i].field_id)
