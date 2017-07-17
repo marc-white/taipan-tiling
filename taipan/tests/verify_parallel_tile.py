@@ -55,11 +55,11 @@ if __name__ == '__main__':
     fields = readCentroids.execute(cursor)
     tiles = random.sample(fields, 50)
     tgts = readScience.execute(cursor,
-                               field_list=[_.field_id for _ in fields])
+                               field_list=[_.field_id for _ in tiles])
     gds = readGuides.execute(cursor,
-                             field_list=[_.field_id for _ in fields])
+                             field_list=[_.field_id for _ in tiles])
     stds = readStandards.execute(cursor,
-                                 field_list=[_.field_id for _ in fields])
+                                 field_list=[_.field_id for _ in tiles])
     logging.warning('...done!')
 
     logging.warning('Generating single-threaded tiling...')
