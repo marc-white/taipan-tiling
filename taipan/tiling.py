@@ -18,6 +18,7 @@ import copy
 import logging
 # import line_profiler
 from threading import Thread, Lock
+from joblib import Parallel, delayed
 import multiprocessing
 import functools
 from matplotlib.cbook import flatten
@@ -1475,6 +1476,30 @@ def multicore_greedy(obj,
     return out_list
 
 
+def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
+                                   standard_targets,
+                                   guide_targets,
+                                   repeat_targets=True,
+                                   **kwargs):
+    logging.info('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
+                 (tile.field_id, tile.ra, tile.dec))
+    if repeat_targets:
+        candidate_targets_master = candidate_targets[:]
+    output_tiles = []
+    for i in range(npass):
+        logging.debug('Pass %d of %d' % (i + 1, npass))
+        # Create a tile copy
+        candidate_tile = copy.copy(tile)
+        # Unpick the tile based on the candidate list
+        candidate_targets_master, _ = candidate_tile.unpick_tile(
+            candidate_targets_master,
+            standard_targets,
+            guide_targets,
+            **kwargs
+        )
+        output_tiles.append(candidate_tile)
+
+
 def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    guide_targets,
                                    npass,
@@ -1649,48 +1674,72 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
         #     tp.TaipanTarget, guide_targets
         # )
 
-        mgr = multiprocessing.Manager()
-        ns = mgr.Namespace()
-        ns.ctm = candidate_targets_master
-        ns.std = standard_targets
-        ns.gds = guide_targets
-        ns.tiles = tiles
-        # ns.is_running = True
+        # mgr = multiprocessing.Manager()
+        # ns = mgr.Namespace()
+        # ns.ctm = candidate_targets_master
+        # ns.std = standard_targets
+        # ns.gds = guide_targets
+        # ns.tiles = tiles
+        # # ns.is_running = True
+        #
+        # multicore_greedy_partial = functools.partial(
+        #     multicore_greedy,
+        #     # candidate_targets_master=candidate_targets_master,
+        #     # standard_targets=standard_targets,
+        #     # guide_targets=guide_targets,
+        #     # ns=ns,
+        #     npass=1,
+        #     overwrite_existing=True,
+        #     check_tile_radius=True,
+        #     method=tile_unpick_method,
+        #     combined_weight=combined_weight,
+        #     sequential_ordering=sequential_ordering,
+        #     rank_supplements=rank_supplements,
+        #     repick_after_complete=repick_after_complete,
+        #     consider_removed_targets=False,
+        #     recompute_difficulty=recompute_difficulty
+        # )
+        #
+        # pool = multiprocessing.Pool(multicores)
+        # output_tiles = pool.map(multicore_greedy_partial,
+        #                         [(
+        #                             i,
+        #                             # _.available_targets(
+        #                             #     candidate_targets_master),
+        #                             # _.available_targets(
+        #                             #     standard_targets),
+        #                             # _.available_targets(
+        #                             #     guide_targets),
+        #                             ns
+        #                         ) for i in range(len(tiles))])
+        # pool.close()
+        # pool.join()
+        #
+        # output_tiles = flatten(output_tiles)
 
-        multicore_greedy_partial = functools.partial(
-            multicore_greedy,
-            # candidate_targets_master=candidate_targets_master,
-            # standard_targets=standard_targets,
-            # guide_targets=guide_targets,
-            # ns=ns,
-            npass=1,
-            overwrite_existing=True,
-            check_tile_radius=True,
-            method=tile_unpick_method,
-            combined_weight=combined_weight,
-            sequential_ordering=sequential_ordering,
-            rank_supplements=rank_supplements,
-            repick_after_complete=repick_after_complete,
-            consider_removed_targets=False,
-            recompute_difficulty=recompute_difficulty
+        # NEW IMPLEMENTATION: joblib
+        results = Parallel(n_jobs=multicores, backend="threading")(
+            delayed(do_repeating_target_tile_stuff(t, npass, candidate_targets,
+                                                   standard_targets,
+                                                   guide_targets,
+                                                   verwrite_existing=True,
+                                                   check_tile_radius=True,
+                                                   method=tile_unpick_method,
+                                                   combined_weight=
+                                                   combined_weight,
+                                                   sequential_ordering=
+                                                   sequential_ordering,
+                                                   rank_supplements=
+                                                   rank_supplements,
+                                                   repick_after_complete=
+                                                   repick_after_complete,
+                                                   consider_removed_targets=
+                                                   False,
+                                                   recompute_difficulty=
+                                                   recompute_difficulty
+                                                   ) for t in tiles)
         )
-
-        pool = multiprocessing.Pool(multicores)
-        output_tiles = pool.map(multicore_greedy_partial,
-                                [(
-                                    i,
-                                    # _.available_targets(
-                                    #     candidate_targets_master),
-                                    # _.available_targets(
-                                    #     standard_targets),
-                                    # _.available_targets(
-                                    #     guide_targets),
-                                    ns
-                                ) for i in range(len(tiles))])
-        pool.close()
-        pool.join()
-
-        output_tiles = flatten(output_tiles)
+        output_tiles = [t for tiles in results for t in tiles]
 
     # Send the returned tiles back
     return output_tiles, candidate_targets_master
