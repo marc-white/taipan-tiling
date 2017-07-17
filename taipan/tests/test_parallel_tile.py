@@ -70,7 +70,7 @@ if __name__ == '__main__':
     for i in range(5):
         logging.warning('Getting DB info...')
         fields = readCentroids.execute(cursor)
-        fields = random.sample(fields, 50)
+        fields = random.sample(fields, max(no_tiles))
         tgts = readScience.execute(cursor,
                                    field_list=[_.field_id for _ in fields])
         gds = readGuides.execute(cursor,
@@ -89,7 +89,7 @@ if __name__ == '__main__':
                 start = datetime.datetime.now()
 
                 # Select some tiles
-                tiles = random.sample(fields, tile)
+                tiles = fields[:tile]
                 a, b = generate_tiling_greedy_npasses(tgts, stds, gds, 1,
                                                       tiles=tiles,
                                                       sequential_ordering=(2,1),
