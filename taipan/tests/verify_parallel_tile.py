@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     logging.warning('Getting DB info...')
     fields = readCentroids.execute(cursor)
-    tiles = random.sample(fields, 50)
+    tiles = random.sample(fields, 20)
     tgts = readScience.execute(cursor,
                                field_list=[_.field_id for _ in tiles])
     gds = readGuides.execute(cursor,
@@ -100,10 +100,11 @@ if __name__ == '__main__':
                                                      repick_after_complete=
                                                      False,
                                                      multicores=
-                                                     max(1,
-                                                         int(0.8 *
-                                                             multiprocessing.
-                                                             cpu_count())))
+                                                     # max(1,
+                                                     #     int(0.8 *
+                                                     #         multiprocessing.
+                                                     #         cpu_count()))
+                                                     6)
 
     logging.warning('...done!')
 
