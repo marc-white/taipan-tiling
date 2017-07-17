@@ -13,6 +13,8 @@ import sys
 import traceback
 import multiprocessing
 
+import numpy as np
+
 if __name__ == '__main__':
 
     # Override the sys.excepthook behaviour to log any errors
@@ -51,39 +53,64 @@ if __name__ == '__main__':
     conn = get_connection()
     cursor = conn.cursor()
 
+    workers_values = [1, 4,
+                        int(0.8*multiprocessing.cpu_count()),
+                        multiprocessing.cpu_count(), ]
+    no_tiles = [1, 10, 50]
+
+    # Construct the results array
+    results_array = np.zeros((len(workers_values), len(no_tiles), ),
+                             dtype=object)
+    for i in range(len(workers_values)):
+        for j in range(len(no_tiles)):
+            results_array[i, j] = []
+
+
     # Get the targets and fields
-    logging.warning('Getting DB info...')
-    fields = readCentroids.execute(cursor)
-    fields = random.sample(fields, 50)
-    tgts = readScience.execute(cursor,
-                               field_list=[_.field_id for _ in fields])
-    gds = readGuides.execute(cursor,
-                             field_list=[_.field_id for _ in fields])
-    stds = readStandards.execute(cursor,
+    for i in range(5):
+        logging.warning('Getting DB info...')
+        fields = readCentroids.execute(cursor)
+        fields = random.sample(fields, 50)
+        tgts = readScience.execute(cursor,
+                                   field_list=[_.field_id for _ in fields])
+        gds = readGuides.execute(cursor,
                                  field_list=[_.field_id for _ in fields])
-    logging.warning('...done!')
+        stds = readStandards.execute(cursor,
+                                     field_list=[_.field_id for _ in fields])
+        logging.warning('...done!')
 
-    # Do the tests
-    for workers in [1, 4, multiprocessing.cpu_count(),
-                    multiprocessing.cpu_count()*2]:
-        logging.warning('Testing with %d workers...' % workers)
-        for t in [1, 10, 50]:
-            logging.warning('Testing with %d input tiles...' % t)
-            start = datetime.datetime.now()
+        # Do the tests
+        for w in range(len(workers_values)):
+            workers = workers_values[w]
+            logging.warning('Testing with %d workers...' % workers)
+            for t in range(len(no_tiles)):
+                tile = no_tiles[t]
+                logging.warning('Testing with %d input tiles...' % t)
+                start = datetime.datetime.now()
 
-            # Select some tiles
-            tiles = random.sample(fields, t)
-            a, b = generate_tiling_greedy_npasses(tgts, stds, gds, 1,
-                                                  tiles=tiles,
-                                                  sequential_ordering=(2,1),
-                                                  recompute_difficulty=True,
-                                                  repeat_targets=True,
-                                                  repick_after_complete=False,
-                                                  multicores=workers)
+                # Select some tiles
+                tiles = random.sample(fields, tile)
+                a, b = generate_tiling_greedy_npasses(tgts, stds, gds, 1,
+                                                      tiles=tiles,
+                                                      sequential_ordering=(2,1),
+                                                      recompute_difficulty=True,
+                                                      repeat_targets=True,
+                                                      repick_after_complete=
+                                                      False,
+                                                      multicores=workers)
 
-            end = datetime.datetime.now()
-            delta = end - start
-            logging.warning('Tiled %d tiles w/ %d workers in %4.1f s' % (
-                t, workers, delta.total_seconds(),
-            ))
-        logging.warning('...done with %d workers!' % workers)
+                end = datetime.datetime.now()
+                delta = end - start
+                logging.warning('Tiled %d tiles w/ %d workers in %4.1f s' % (
+                    t, workers, delta.total_seconds(),
+                ))
+                results_array[w, t].append(delta.total_seconds())
+            logging.warning('...done with %d workers!' % workers)
+
+    for i in range(len(workers_values)):
+        for j in range(len(workers_values)):
+            results_array[i, j] = np.avg(results_array[i, j])
+
+    logging.warning('RESULTS (%d passes)' % 5)
+    logging.warning('-------')
+    logging.warning(str(results_array))
