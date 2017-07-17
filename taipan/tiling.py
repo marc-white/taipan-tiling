@@ -1720,7 +1720,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
         # NEW IMPLEMENTATION: joblib
         results = Parallel(n_jobs=multicores,
-                           # backend="threading"
+                           backend="threading"
                            )(
             delayed(do_repeating_target_tile_stuff)(t, npass, candidate_targets,
                                                     standard_targets,
