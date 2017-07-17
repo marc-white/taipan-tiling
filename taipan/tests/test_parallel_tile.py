@@ -107,10 +107,22 @@ if __name__ == '__main__':
                 results_array[w, t].append(delta.total_seconds())
             logging.warning('...done with %d workers!' % workers)
 
+    std_array = np.copy(results_array)
+
     for i in range(len(workers_values)):
         for j in range(len(no_tiles)):
             results_array[i, j] = np.average(results_array[i, j])
+            std_array[i, j] = np.std(results_array[i, j])
 
     logging.warning('RESULTS (%d passes)' % 5)
     logging.warning('-------')
     logging.warning(str(results_array))
+    for i in range(len(workers_values)):
+        for j in range(len(no_tiles)):
+            logging.warning('%01d workers, %02d tiles: %.1f +/- %.1f s' % (
+                workers_values[i],
+                no_tiles[j],
+                results_array[i, j],
+                std_array[i, j]
+            ))
+    logging.warning('-------')
