@@ -1719,26 +1719,25 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
         # NEW IMPLEMENTATION: joblib
         results = Parallel(n_jobs=multicores, backend="threading")(
-            delayed(do_repeating_target_tile_stuff(t, npass, candidate_targets,
-                                                   standard_targets,
-                                                   guide_targets,
-                                                   verwrite_existing=True,
-                                                   check_tile_radius=True,
-                                                   method=tile_unpick_method,
-                                                   combined_weight=
-                                                   combined_weight,
-                                                   sequential_ordering=
-                                                   sequential_ordering,
-                                                   rank_supplements=
-                                                   rank_supplements,
-                                                   repick_after_complete=
-                                                   repick_after_complete,
-                                                   consider_removed_targets=
-                                                   False,
-                                                   recompute_difficulty=
-                                                   recompute_difficulty
-                                                   ) for t in tiles)
-        )
+            delayed(do_repeating_target_tile_stuff)(t, npass, candidate_targets,
+                                                    standard_targets,
+                                                    guide_targets,
+                                                    verwrite_existing=True,
+                                                    check_tile_radius=True,
+                                                    method=tile_unpick_method,
+                                                    combined_weight=
+                                                    combined_weight,
+                                                    sequential_ordering=
+                                                    sequential_ordering,
+                                                    rank_supplements=
+                                                    rank_supplements,
+                                                    repick_after_complete=
+                                                    repick_after_complete,
+                                                    consider_removed_targets=
+                                                    False,
+                                                    recompute_difficulty=
+                                                    recompute_difficulty
+                                                    ) for t in tiles)
         output_tiles = [t for tiles in results for t in tiles]
 
     # Send the returned tiles back
