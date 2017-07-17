@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 end = datetime.datetime.now()
                 delta = end - start
                 logging.warning('Tiled %d tiles w/ %d workers in %4.1f s' % (
-                    t, workers, delta.total_seconds(),
+                    tile, workers, delta.total_seconds(),
                 ))
                 results_array[w, t].append(delta.total_seconds())
             logging.warning('...done with %d workers!' % workers)
