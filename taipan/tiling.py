@@ -1498,6 +1498,7 @@ def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
             **kwargs
         )
         output_tiles.append(candidate_tile)
+    return output_tiles
 
 
 def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
