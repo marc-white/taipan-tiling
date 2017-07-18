@@ -9,13 +9,14 @@
 # For creating a single tile using ra, dec and PA, the correct method is to
 # directly call a new TaipanTile object
 
+import logging
+
 import core as tp
 import time
 import random
 import math
 import numpy as np
 import copy
-import logging
 # import line_profiler
 from threading import Thread, Lock
 from joblib import Parallel, delayed
