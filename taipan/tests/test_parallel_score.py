@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # Set the logging to write to terminal AND file
     logging.basicConfig(
         level=logging.WARNING,
-        filename='./testlog_parallel_tiling.log',
+        filename='./testlog_parallel_scoring.log',
         filemode='w'
     )
     logger = logging.getLogger()
