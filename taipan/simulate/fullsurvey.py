@@ -408,65 +408,67 @@ def select_best_tile(cursor, dt, per_end,
         # hours_obs_oth = {stan_fields[i]: hrs[i] for i in
         #                  range(len(stan_fields))}
 
-        hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
-            delayed(hours_obs_reshuffle)(f, cursor=cursor,
-                                         dt=dt,
-                                         datetime_to=max(
-                                             midday_end
-                                             - datetime.timedelta(
-                                                 days=(7. / 12.) * 365.)
-                                             ,
-                                             dt +
-                                             datetime.
-                                             timedelta(365. / 2.)
-                                         ),
-                                         hours_better=True,
-                                         airmass_delta=0.05)
-            for f in lowz_of_interest
-        )
-        hours_obs_lowz = {lowz_of_interest[i]: hrs[i] for i in
-                          range(len(lowz_of_interest))}
+        if multipool_workers > 1:
 
-        hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
-            delayed(hours_obs_reshuffle)(f, cursor=cursor,
-                                         dt=dt,
-                                         datetime_to=dt + datetime.timedelta(
-                                             365. * 2.),
-                                         hours_better=True,
-                                         airmass_delta=0.05)
-            for f in stan_fields
-        )
-        hours_obs_oth = {stan_fields[i]: hrs[i] for i in
-                         range(len(stan_fields))}
+            hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
+                delayed(hours_obs_reshuffle)(f, cursor=cursor,
+                                             dt=dt,
+                                             datetime_to=max(
+                                                 midday_end
+                                                 - datetime.timedelta(
+                                                     days=(7. / 12.) * 365.)
+                                                 ,
+                                                 dt +
+                                                 datetime.
+                                                 timedelta(365. / 2.)
+                                             ),
+                                             hours_better=True,
+                                             airmass_delta=0.05)
+                for f in lowz_of_interest
+            )
+            hours_obs_lowz = {lowz_of_interest[i]: hrs[i] for i in
+                              range(len(lowz_of_interest))}
 
+            hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
+                delayed(hours_obs_reshuffle)(f, cursor=cursor,
+                                             dt=dt,
+                                             datetime_to=dt + datetime.timedelta(
+                                                 365. * 2.),
+                                             hours_better=True,
+                                             airmass_delta=0.05)
+                for f in stan_fields
+            )
+            hours_obs_oth = {stan_fields[i]: hrs[i] for i in
+                             range(len(stan_fields))}
+        else:
+            # OLD, LINEAR SCHEMA
+            hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
+                                                      dt,
+                                                      datetime_to=max(
+                                                          midday_end
+                                                          - datetime.timedelta(
+                                                              days=(7./12.)*365.)
+                                                          ,
+                                                          dt +
+                                                          datetime.
+                                                          timedelta(365./2.)
+                                                      ),
+                                                      hours_better=True,
+                                                      airmass_delta=0.05) for
+                              f in list(set(fields_by_tile.values())) if
+                              f in lowz_fields}
+            hours_obs_oth = {f: rAS.hours_observable(cursor, f,
+                                                     dt,
+                                                     datetime_to=
+                                                     dt +
+                                                     datetime.timedelta(
+                                                         365.*2.),
+                                                     hours_better=True,
+                                                     airmass_delta=0.05) for
+                             f in list(set(fields_by_tile.values())) if
+                             f not in lowz_fields}
+            # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
 
-        # OLD, LINEAR SCHEMA
-        # hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
-        #                                           dt,
-        #                                           datetime_to=max(
-        #                                               midday_end
-        #                                               - datetime.timedelta(
-        #                                                   days=(7./12.)*365.)
-        #                                               ,
-        #                                               dt +
-        #                                               datetime.
-        #                                               timedelta(365./2.)
-        #                                           ),
-        #                                           hours_better=True,
-        #                                           airmass_delta=0.05) for
-        #                   f in list(set(fields_by_tile.values())) if
-        #                   f in lowz_fields}
-        # hours_obs_oth = {f: rAS.hours_observable(cursor, f,
-        #                                          dt,
-        #                                          datetime_to=
-        #                                          dt +
-        #                                          datetime.timedelta(
-        #                                              365.*2.),
-        #                                          hours_better=True,
-        #                                          airmass_delta=0.05) for
-        #                  f in list(set(fields_by_tile.values())) if
-        #                  f not in lowz_fields}
-        # # hours_obs = dict(hours_obs_lowz, **hours_obs_oth)hours
         hours_obs = hours_obs_lowz.copy()
         hours_obs.update(hours_obs_oth)
     else:
@@ -475,24 +477,27 @@ def select_best_tile(cursor, dt, per_end,
         # pool.close()
         # pool.join()
 
-        hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
-            delayed(hours_obs_reshuffle)(f, cursor=cursor,
-                                         dt=dt,
-                                         datetime_to=dt + datetime.timedelta(
-                                             365. * 2.),
-                                         hours_better=True,
-                                         airmass_delta=0.05)
-            for f in fields_to_calculate
-        )
+        if multipool_workers > 1:
 
-        # OLD LINEAR SCHEMA
-        # hours_obs = {f: rAS.hours_observable(cursor, f, dt,
-        #                                      datetime_to=
-        #                                      dt +
-        #                                      datetime.timedelta(365*2),
-        #                                      hours_better=True,
-        #                                      airmass_delta=0.05) for
-        #              f in fields_by_tile.values()}
+            hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
+                delayed(hours_obs_reshuffle)(f, cursor=cursor,
+                                             dt=dt,
+                                             datetime_to=dt + datetime.timedelta(
+                                                 365. * 2.),
+                                             hours_better=True,
+                                             airmass_delta=0.05)
+                for f in fields_to_calculate
+            )
+        else:
+            # OLD LINEAR SCHEMA
+            hours_obs = {f: rAS.hours_observable(cursor, f, dt,
+                                                 datetime_to=
+                                                 dt +
+                                                 datetime.timedelta(365*2),
+                                                 hours_better=True,
+                                                 airmass_delta=0.05) for
+                         f in fields_by_tile.values()}
+
         hours_obs = {fields_to_calculate[i]: hrs[i] for i in
                      range(len(fields_to_calculate))}
 
