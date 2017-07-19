@@ -72,7 +72,7 @@ if __name__ == '__main__':
     for i in range(5):
         logging.warning('Pass %d...' % i)
         # Do the tests
-        for w in range(len(workers_values)):
+        for w in workers_values:
             logging.warning('   %3d workers' % w)
             start = datetime.datetime.now()
 
