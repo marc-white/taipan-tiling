@@ -408,7 +408,7 @@ def select_best_tile(cursor, dt, per_end,
         # hours_obs_oth = {stan_fields[i]: hrs[i] for i in
         #                  range(len(stan_fields))}
 
-        hrs = Parallel(n_jobs=4, backend='threading')(
+        hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
             delayed(hours_obs_reshuffle)(f, cursor=cursor,
                                          dt=dt,
                                          datetime_to=max(
@@ -427,7 +427,7 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs_lowz = {lowz_of_interest[i]: hrs[i] for i in
                           range(len(lowz_of_interest))}
 
-        hrs = Parallel(n_jobs=4, backend='threading')(
+        hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
             delayed(hours_obs_reshuffle)(f, cursor=cursor,
                                          dt=dt,
                                          datetime_to=dt + datetime.timedelta(
@@ -475,7 +475,7 @@ def select_best_tile(cursor, dt, per_end,
         # pool.close()
         # pool.join()
 
-        hrs = Parallel(n_jobs=4, backend='threading')(
+        hrs = Parallel(n_jobs=multipool_workers, backend='threading')(
             delayed(hours_obs_reshuffle)(f, cursor=cursor,
                                          dt=dt,
                                          datetime_to=dt + datetime.timedelta(
