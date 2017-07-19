@@ -2,11 +2,8 @@
 
 import sys
 import logging
-import taipan.core as tp
 import taipan.tiling as tl
 import taipan.scheduling as ts
-import taipan.simulate.logic as tsl
-import simulate as tsim
 
 from utils.tiling import retile_fields
 from utils.bugfail import simulate_bugfails
@@ -14,11 +11,6 @@ from utils.updatesci import update_science_targets
 
 import pickle
 import numpy as np
-import atpy
-import ephem
-import operator
-import os
-import sys
 import datetime
 import random
 # from functools import partial
