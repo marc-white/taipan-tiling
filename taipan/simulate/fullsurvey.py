@@ -332,13 +332,13 @@ def select_best_tile(cursor, dt, per_end,
         cursor, r['field_id'], dt,
         datetime_to=per_end) for
                      r in scores_array}
-    logging.debug('Next observing period for each field:')
-    logging.debug(field_periods)
-    logging.info('Next available field will rise at %s' %
-                 (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
-                       field_periods.itervalues() if
-                       v[0] is not None]),)
-                 )
+    # logging.debug('Next observing period for each field:')
+    # logging.debug(field_periods)
+    # logging.info('Next available field will rise at %s' %
+    #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
+    #                    field_periods.itervalues() if
+    #                    v[0] is not None]),)
+    #              )
     fields_available = [f for f, v in field_periods.iteritems() if
                         v[0] is not None and v[0] < per_end]
     logging.debug('%d fields available at some point tonight' %
