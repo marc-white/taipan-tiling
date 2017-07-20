@@ -362,7 +362,7 @@ def select_best_tile(cursor, dt, per_end,
                       row['field_id'] in fields_available}
 
     hours_obs_stan_partial = partial(hours_obs_reshuffle,
-                                     cursor=cursor,
+                                     # cursor=cursor,
                                      dt=dt,
                                      datetime_to=dt + datetime.timedelta(
                                          365. * 2.),
@@ -371,7 +371,7 @@ def select_best_tile(cursor, dt, per_end,
                                      )
 
     hours_obs_lowz_partial = partial(hours_obs_reshuffle,
-                                     cursor=cursor,
+                                     # cursor=cursor,
                                      dt=dt,
                                      datetime_to=max(
                                          midday_end
