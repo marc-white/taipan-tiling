@@ -45,7 +45,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.WARNING)
     console = logging.StreamHandler()
     console.setLevel(logging.WARNING)
-    logging.warning('TESTING PARALLEL RE-TILE')
+    logging.warning('TESTING PARALLEL SCORING')
     logging.warning('NOTE: Your system has %d cores' %
                     multiprocessing.cpu_count())
 
@@ -60,7 +60,8 @@ if __name__ == '__main__':
                       multiprocessing.cpu_count(),
                       2 * multiprocessing.cpu_count(),
                       50,
-                      100]
+                      # 100,
+                      ]
 
     results_dict = {w: [] for w in workers_values}
 
