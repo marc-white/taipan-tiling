@@ -284,7 +284,7 @@ def select_best_tile(cursor, dt, per_end,
                      midday_end,
                      prioritize_lowz=True,
                      resolution=15.,
-                     multipool_workers=15):
+                     multipool_workers=multiprocessing.cpu_count()):
     """
     Select the best tile to observe at the current datetime.
 
