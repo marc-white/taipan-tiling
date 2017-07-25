@@ -192,6 +192,7 @@ class Almanac(object):
     _resolution = None
     _minimum_airmass = None
     _observer = None
+    alm_file_path = None
 
     # Setters & getters
     @property
@@ -373,7 +374,7 @@ class Almanac(object):
     def __init__(self, ra, dec, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
                  minimum_airmass=2.0, resolution=15.,
-                 populate=True):
+                 populate=True, alm_file_path='./'):
         if end_date is None and observing_period is None:
             raise ValueError("Must specify either one of end_date or "
                              "observing_period")
@@ -392,6 +393,7 @@ class Almanac(object):
         self.observer = observer
         self.minimum_airmass = minimum_airmass
         self.resolution = resolution
+        self.alm_file_path = './'
 
         # See if an almanac with these properties already exists in the PWD
         if populate:
@@ -406,7 +408,7 @@ class Almanac(object):
     # Save & read from disk
     # Uses pickle to seralize objects
     # These functions are maintained for legacy purposes only
-    def save(self, filename=None, filepath='./'):
+    def save(self, filename=None, filepath=alm_file_path):
         if filepath[-1] != '/':
             raise ValueError('filepath must end with /')
         if filename is None:
@@ -415,7 +417,7 @@ class Almanac(object):
             pickle.dump(self, fileobj, pickle.HIGHEST_PROTOCOL)
         return
 
-    def load(self, filepath='./'):
+    def load(self, filepath=alm_file_path):
         """
         This function will attempt to load an almanac based on the file name of
         almanacs available in the directory specified by filepath. This will be
@@ -570,8 +572,8 @@ class Almanac(object):
         logging.debug('Using next_observable_period')
         # Input checking
         if datetime_to is None:
-            datetime_to = pytz.utc.localize(ephem_to_dt(self.data['date'][-1])).\
-                astimezone(tz).replace(tzinfo=None)
+            datetime_to = pytz.utc.localize(ephem_to_dt(
+                self.data['date'][-1])).astimezone(tz).replace(tzinfo=None)
             logging.debug('Calculated datetime_to of %s' % str(datetime_to))
         if datetime_to < datetime_from:
             raise ValueError('datetime_from must occur before datetime_to')
@@ -946,7 +948,7 @@ class DarkAlmanac(Almanac):
     # Initialization
     def __init__(self, start_date, end_date=None,
                  observing_period=None, observer=UKST_TELESCOPE,
-                 resolution=15., populate=True):
+                 resolution=15., populate=True, alm_file_path='./'):
         # 'super' the Almanac __init__ method, but do NOT attempt to
         # populate the DarkAlmanac from this method (uses a different
         # method)
@@ -962,6 +964,7 @@ class DarkAlmanac(Almanac):
             ('dark_time', bool),
             ('sun_alt', float)
         ])
+        self.alm_file_path = alm_file_path
 
         logging.debug('Looking for existing dark almanac file')
         # See if an almanac with these properties already exists in the PWD
