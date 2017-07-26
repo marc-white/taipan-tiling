@@ -3176,29 +3176,25 @@ class TaipanTile(TaipanPoint):
             # Attempt to make assignment
             while not(candidate_found) and len(permitted_fibres) > 0:
                 # print 'Looking to add to fiber...'
-                try:
-                    if (overwrite_existing or
-                                self._fibres[permitted_fibres[0]] is None):
-                        # Assign the target and 'pop' it from the input list
-                        fibre_former_tgt = self._fibres[permitted_fibres[0]]
-                        self._fibres[permitted_fibres[0]] = candidate_targets_return.pop(
-                            candidate_targets_return.index(tgt))
-                        candidate_found = True
-                        # print 'Done!'
-                        # Update target difficulties if required
-                        if recompute_difficulty:
-                            fibre = permitted_fibres[0]
-                            compute_target_difficulties(targets_in_range(
-                                self._fibres[fibre].ra, self._fibres[fibre].dec,
-                                candidate_targets_return, FIBRE_EXCLUSION_RADIUS),
-                                full_target_list=candidate_targets_return)
-                
-                    else:
-                        permitted_fibres.pop(0)
-                        
-                except:
-                    import pdb
-                    pdb.set_trace()
+                if (overwrite_existing or
+                            self._fibres[permitted_fibres[0]] is None):
+                    # Assign the target and 'pop' it from the input list
+                    fibre_former_tgt = self._fibres[permitted_fibres[0]]
+                    self._fibres[permitted_fibres[0]] = candidate_targets_return.pop(
+                        candidate_targets_return.index(tgt))
+                    candidate_found = True
+                    # print 'Done!'
+                    # Update target difficulties if required
+                    if recompute_difficulty:
+                        fibre = permitted_fibres[0]
+                        compute_target_difficulties(targets_in_range(
+                            self._fibres[fibre].ra, self._fibres[fibre].dec,
+                            candidate_targets_return, FIBRE_EXCLUSION_RADIUS),
+                            full_target_list=candidate_targets_return)
+            
+                else:
+                    permitted_fibres.pop(0)
+
 
             if not candidate_found:
                 # If this point has been reached, the best target cannot be
