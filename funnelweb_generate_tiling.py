@@ -56,7 +56,7 @@ gal_lat_limit = 10 #For Gaia data only
 #mag_ranges = [[7.5,9],[8.5,10]]
 
 ### Change this below for your path!
-infile = '/Users/mireland/Google Drive/FunnelWeb/TargetSelection/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
+infile = '/Users/adamrains/Google Drive/University/PhD/FunnelWeb/StellarParameters/M-dwarf Catalogues/all_tgas.fits'; tabtype='gaia'
 
 #Magnitude (Gaia) ranges for each exposure time.
 mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
@@ -108,7 +108,7 @@ except NameError:
             priority=2, mag=r['imag'],difficulty=1) for r in tabdata 
             if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
     elif tabtype == 'gaia':
-        all_targets = [tp.TaipanTarget(str(r['source_id']), r['ra'], r['dec'], 
+        all_targets = [tp.TaipanTarget(int(r['source_id']), r['ra'], r['dec'], 
             priority=2, mag=r['phot_g_mean_mag'],difficulty=1) for r in tabdata 
             if ra_lims[0] < r['ra'] < ra_lims[1] and de_lims[0] < r['dec'] < de_lims[1] 
             and np.abs(r['b']) > gal_lat_limit]
