@@ -1322,7 +1322,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                     t.priority = t.priority_original
                 elif t.standard:
                     reobserved_standards.append(t)
-                    logging.info('Re-allocating standard ' + t.idn + ' that is also a science target.')
+                    logging.info('Re-allocating standard ' + str(t.idn) + ' that is also a science target.')
                 else:
                     logging.warning('### WARNING: Assigned a target that is neigher a candidate target nor a standard!')
 

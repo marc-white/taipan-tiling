@@ -1,14 +1,15 @@
-#ipython --pylab
-#i.e.
-#run -i funnelweb_generate_tiling
-# Save with:
-# pickle.dump( (test_tiling, tiling_completeness, remaining_targets), open('tiling_big_email.pkl','w'))
+"""Script for generating the tiling for FunnelWeb
 
-# Test the various implementations of assign_fibre
+ipython --pylab
+i.e.
+run -i funnelweb_generate_tiling
 
-#Test speed with: 
-#kernprof -l funnelweb_generate_tiling.py
-#python -m line_profiler script_to_profile.py.lprof
+Test the various implementations of assign_fibre
+
+Test speed with: 
+kernprof -l funnelweb_generate_tiling.py
+python -m line_profiler script_to_profile.py.lprof
+"""
 
 import taipan.core as tp
 import taipan.tiling as tl
@@ -20,15 +21,25 @@ import sys
 import datetime
 import logging
 import numpy as np
+import cPickle
+import time
+import os
+from shutil import copyfile
+from collections import OrderedDict
+
 plotit = True
 if plotit:
     import matplotlib.pyplot as plt
 logging.basicConfig(filename='funnelweb_generate_tiling.log',level=logging.INFO)
 
+#-----------------------------------------------------------------------------------------
+# Tiling Settings/Parameters
+#-----------------------------------------------------------------------------------------
 #Change defaults. NB By changing in tp, we chance in tl.tp also.
 tp.TARGET_PER_TILE = 139
 tp.STANDARDS_PER_TILE = 4
 tp.STANDARDS_PER_TILE_MIN = 3
+
 #Enough to fit a linear trend and get a chi-squared uncertainty distribution with
 #4 degrees of freedom, with 1 bad fiber.
 tp.SKY_PER_TILE = 7
@@ -37,29 +48,24 @@ tp.GUIDES_PER_TILE = 9
 tp.GUIDES_PER_TILE_MIN = 3
 
 #Limits for right-ascension and declination
-ra_lims = [30,43]
-de_lims = [-34,-25]
-#Takes a *long* time, i.e. 5 mins. 1000 CPU-mins expected. Parallelization needed.
-#ra_lims = [20,60] 
-#de_lims = [-40,0]
-#ra_lims = [25,50]
-#de_lims = [-34,-12]
-
+ra_lims = [30,60]
+de_lims = [-89,0]
 
 #Range of magnitudes for the guide stars. Note that this range isn't allowed to be 
 #completely within one of the mag_ranges below
 guide_range=[8,10.5]
-gal_lat_limit = 10 #For Gaia data only
+gal_lat_limit = 0 #For Gaia data only
 
 #infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='2mass'
 #mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]]
 #mag_ranges = [[7.5,9],[8.5,10]]
 
 ### Change this below for your path!
-infile = '/Users/mireland/Google Drive/FunnelWeb/TargetSelection/FunnelWeb_Gaia_declt3.fits'; tabtype='gaia'
+infile = '/Users/adamrains/Google Drive/University/PhD/FunnelWeb/StellarParameters/M-dwarf Catalogues/all_tgas.fits'; tabtype='gaia'
 
 #Magnitude (Gaia) ranges for each exposure time.
 mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
+
 #Magnitude ranges to prioritise within each range. We make sure that these are 
 #mostly complete (up to completenes_target below)
 mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
@@ -91,7 +97,19 @@ inverse_standard_frac = 10
 
 #NB We have repick_after_complete set as False below - this can be done at the end.
 
-#-------------- Automatic below here -----------------
+# Save a copy of the script for future reference
+# The file will be appropriately timestamped on completion of the tiling
+script_name = "funnelweb_generate_tiling.py"
+temp_script_name = "results/temp_" + time.strftime("%y%d%m_%H%M_") + script_name
+copyfile(script_name, temp_script_name)
+
+# Prompt user for the description or motivation of the run
+run_description = raw_input("Description/motivation for tiling run: ")
+if run_description == "": run_description = "NA"
+
+#-----------------------------------------------------------------------------------------
+# Generate Tiling
+#-----------------------------------------------------------------------------------------
 try:
     if all_targets:
         pass
@@ -108,7 +126,7 @@ except NameError:
             priority=2, mag=r['imag'],difficulty=1) for r in tabdata 
             if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
     elif tabtype == 'gaia':
-        all_targets = [tp.TaipanTarget(str(r['source_id']), r['ra'], r['dec'], 
+        all_targets = [tp.TaipanTarget(int(r['source_id']), r['ra'], r['dec'], 
             priority=2, mag=r['phot_g_mean_mag'],difficulty=1) for r in tabdata 
             if ra_lims[0] < r['ra'] < ra_lims[1] and de_lims[0] < r['dec'] < de_lims[1] 
             and np.abs(r['b']) > gal_lat_limit]
@@ -171,7 +189,9 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelw
     recompute_difficulty=True, disqualify_below_min=True, nthreads=0)
 end = datetime.datetime.now()
 
+#-----------------------------------------------------------------------------------------
 # Analysis
+#-----------------------------------------------------------------------------------------
 time_to_complete = (end - start).total_seconds()
 non_standard_targets_per_tile = [t.count_assigned_targets_science(include_science_standards=False) for t in test_tiling]
 targets_per_tile = [t.count_assigned_targets_science() for t in test_tiling]
@@ -187,8 +207,57 @@ print 'Average %3.1f targets per tile' % np.average(targets_per_tile)
 print '(min %d, max %d, median %d, std %2.1f' % (min(targets_per_tile),
     max(targets_per_tile), np.median(targets_per_tile), 
     np.std(targets_per_tile))
+    
+#-----------------------------------------------------------------------------------------
+# Saving Tiling Outputs
+#-----------------------------------------------------------------------------------------
+# Use time stamp as run ID
+date_time = time.strftime("%y%d%m_%H%M_")
 
-# Plot these results (requires ipython --pylab)
+# Document the settings and results of the tiling run
+run_settings = OrderedDict([("run_id", date_time[:-1]),
+                            ("description", run_description),
+                            ("input_catalogue", infile.split("/")[-1]),
+                            ("ra_min", ra_lims[0]),
+                            ("ra_max", ra_lims[1]),
+                            ("dec_min", de_lims[0]),
+                            ("dec_max", de_lims[1]),
+                            ("gal_lat_limit", gal_lat_limit),
+                            ("tiling_method", tiling_method),
+                            ("alloc_method", alloc_method),
+                            ("combined_weight", combined_weight),
+                            ("ranking_method", ranking_method),
+                            ("exp_base", exp_base),
+                            ("completeness_target", completeness_target),
+                            ("inverse_standard_frac", inverse_standard_frac),
+                            ("mins_to_complete", time_to_complete/60),
+                            ("num_targets", len(all_targets)),
+                            ("num_tiles", len(test_tiling)),
+                            ("avg_targets_per_tile", np.average(targets_per_tile)),
+                            ("min_targets_per_tile", min(targets_per_tile)),
+                            ("max_targets_per_tile", max(targets_per_tile)),
+                            ("median_targets_per_tile", np.median(targets_per_tile)),
+                            ("std_targets_per_tile", np.std(targets_per_tile)),
+                            ("tiling_completeness", tiling_completeness),
+                            ("remaining_targets", len(remaining_targets))])  
+
+# Use pickle to save outputs of tiling in a binary format
+name = "results/" + date_time + "fw_tiling.pkl"
+output = open(name, "wb")
+cPickle.dump( (test_tiling, remaining_targets, run_settings), output, -1)
+output.close()
+
+# Timestamp the copy of the script from earlier
+final_script_name = "results/" + date_time + script_name
+os.rename(temp_script_name, final_script_name)
+
+# Save a copy of the run settings
+txt_name = "results/" + date_time + "_tiling_settings.txt"
+np.savetxt(txt_name, np.array([run_settings.keys(), run_settings.values()]).T, fmt="%s", delimiter="\t")
+                
+#-----------------------------------------------------------------------------------------
+# Plotting
+#-----------------------------------------------------------------------------------------
 if plotit:
     
     plt.clf()
@@ -313,7 +382,8 @@ if plotit:
 
     plt.show()
     plt.draw()
-
-    fig.savefig('test_tiling_greedy-%s_%s_%s%s.pdf' % (ranking_method,
-        tiling_method, alloc_method, supp_str),
-        fmt='pdf')
+    
+    # Save plot
+    name = "results/" + date_time + "results_" + \
+        'greedy-%s_%s_%s%s.pdf' % (ranking_method, tiling_method, alloc_method, supp_str)
+    fig.savefig(name, fmt='pdf')

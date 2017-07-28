@@ -3202,8 +3202,9 @@ class TaipanTile(TaipanPoint):
         fibre_former_tgt = None
 
         # Calculate rest positions for all fibres
+        # Ensure that permitted_fibres *actually exist* (i.e. consider 150 vs 300)
         fibre_posns = {fibre: self.compute_fibre_posn(fibre) 
-            for fibre in BUGPOS_MM if fibre not in FIBRES_GUIDE}
+            for fibre in BUGPOS_MM if fibre not in FIBRES_GUIDE and fibre in FIBRES_NORMAL}
 
         # Trim the candidate list to this tile
         candidate_targets_return = candidate_targets[:]
@@ -3272,9 +3273,10 @@ class TaipanTile(TaipanPoint):
                             self._fibres[fibre].ra, self._fibres[fibre].dec,
                             candidate_targets_return, FIBRE_EXCLUSION_RADIUS),
                             full_target_list=candidate_targets_return)
-
+            
                 else:
                     permitted_fibres.pop(0)
+
 
             if not candidate_found:
                 # If this point has been reached, the best target cannot be
