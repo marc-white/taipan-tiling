@@ -960,7 +960,8 @@ class DarkAlmanac(Almanac):
                                           observing_period=observing_period,
                                           observer=observer,
                                           minimum_airmass=None,
-                                          resolution=resolution, populate=False)
+                                          resolution=resolution, populate=False,
+                                          alm_file_path=alm_file_path)
         self._minimum_airmass = 2.
         self.data = np.array([], dtype=[
             ('date', float),
@@ -972,7 +973,7 @@ class DarkAlmanac(Almanac):
         logging.debug('Looking for existing dark almanac file')
         # See if an almanac with these properties already exists in the PWD
         if populate:
-            load_success = self.load()
+            load_success = self.load(filepath=alm_file_path)
             if not load_success:
                 # Couldn't find an almanac to load, so we need to
                 # populate this one
