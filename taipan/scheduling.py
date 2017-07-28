@@ -426,6 +426,8 @@ class Almanac(object):
         If a filename matching the calling
         almanac is not found, then the function will exit and return False.
         """
+        if filepath is None:
+            filepath = './'
         if filepath[-1] != '/':
             raise ValueError('filepath must end with /')
         files_present = os.listdir(filepath)
@@ -447,6 +449,7 @@ class Almanac(object):
         self.resolution = file_almanac.resolution
         self.data = file_almanac.data
         self.minimum_airmass = file_almanac.minimum_airmass
+        self.alm_file_path = file_almanac.alm_file_path
 
         return True
 
