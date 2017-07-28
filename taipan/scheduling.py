@@ -393,7 +393,7 @@ class Almanac(object):
         self.observer = observer
         self.minimum_airmass = minimum_airmass
         self.resolution = resolution
-        self.alm_file_path = './'
+        self.alm_file_path = alm_file_path
 
         # See if an almanac with these properties already exists in the PWD
         if populate:
