@@ -370,6 +370,13 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     retired = is_live_vpec_target & (num_visits >= 5)
     priorities[retired] = 10
 
+    priorities = np.maximum(priorities,
+                            np.logical_and(
+                                target_info_array['ancillary_priority'],
+                                ~target_info_array['success'],
+                            )
+                            )
+
     return priorities
 
 
