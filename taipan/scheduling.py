@@ -634,7 +634,9 @@ class Almanac(object):
                          exclude_dark_time=False,
                          dark_almanac=None,
                          tz=UKST_TIMEZONE,
-                         hours_better=False):
+                         hours_better=False,
+                         minimum_airmass=2.0,
+                         airmass_delta=0.05):
         """
         Calculate how many hours this field is observable for between two
         datetimes.
@@ -667,6 +669,20 @@ class Almanac(object):
             Optional Boolean, denoting whether to return only
             hours_observable which have airmasses superior to the airmass
             at datetime_now (True) or not (False). Defaults to False.
+        minimum_airmass: float
+            Something of a misnomer; this is actually the *maximum* airmass at which
+            a field should be considered visible (a.k.a. the minimum altitude).
+            Defaults to 2.0 (i.e. an altitude of 30 degrees). If hours_better
+            is used, the comparison airmass will be the minimum of the airmass at
+            datetime_from and minimum_airmass.
+        airmass_delta : float
+            Denotes the delta airmass that should be used to compute
+            hours_observable if hours_better=True. The hours_observable will be
+            computed against a threshold airmass value of
+            (airmass_now + airmass_delta). This
+            has the effect of 'softening' the hours_observable calculation for
+            zenith fields, i.e. fields rapidly heading towards the minimum_airmass
+            limit will be prioritized over those just passing through zenith.
 
         Returns
         -------
@@ -782,7 +798,8 @@ class Almanac(object):
                             self.data['date'],
                             self.data['date'] <
                             (next_per_end - half_res_in_days)),
-                        self.data['airmass'] <= airmass_now
+                        self.data['airmass'] <= min(airmass_now + airmass_delta,
+                                                    minimum_airmass),
                     )]
                     # better_per = [k for
                     #               k, v in sorted(self.airmass.iteritems()) if
