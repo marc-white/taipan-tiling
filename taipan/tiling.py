@@ -80,12 +80,19 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
         raise ValueError('Max declination must be >= -90.0 and <= 90.0')
 
     # Get the entry coordinates into the standard range
-    ra_max %= 360.
-    if ra_min > ra_max:
-        ra_min = (ra_min % 360.0) - 360.0
+    if abs(ra_min % 360. - ra_max % 360.) < 1e-6:
+        ra_min = 0.
+        ra_max = 360.
+    else:
+        ra_max %= 360.
+        if ra_min > ra_max:
+            ra_min = (ra_min % 360.0) - 360.0
 
     dec_min = (dec_min + 90.) % 180. - 90.
-    dec_max = (dec_max + 90.) % 180. - 90.
+    if abs(dec_max - 90.) < 1e-6:
+        dec_max = 90.
+    else:
+        dec_max = (dec_max + 90.) % 180. - 90.
     if dec_min > dec_max:
         dec_min_old = dec_min
         dec_min = dec_max
