@@ -24,12 +24,10 @@ import numpy as np
 import cPickle
 import time
 import os
+import funnelweb_plotting as fwplt
 from shutil import copyfile
 from collections import OrderedDict
 
-plotit = True
-if plotit:
-    import matplotlib.pyplot as plt
 logging.basicConfig(filename='funnelweb_generate_tiling.log',level=logging.INFO)
 
 #-----------------------------------------------------------------------------------------
@@ -48,8 +46,8 @@ tp.GUIDES_PER_TILE = 9
 tp.GUIDES_PER_TILE_MIN = 3
 
 #Limits for right-ascension and declination
-ra_lims = [30,60]
-de_lims = [-89,0]
+ra_lims = [0,360]
+de_lims = [-5,0]
 
 #Range of magnitudes for the guide stars. Note that this range isn't allowed to be 
 #completely within one of the mag_ranges below
@@ -57,11 +55,10 @@ guide_range=[8,10.5]
 gal_lat_limit = 0 #For Gaia data only
 
 #infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='2mass'
-#mag_ranges_prioritise = [[7.5,8.5],[8.5,9.5]]
-#mag_ranges = [[7.5,9],[8.5,10]]
 
 ### Change this below for your path!
-infile = '/Users/adamrains/Google Drive/University/PhD/FunnelWeb/StellarParameters/M-dwarf Catalogues/all_tgas.fits'; tabtype='gaia'
+infile = '/Users/adamrains/Google Drive/University/PhD/FunnelWeb/StellarParameters/M-dwarf Catalogues/all_tgas.fits'
+tabtype = 'gaia'
 
 #Magnitude (Gaia) ranges for each exposure time.
 mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
@@ -69,9 +66,6 @@ mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
 #Magnitude ranges to prioritise within each range. We make sure that these are 
 #mostly complete (up to completenes_target below)
 mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
-
-#mag_ranges_prioritise = [[7,9],[9,11]]
-#mag_ranges = [[7,10],[9,12]]
 
 #Method for tiling the sky. The following two parameter determine where the field 
 #centers are.
@@ -153,8 +147,6 @@ except NameError:
 # tp.compute_target_difficulties(all_targets, ncpu=4)
 # sys.exit()
 
-# sys.exit()
-
 # Ensure the objects are re type-cast as new instances of TaipanTarget (not needed?)
 #for t in all_targets:
 #    t.__class__ = tp.TaipanTarget
@@ -181,7 +173,7 @@ test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelw
     completeness_target=completeness_target,
     ranking_method=ranking_method,
     tiling_method=tiling_method, randomise_pa=True, 
-    ra_min=ra_lims[0]-1, ra_max=ra_lims[1]+1, dec_min=de_lims[0]-1, dec_max=de_lims[1]+1,
+    ra_min=ra_lims[0], ra_max=ra_lims[1], dec_min=de_lims[0], dec_max=de_lims[1],
     randomise_SH=True, tiling_file='ipack.3.4112.txt',
     tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
     combined_weight=combined_weight,
@@ -230,7 +222,7 @@ run_settings = OrderedDict([("run_id", date_time[:-1]),
                             ("exp_base", exp_base),
                             ("completeness_target", completeness_target),
                             ("inverse_standard_frac", inverse_standard_frac),
-                            ("mins_to_complete", time_to_complete/60),
+                            ("mins_to_complete", time_to_complete),
                             ("num_targets", len(all_targets)),
                             ("num_tiles", len(test_tiling)),
                             ("avg_targets_per_tile", np.average(targets_per_tile)),
@@ -239,7 +231,11 @@ run_settings = OrderedDict([("run_id", date_time[:-1]),
                             ("median_targets_per_tile", np.median(targets_per_tile)),
                             ("std_targets_per_tile", np.std(targets_per_tile)),
                             ("tiling_completeness", tiling_completeness),
-                            ("remaining_targets", len(remaining_targets))])  
+                            ("remaining_targets", len(remaining_targets)),
+                            ("non_standard_targets_per_tile", non_standard_targets_per_tile),
+                            ("targets_per_tile", targets_per_tile),
+                            ("standards_per_tile", standards_per_tile),
+                            ("guides_per_tile", guides_per_tile)])  
 
 # Use pickle to save outputs of tiling in a binary format
 name = "results/" + date_time + "fw_tiling.pkl"
@@ -252,138 +248,10 @@ final_script_name = "results/" + date_time + script_name
 os.rename(temp_script_name, final_script_name)
 
 # Save a copy of the run settings
-txt_name = "results/" + date_time + "_tiling_settings.txt"
-np.savetxt(txt_name, np.array([run_settings.keys(), run_settings.values()]).T, fmt="%s", delimiter="\t")
+txt_name = "results/" + date_time + "tiling_settings.txt"
+np.savetxt(txt_name, np.array([run_settings.keys()[:-4], run_settings.values()[:-4]]).T, fmt="%s", delimiter="\t")
                 
 #-----------------------------------------------------------------------------------------
 # Plotting
 #-----------------------------------------------------------------------------------------
-if plotit:
-    
-    plt.clf()
-    fig = plt.gcf()
-    fig.set_size_inches(12., 18.)
-
-    # Tile positions
-    ax1 = fig.add_subplot(421, projection='aitoff')
-    ax1.grid(True)
-    # for tile in test_tiling:
-        # tile_verts = np.asarray([tp.compute_offset_posn(tile.ra, 
-        #     tile.dec, tp.TILE_RADIUS, float(p)) for p in range(361)])
-        # tile_verts = np.asarray([tp.aitoff_plottable(xy, ra_offset=180.) for xy
-        #     in tile_verts])
-        # ec = 'k'
-        # tile_circ = mpatches.Polygon(tile_verts, closed=False,
-        #     edgecolor=ec, facecolor='none', lw=.5)
-        # ax1.add_patch(tile_circ)
-    ax1.plot([np.radians(t.ra - 180.) for t in test_tiling], [np.radians(t.dec) 
-        for t in test_tiling],
-        'ko', lw=0, ms=1)
-    ax1.set_title('Tile centre positions')
-
-    #plt.show()
-    #plt.draw()
-
-    # Box-and-whisker plots of number distributions
-    ax0 = fig.add_subplot(423)
-    ax0.boxplot([targets_per_tile, standards_per_tile, guides_per_tile],
-        vert=False)
-    ax0.set_yticklabels(['T', 'S', 'G'])
-    ax0.set_title('Box-and-whisker plots of number of assignments')
-
-    #plt.show()
-    #plt.draw()
-
-    # Move towards completeness
-    ax3 = fig.add_subplot(223)
-    targets_per_tile_sorted = sorted(targets_per_tile, key=lambda x: -1.*x)
-    xpts = np.asarray(range(len(targets_per_tile_sorted))) + 1
-    ypts = [np.sum(targets_per_tile_sorted[:i+1]) for i in xpts]
-    ax3.plot(xpts, ypts, 'k-', lw=.9)
-    ax3.plot(len(test_tiling), np.sum(targets_per_tile), 'ro',
-        label='No. of tiles: %d' % len(test_tiling))
-    ax3.hlines(len(all_targets), ax3.get_xlim()[0], ax3.get_xlim()[1], lw=.75,
-        colors='k', linestyles='dashed', label='100% completion')
-    ax3.hlines(0.975 * len(all_targets), ax3.get_xlim()[0], ax3.get_xlim()[1], 
-        lw=.75,
-        colors='k', linestyles='dashdot', label='97.5% completion')
-    ax3.hlines(0.95 * len(all_targets), ax3.get_xlim()[0], ax3.get_xlim()[1], lw=.75,
-        colors='k', linestyles='dotted', label='95% completion')
-    ax3.legend(loc='lower right', title='Time to %3.1f comp.: %dm:%2.1fs' % (
-        completeness_target * 100., 
-        int(np.floor(time_to_complete/60.)), time_to_complete % 60.))
-    ax3.set_title('Completeness progression')
-    ax3.set_xlabel('No. of tiles')
-    ax3.set_ylabel('No. of assigned targets')
-
-    #plt.show()
-    #plt.draw()
-
-    # No. of targets per tile
-    target_range = max(targets_per_tile) - min(targets_per_tile)
-    ax2 = fig.add_subplot(322)
-    ax2.hist(targets_per_tile, bins=target_range, align='right')
-    ax2.vlines(tp.TARGET_PER_TILE, ax2.get_ylim()[0], ax2.get_ylim()[1], linestyles='dashed',
-        colors='k', label='Ideally-filled tile')
-    ax2.legend(loc='upper right')
-    ax2.set_xlabel('No. of targets per tile')
-    ax2.set_ylabel('Frequency')
-
-    #plt.show()
-    #plt.draw()
-
-    # No. of standards per tile
-    standard_range = max(standards_per_tile) - min(standards_per_tile)
-    if standard_range > 0:
-        ax4 = fig.add_subplot(324)
-        ax4.hist(standards_per_tile, bins=standard_range, align='right')
-        ax4.vlines(tp.STANDARDS_PER_TILE, ax4.get_ylim()[0], ax4.get_ylim()[1], 
-            linestyles='dashed',
-            colors='k', label='Ideally-filled tile')
-        ax4.vlines(tp.STANDARDS_PER_TILE_MIN, ax4.get_ylim()[0], ax4.get_ylim()[1], 
-            linestyles='dotted',
-            colors='k', label='Minimum standards per tile')
-        ax4.set_xlabel('No. of standards per tile')
-        ax4.set_ylabel('Frequency')
-        ax4.legend(loc='upper left')
-
-    #plt.show()
-    #plt.draw()
-
-    # No. of guides per tile
-    guide_range = max(guides_per_tile) - min(guides_per_tile)
-    ax5 = fig.add_subplot(326)
-    ax5.hist(guides_per_tile, bins=guide_range, align='right')
-    ax5.vlines(tp.GUIDES_PER_TILE, ax5.get_ylim()[0], ax5.get_ylim()[1], 
-        linestyles='dashed',
-        colors='k', label='Ideally-filled tile')
-    ax5.vlines(tp.GUIDES_PER_TILE_MIN, ax5.get_ylim()[0], ax5.get_ylim()[1], 
-        linestyles='dotted',
-        colors='k', label='Minimum guides per tile')
-    ax5.set_xlabel('No. of guides per tile')
-    ax5.set_ylabel('Frequency')
-    ax5.legend(loc='upper left')
-
-    #plt.show()
-    #plt.draw()
-
-    supp_str = ''
-    if alloc_method == 'combined_weighted':
-        supp_str = str(combined_weight)
-    elif alloc_method == 'sequential':
-        supp_str = str(sequential_ordering)
-    ax2.set_title('GREEDY %s - %d targets, %s tiling, %s unpicking (%s)' % (
-        ranking_method,len(all_targets),
-        tiling_method, alloc_method, supp_str))
-    try:
-        plt.tight_layout()
-    except:
-        pass
-
-    plt.show()
-    plt.draw()
-    
-    # Save plot
-    name = "results/" + date_time + "results_" + \
-        'greedy-%s_%s_%s%s.pdf' % (ranking_method, tiling_method, alloc_method, supp_str)
-    fig.savefig(name, fmt='pdf')
+fwplt.plot_tiling(test_tiling, remaining_targets, run_settings)
