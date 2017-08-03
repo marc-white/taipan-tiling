@@ -163,8 +163,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             weather_fail_thresh = np.percentile(weather_fails.values(),
                                                 weather_loss * 100.)
         if curr_date == datetime.date(2019,1,1):
-            logging.warning('ABORTING at tile changeover')
-            sys.exit()
+            # logging.warning('ABORTING at tile changeover')
+            # sys.exit()
             # Modify taipan.core.BUGPOS_MM to add in another 150
             # science fibres
             # We do this by adding a new fibre in between each pair of
