@@ -30,6 +30,30 @@ from collections import OrderedDict
 
 logging.basicConfig(filename='funnelweb_generate_tiling.log',level=logging.INFO)
 
+def calc_dist_priority(parallax):
+    """Function to return a taipan priority integer based on the target distance
+    
+    Parameters
+    ----------
+    parallax: float
+        Parallax of the star in milli-arcsec
+    
+    Returns
+    -------
+    priority: int
+        Priority of the star
+    """
+    # Calculate the distance, where parallax is in milli-arcsec
+    distance = 1000. / parallax
+    
+    if np.abs(distance) <= 150:
+        priority = 10
+    else:
+        priority = 2
+
+    return priority
+    
+    
 #-----------------------------------------------------------------------------------------
 # Tiling Settings/Parameters
 #-----------------------------------------------------------------------------------------
@@ -46,8 +70,8 @@ tp.GUIDES_PER_TILE = 9
 tp.GUIDES_PER_TILE_MIN = 3
 
 #Limits for right-ascension and declination
-ra_lims = [0,360]
-de_lims = [-5,0]
+ra_lims = [0,10]
+de_lims = [-10,0]
 
 #Range of magnitudes for the guide stars. Note that this range isn't allowed to be 
 #completely within one of the mag_ranges below
@@ -73,7 +97,9 @@ tiling_method = 'SH'
 
 #Method for prioritising fibers 
 alloc_method = 'combined_weighted'
-combined_weight = 4.0 #Originally 1.0 - used for 'combined_weighted' fiber priority
+
+# Assign weighting for difficulty vs priority weight priority --> 1:4 weight vs priority
+combined_weight = 4.0
 sequential_ordering = (1,2) #Not used for combined_weighted. Just for 'sequential'
 
 #Method for prioritising fields
@@ -102,7 +128,7 @@ run_description = raw_input("Description/motivation for tiling run: ")
 if run_description == "": run_description = "NA"
 
 #-----------------------------------------------------------------------------------------
-# Generate Tiling
+# Target Input, Priorities, Standards, and Guides
 #-----------------------------------------------------------------------------------------
 try:
     if all_targets:
@@ -121,11 +147,12 @@ except NameError:
             if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
     elif tabtype == 'gaia':
         all_targets = [tp.TaipanTarget(int(r['source_id']), r['ra'], r['dec'], 
-            priority=2, mag=r['phot_g_mean_mag'],difficulty=1) for r in tabdata 
-            if ra_lims[0] < r['ra'] < ra_lims[1] and de_lims[0] < r['dec'] < de_lims[1] 
-            and np.abs(r['b']) > gal_lat_limit]
+            priority=calc_dist_priority(r["parallax"]), mag=r['phot_g_mean_mag'],
+            difficulty=1) for r in tabdata if ra_lims[0] < r['ra'] < ra_lims[1] and 
+            de_lims[0] < r['dec'] < de_lims[1] and np.abs(r['b']) > gal_lat_limit]
     else: 
-        raise UserWarning("Unknown table type")
+        raise UserWarning("Unknown table type") 
+    
     #Take standards from the science targets, and assign the standard property to True
     for t in all_targets:
         if (int(t.mag*100) % int(inverse_standard_frac))==0:
@@ -162,6 +189,9 @@ guide_targets = [t for t in candidate_targets if guide_range[0]<t.mag<guide_rang
 print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
     len(candidate_targets), len(standard_targets), len(guide_targets))
 
+#-----------------------------------------------------------------------------------------
+# Generate Tiling
+#-----------------------------------------------------------------------------------------
 print 'Commencing tiling...'
 start = datetime.datetime.now()
 test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelweb(
@@ -207,6 +237,8 @@ print '(min %d, max %d, median %d, std %2.1f' % (min(targets_per_tile),
 date_time = time.strftime("%y%d%m_%H%M_")
 
 # Document the settings and results of the tiling run
+# Dictionary used to easily load results/settings of past runs, OrderedDict so txt has 
+# same format for every run (i.e. the keys are in the order added)
 run_settings = OrderedDict([("run_id", date_time[:-1]),
                             ("description", run_description),
                             ("input_catalogue", infile.split("/")[-1]),
@@ -247,9 +279,10 @@ output.close()
 final_script_name = "results/" + date_time + script_name
 os.rename(temp_script_name, final_script_name)
 
-# Save a copy of the run settings
+# Save a copy of the run settings (Not including the last four list entries)
 txt_name = "results/" + date_time + "tiling_settings.txt"
-np.savetxt(txt_name, np.array([run_settings.keys()[:-4], run_settings.values()[:-4]]).T, fmt="%s", delimiter="\t")
+run_settings_fmt = np.array([run_settings.keys()[:-4], run_settings.values()[:-4]]).T
+np.savetxt(txt_name, run_settings_fmt, fmt="%s", delimiter="\t")
                 
 #-----------------------------------------------------------------------------------------
 # Plotting
