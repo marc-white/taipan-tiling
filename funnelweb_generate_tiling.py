@@ -47,7 +47,7 @@ def calc_dist_priority(parallax):
     distance = 1000. / parallax
     
     if np.abs(distance) <= 150:
-        priority = 10
+        priority = 2
     else:
         priority = 2
 
@@ -264,6 +264,8 @@ run_settings = OrderedDict([("run_id", date_time[:-1]),
                             ("std_targets_per_tile", np.std(targets_per_tile)),
                             ("tiling_completeness", tiling_completeness),
                             ("remaining_targets", len(remaining_targets)),
+                            ("mag_ranges", mag_ranges),
+                            ("mag_ranges_prioritise", mag_ranges_prioritise),
                             ("non_standard_targets_per_tile", non_standard_targets_per_tile),
                             ("targets_per_tile", targets_per_tile),
                             ("standards_per_tile", standards_per_tile),
@@ -279,12 +281,12 @@ output.close()
 final_script_name = "results/" + date_time + script_name
 os.rename(temp_script_name, final_script_name)
 
-# Save a copy of the run settings (Not including the last four list entries)
+# Save a copy of the run settings (Not including the last six list entries)
 txt_name = "results/" + date_time + "tiling_settings.txt"
-run_settings_fmt = np.array([run_settings.keys()[:-4], run_settings.values()[:-4]]).T
+run_settings_fmt = np.array([run_settings.keys()[:-6], run_settings.values()[:-6]]).T
 np.savetxt(txt_name, run_settings_fmt, fmt="%s", delimiter="\t")
                 
 #-----------------------------------------------------------------------------------------
 # Plotting
 #-----------------------------------------------------------------------------------------
-fwplt.plot_tiling(test_tiling, remaining_targets, run_settings)
+fwplt.plot_tiling(test_tiling, run_settings)
