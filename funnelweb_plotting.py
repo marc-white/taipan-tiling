@@ -117,7 +117,6 @@ def plot_tiling(tiling, run_settings):
     ax2.set_xlim([0, 1.05*len(tiling)])
     ax2.set_ylim([0, 1.05*run_settings["num_targets"]])
 
-
     # ------------------------------------------------------------------------------------
     # Table of Run Settings
     # ------------------------------------------------------------------------------------
@@ -125,9 +124,25 @@ def plot_tiling(tiling, run_settings):
     ax3 = fig.add_subplot(gs[3:5,0])
     col_labels = ("Parameter", "Value")
     ax3.axis("off")
-    settings_tab = ax3.table(cellText=np.array([run_settings.keys()[:-6], 
-                             run_settings.values()[:-6]]).T,
-                             colLabels=col_labels, loc="center")
+    
+    # Prep table
+    fmt_table = []
+    
+    for key, value in zip(run_settings.keys(), run_settings.values()):
+        # Show only file name (not full path) for space constraints
+        if (type(value) is str or type(value) is np.string_) and "/" in value:
+            fmt_table.append([key, value.split("/")[-1]])
+        # Format any short lists as strings, don't show long lists
+        elif type(value) is list:
+            if len(value) <= 10:
+                fmt_table.append([key, str(value)])
+        # Leave all other values as is
+        else:
+            fmt_table.append([key, value])
+    
+    settings_tab = ax3.table(cellText=fmt_table, colLabels=col_labels, loc="center")
+    settings_tab.set_fontsize(10)
+    settings_tab.scale(1.0,0.8)
     
     # ------------------------------------------------------------------------------------
     # Create plots for all tiles, as well as each magnitude range
@@ -204,7 +219,7 @@ def plot_tiling(tiling, run_settings):
                      np.median(guides_by_mag_range[i])), ha="center") 
 
     # Set plot titles
-    ax3.set_title("Run Settings & Overview", y=0.8)
+    ax3.set_title("Run Settings & Overview", y=0.96)
     ax4[0].set_title("Stars per Tile")
     ax5[0].set_title("Standards per Tile")
     ax6[0].set_title("Guides per Tile")

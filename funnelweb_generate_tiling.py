@@ -1,21 +1,16 @@
 """Script for generating the tiling for FunnelWeb
 
-ipython --pylab
-i.e.
-run -i funnelweb_generate_tiling
-
-Test the various implementations of assign_fibre
-
-Test speed with: 
-kernprof -l funnelweb_generate_tiling.py
-python -m line_profiler script_to_profile.py.lprof
+Notes about this script:
+- To change the settings used for tiling generation, modify funnelweb_tiling_settings.py
+- ipython "%run -i funnelweb_generate_tiling" to avoid having to read in target list twice
+  for repeated runs
+- Test speed with:
+    kernprof -l funnelweb_generate_tiling.py
+    python -m line_profiler script_to_profile.py.lprof
 """
-
 import taipan.core as tp
 import taipan.tiling as tl
 from astropy.table import Table
-import matplotlib.patches as mpatches
-# from mpl_toolkits.basemap import Basemap
 import random
 import sys
 import datetime
@@ -25,11 +20,13 @@ import cPickle
 import time
 import os
 import funnelweb_plotting as fwplt
+import funnelweb_tiling_settings as fwts
 from shutil import copyfile
 from collections import OrderedDict
 
-logging.basicConfig(filename='funnelweb_generate_tiling.log',level=logging.INFO)
-
+#-----------------------------------------------------------------------------------------
+# Helper Functions
+#-----------------------------------------------------------------------------------------
 def calc_dist_priority(parallax):
     """Function to return a taipan priority integer based on the target distance
     
@@ -53,79 +50,36 @@ def calc_dist_priority(parallax):
 
     return priority
     
-    
 #-----------------------------------------------------------------------------------------
-# Tiling Settings/Parameters
+# Setup
 #-----------------------------------------------------------------------------------------
+# Reload fwts for repeated runs
+reload(fwts)
+
 #Change defaults. NB By changing in tp, we chance in tl.tp also.
-tp.TARGET_PER_TILE = 139
-tp.STANDARDS_PER_TILE = 4
-tp.STANDARDS_PER_TILE_MIN = 3
+tp.TARGET_PER_TILE = fwts.settings["TARGET_PER_TILE"]
+tp.STANDARDS_PER_TILE = fwts.settings["STANDARDS_PER_TILE"]
+tp.STANDARDS_PER_TILE_MIN = fwts.settings["STANDARDS_PER_TILE_MIN"]
 
 #Enough to fit a linear trend and get a chi-squared uncertainty distribution with
 #4 degrees of freedom, with 1 bad fiber.
-tp.SKY_PER_TILE = 7
-tp.SKY_PER_TILE_MIN = 7
-tp.GUIDES_PER_TILE = 9
-tp.GUIDES_PER_TILE_MIN = 3
+tp.SKY_PER_TILE = fwts.settings["SKY_PER_TILE"]
+tp.SKY_PER_TILE_MIN = fwts.settings["SKY_PER_TILE_MIN"]
+tp.GUIDES_PER_TILE = fwts.settings["GUIDES_PER_TILE"]
+tp.GUIDES_PER_TILE_MIN = fwts.settings["GUIDES_PER_TILE_MIN"]
 
-#Limits for right-ascension and declination
-ra_lims = [0,10]
-de_lims = [-10,0]
-
-#Range of magnitudes for the guide stars. Note that this range isn't allowed to be 
-#completely within one of the mag_ranges below
-guide_range=[8,10.5]
-gal_lat_limit = 0 #For Gaia data only
-
-#infile = '/Users/mireland/tel/funnelweb/2mass_AAA_i7-10_offplane.csv'; tabtype='2mass'
-
-### Change this below for your path!
-infile = '/Users/adamrains/Google Drive/University/PhD/FunnelWeb/StellarParameters/M-dwarf Catalogues/all_tgas.fits'
-tabtype = 'gaia'
-
-#Magnitude (Gaia) ranges for each exposure time.
-mag_ranges = [[5,8],[7,10],[9,12],[11,14]]
-
-#Magnitude ranges to prioritise within each range. We make sure that these are 
-#mostly complete (up to completenes_target below)
-mag_ranges_prioritise = [[5,7],[7,9],[9,11],[11,12]]
-
-#Method for tiling the sky. The following two parameter determine where the field 
-#centers are.
-tiling_method = 'SH'
-
-#Method for prioritising fibers 
-alloc_method = 'combined_weighted'
-
-# Assign weighting for difficulty vs priority weight priority --> 1:4 weight vs priority
-combined_weight = 4.0
-sequential_ordering = (1,2) #Not used for combined_weighted. Just for 'sequential'
-
-#Method for prioritising fields
-ranking_method = 'priority-expsum'
-exp_base = 3.0 #For priority-expsum, one fiber of priority k is worth exp_base fibers of priority k-1
-
-#We move on to the next magnitude range after reaching this completeness on the priority
-#targets
-completeness_target = 0.99  #Originally 0.999
-
-#Randomly choose this fraction of stars as standards. In practice, we will use colour cuts
-#to choose B and A stars. An inverse standard frac of 10 will mean 1 in 10 stars are
-#standards.
-inverse_standard_frac = 10
-
-#NB We have repick_after_complete set as False below - this can be done at the end.
-
-# Save a copy of the script for future reference
+# Save a copy of the settings file for future reference
 # The file will be appropriately timestamped on completion of the tiling
-script_name = "funnelweb_generate_tiling.py"
-temp_script_name = "results/temp_" + time.strftime("%y%d%m_%H%M_") + script_name
-copyfile(script_name, temp_script_name)
+settings_file = "funnelweb_tiling_settings.py"
+temp_settings_file = "results/temp_" + time.strftime("%y%d%m_%H%M_") + settings_file
+copyfile(settings_file, temp_settings_file)
 
 # Prompt user for the description or motivation of the run
 run_description = raw_input("Description/motivation for tiling run: ")
 if run_description == "": run_description = "NA"
+
+# Begin logging
+logging.basicConfig(filename='funnelweb_generate_tiling.log', level=logging.INFO)
 
 #-----------------------------------------------------------------------------------------
 # Target Input, Priorities, Standards, and Guides
@@ -139,23 +93,26 @@ except NameError:
     #It is important not to duplicate targets, i.e. if a science targets is a guide and
     #a standard, then it should become a single instance of a TaipanTarget, appearing in
     #all lists.
-    tabdata = Table.read(infile)
+    tabdata = Table.read(fwts.settings["input_catalogue"])
     print 'Generating targets...'
-    if tabtype == '2mass':
+    if fwts.settings["tab_type"] == '2mass':
         all_targets = [tp.TaipanTarget(str(r['mainid']), r['raj2000'], r['dej2000'], 
             priority=2, mag=r['imag'],difficulty=1) for r in tabdata 
-            if ra_lims[0] < r['raj2000'] < ra_lims[1] and de_lims[0] < r['dej2000'] < de_lims[1]]
-    elif tabtype == 'gaia':
+            if fwts.settings["ra_min"] < r['raj2000'] < fwts.settings["ra_max"] and 
+            fwts.settings["dec_min"] < r['dej2000'] < fwts.settings["dec_min"]]
+    elif fwts.settings["tab_type"] == 'gaia':
         all_targets = [tp.TaipanTarget(int(r['source_id']), r['ra'], r['dec'], 
             priority=calc_dist_priority(r["parallax"]), mag=r['phot_g_mean_mag'],
-            difficulty=1) for r in tabdata if ra_lims[0] < r['ra'] < ra_lims[1] and 
-            de_lims[0] < r['dec'] < de_lims[1] and np.abs(r['b']) > gal_lat_limit]
+            difficulty=1) for r in tabdata 
+            if fwts.settings["ra_min"] < r['ra'] <  fwts.settings["ra_max"] and 
+            fwts.settings["dec_min"] < r['dec'] < fwts.settings["dec_max"] and  
+            np.abs(r['b']) > fwts.settings["gal_lat_limit"]]
     else: 
         raise UserWarning("Unknown table type") 
     
     #Take standards from the science targets, and assign the standard property to True
     for t in all_targets:
-        if (int(t.mag*100) % int(inverse_standard_frac))==0:
+        if (int(t.mag*100) % int(fwts.settings["inverse_standard_frac"]))==0:
             t.standard=True
     #    if t.mag > 8:
     #        t.guide=True
@@ -167,8 +124,8 @@ except NameError:
         delta.total_seconds()/60, 
         delta.total_seconds() % 60.)
     
+    # No need to double-up for standard/guide targets as these are drawn from all_targets
     print 'Calculating target US positions...'
-    #NB No need to double-up for standard targets or guide_targets as these are drawn from all_targets
     burn = [t.compute_usposn() for t in all_targets]
 
 # tp.compute_target_difficulties(all_targets, ncpu=4)
@@ -185,7 +142,8 @@ random.shuffle(candidate_targets)
 #Make sure that standards and guides are drawn from candidate_targets, not our master
 #all_targets list.
 standard_targets = [t for t in candidate_targets if t.standard==True]
-guide_targets = [t for t in candidate_targets if guide_range[0]<t.mag<guide_range[1]]
+guide_targets = [t for t in candidate_targets if fwts.settings["guide_range"][0] < t.mag < 
+                 fwts.settings["guide_range"][1]]
 print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
     len(candidate_targets), len(standard_targets), len(guide_targets))
 
@@ -194,39 +152,52 @@ print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
 #-----------------------------------------------------------------------------------------
 print 'Commencing tiling...'
 start = datetime.datetime.now()
-test_tiling, tiling_completeness, remaining_targets = tl.generate_tiling_funnelweb(
-    candidate_targets, standard_targets, guide_targets,
-    mag_ranges_prioritise = mag_ranges_prioritise,
-    prioritise_extra = 2,
-    priority_normal = 2,
-    mag_ranges = mag_ranges,
-    completeness_target=completeness_target,
-    ranking_method=ranking_method,
-    tiling_method=tiling_method, randomise_pa=True, 
-    ra_min=ra_lims[0], ra_max=ra_lims[1], dec_min=de_lims[0], dec_max=de_lims[1],
-    randomise_SH=True, tiling_file='ipack.3.4112.txt',
-    tile_unpick_method=alloc_method, sequential_ordering=sequential_ordering,
-    combined_weight=combined_weight,
-    rank_supplements=False, repick_after_complete=False, exp_base=exp_base,
-    recompute_difficulty=True, disqualify_below_min=True, nthreads=0)
+tiling, completeness, remaining_targets = tl.generate_tiling_funnelweb(
+    candidate_targets, 
+    standard_targets, 
+    guide_targets,
+    mag_ranges_prioritise=fwts.settings["mag_ranges_prioritise"],
+    prioritise_extra=fwts.settings["prioritise_extra"],
+    priority_normal=fwts.settings["priority_normal"],
+    mag_ranges=fwts.settings["mag_ranges"],
+    completeness_target=fwts.settings["completeness_target"],
+    ranking_method=fwts.settings["ranking_method"],
+    tiling_method=fwts.settings["tiling_method"], 
+    randomise_pa=fwts.settings["randomise_pa"], 
+    ra_min=fwts.settings["ra_min"], 
+    ra_max=fwts.settings["ra_max"], 
+    dec_min=fwts.settings["dec_min"], 
+    dec_max=fwts.settings["dec_max"],
+    randomise_SH=fwts.settings["randomise_SH"], 
+    tiling_file=fwts.settings["tiling_file"],
+    tile_unpick_method=fwts.settings["alloc_method"], 
+    sequential_ordering=fwts.settings["sequential_ordering"],
+    combined_weight=fwts.settings["combined_weight"],
+    rank_supplements=fwts.settings["rank_supplements"], 
+    repick_after_complete=fwts.settings["repick_after_complete"], 
+    exp_base=fwts.settings["exp_base"],
+    recompute_difficulty=fwts.settings["recompute_difficulty"], 
+    disqualify_below_min=fwts.settings["disqualify_below_min"], 
+    nthreads=fwts.settings["nthreads"])
 end = datetime.datetime.now()
 
 #-----------------------------------------------------------------------------------------
 # Analysis
 #-----------------------------------------------------------------------------------------
 time_to_complete = (end - start).total_seconds()
-non_standard_targets_per_tile = [t.count_assigned_targets_science(include_science_standards=False) for t in test_tiling]
-targets_per_tile = [t.count_assigned_targets_science() for t in test_tiling]
-standards_per_tile = [t.count_assigned_targets_standard() for t in test_tiling]
-guides_per_tile = [t.count_assigned_targets_guide() for t in test_tiling]
+non_standard_targets_per_tile = [t.count_assigned_targets_science(
+                                 include_science_standards=False) for t in tiling]
+targets_per_tile = [t.count_assigned_targets_science() for t in tiling]
+standards_per_tile = [t.count_assigned_targets_standard() for t in tiling]
+guides_per_tile = [t.count_assigned_targets_guide() for t in tiling]
 
 print 'TILING STATS'
 print '------------'
-print 'Greedy/FunnelWeb tiling complete in %d:%2.1f' % (int(np.floor(time_to_complete/60.)),
+print 'Greedy FW tiling complete in %d:%2.1f' % (int(np.floor(time_to_complete/60.)),
     time_to_complete % 60.)
-print '%d targets required %d tiles' % (len(all_targets), len(test_tiling), )
+print '%d targets required %d tiles' % (len(all_targets), len(tiling), )
 print 'Average %3.1f targets per tile' % np.average(targets_per_tile)
-print '(min %d, max %d, median %d, std %2.1f' % (min(targets_per_tile),
+print '(min %d, max %d, median %d, std %2.1f)' % (min(targets_per_tile),
     max(targets_per_tile), np.median(targets_per_tile), 
     np.std(targets_per_tile))
     
@@ -239,54 +210,37 @@ date_time = time.strftime("%y%d%m_%H%M_")
 # Document the settings and results of the tiling run
 # Dictionary used to easily load results/settings of past runs, OrderedDict so txt has 
 # same format for every run (i.e. the keys are in the order added)
-run_settings = OrderedDict([("run_id", date_time[:-1]),
-                            ("description", run_description),
-                            ("input_catalogue", infile.split("/")[-1]),
-                            ("ra_min", ra_lims[0]),
-                            ("ra_max", ra_lims[1]),
-                            ("dec_min", de_lims[0]),
-                            ("dec_max", de_lims[1]),
-                            ("gal_lat_limit", gal_lat_limit),
-                            ("tiling_method", tiling_method),
-                            ("alloc_method", alloc_method),
-                            ("combined_weight", combined_weight),
-                            ("ranking_method", ranking_method),
-                            ("exp_base", exp_base),
-                            ("completeness_target", completeness_target),
-                            ("inverse_standard_frac", inverse_standard_frac),
-                            ("mins_to_complete", time_to_complete),
-                            ("num_targets", len(all_targets)),
-                            ("num_tiles", len(test_tiling)),
-                            ("avg_targets_per_tile", np.average(targets_per_tile)),
-                            ("min_targets_per_tile", min(targets_per_tile)),
-                            ("max_targets_per_tile", max(targets_per_tile)),
-                            ("median_targets_per_tile", np.median(targets_per_tile)),
-                            ("std_targets_per_tile", np.std(targets_per_tile)),
-                            ("tiling_completeness", tiling_completeness),
-                            ("remaining_targets", len(remaining_targets)),
-                            ("mag_ranges", mag_ranges),
-                            ("mag_ranges_prioritise", mag_ranges_prioritise),
-                            ("non_standard_targets_per_tile", non_standard_targets_per_tile),
-                            ("targets_per_tile", targets_per_tile),
-                            ("standards_per_tile", standards_per_tile),
-                            ("guides_per_tile", guides_per_tile)])  
+fwts.settings.update([("run_id", date_time[:-1]),
+                        ("description", run_description),
+                        ("mins_to_complete", time_to_complete),
+                        ("num_targets", len(all_targets)),
+                        ("num_tiles", len(tiling)),
+                        ("avg_targets_per_tile", np.average(targets_per_tile)),
+                        ("min_targets_per_tile", min(targets_per_tile)),
+                        ("max_targets_per_tile", max(targets_per_tile)),
+                        ("median_targets_per_tile", np.median(targets_per_tile)),
+                        ("std_targets_per_tile", np.std(targets_per_tile)),
+                        ("tiling_completeness", completeness),
+                        ("remaining_targets", len(remaining_targets)),
+                        ("non_standard_targets_per_tile", 
+                         non_standard_targets_per_tile),
+                        ("targets_per_tile", targets_per_tile),
+                        ("standards_per_tile", standards_per_tile),
+                        ("guides_per_tile", guides_per_tile)])  
 
 # Use pickle to save outputs of tiling in a binary format
 name = "results/" + date_time + "fw_tiling.pkl"
 output = open(name, "wb")
-cPickle.dump( (test_tiling, remaining_targets, run_settings), output, -1)
+cPickle.dump( (tiling, remaining_targets, fwts.settings), output, -1)
 output.close()
 
-# Timestamp the copy of the script from earlier
-final_script_name = "results/" + date_time + script_name
-os.rename(temp_script_name, final_script_name)
+# Timestamp the copy of the settings file from earlier
+final_settings_file = "results/" + date_time + settings_file
+os.rename(temp_settings_file, final_settings_file)
 
-# Save a copy of the run settings (Not including the last six list entries)
-txt_name = "results/" + date_time + "tiling_settings.txt"
-run_settings_fmt = np.array([run_settings.keys()[:-6], run_settings.values()[:-6]]).T
-np.savetxt(txt_name, run_settings_fmt, fmt="%s", delimiter="\t")
+print "Output files saved as results/%s*" % date_time
                 
 #-----------------------------------------------------------------------------------------
 # Plotting
 #-----------------------------------------------------------------------------------------
-fwplt.plot_tiling(test_tiling, run_settings)
+fwplt.plot_tiling(tiling, fwts.settings)
