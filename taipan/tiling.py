@@ -1182,10 +1182,14 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                     if ( (mag_range_prioritise[1] <= t.mag < mag_range[1]) and #faint
                     (t.priority <= priority_normal) ) or
                     ( (mag_range[0] <= t.mag < mag_range_prioritise[1]) )] #bright
+                
+                # Increase the priority for targets in the priority magnitude range
                 for t in candidate_targets_range:
                     if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
                         t.priority >= priority_normal):
                         t.priority += prioritise_extra
+            
+            # In faintest bin, consider all targets
             else:
                 candidate_targets_range = [t for t in candidate_targets
                     if (mag_range[0] <= t.mag < mag_range[1])]
