@@ -211,7 +211,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                           )),
                           disqualify_below_min=False,
                           # prisci=prioritize_lowz_today,
-                          multicores=4
+                          multicores=7
                           )
 
 
