@@ -14,6 +14,8 @@ GALACTIC_LATITUDE_LIMIT = 10.
 JBRIGHT_MAGNITUDE_LIMIT = 14.2
 ALLSKY_MAGNITUDE_LIMIT = 15.35
 
+Ag, Ar, Ai, AJ, AK = 3.793, 2.751, 2.086, 0.928, 0.388
+
 def _set_priority_array_values(priorities, bool_arrays, priority):
     """
     INTERNAL HELPER FUNCTION - automates the generation of statements to
@@ -138,10 +140,10 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     # is_Jselected = np.logical_and(is_in_survey, target_info_array['is_nir'])
     # is_Jselected = is_in_survey & ( target_info_array[ 'is_nir' ] == True )
-    Jmag = target_info_array['mag_j']
+    Jmag = target_info_array['mag_j'] - AJ * target_info_array['ebv']
     is_Jselected = np.logical_and(is_in_survey,
                                   Jmag < ALLSKY_MAGNITUDE_LIMIT)
-    JminusK = target_info_array['col_jk']  # [ 'jkcol' ]
+    JminusK = target_info_array['col_jk'] - (AJ - AK) * target_info_array['ebv']
     no_good_redshift = (target_info_array['success'] == False)
 
     # print np.sort( JminusK[ is_Jselected ] )
@@ -172,13 +174,11 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     # Original code
     priorities[np.logical_and(is_unobs_Jsel,
                               np.logical_and(1.2 > JminusK,
-                                             target_info_array['mag_j']
-                                             <= JBRIGHT_MAGNITUDE_LIMIT)
+                                             Jmag <= JBRIGHT_MAGNITUDE_LIMIT)
                               )] = 76
     priorities[np.logical_and(is_unobs_Jsel,
                               np.logical_and(1.2 > JminusK,
-                                             target_info_array['mag_j']
-                                             > JBRIGHT_MAGNITUDE_LIMIT)
+                                             Jmag > JBRIGHT_MAGNITUDE_LIMIT)
                               )] = 75
 
     # -- DEPRECATED --
@@ -370,9 +370,9 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
     retired = is_live_vpec_target & (num_visits >= 5)
     priorities[retired] = 10
 
-    priorities[~target_info_array['success']] = np.maximum(
-        priorities[~target_info_array['success']],
-        target_info_array[~target_info_array['success']]['ancillary_priority']
+    priorities[no_good_redshift] = np.maximum(
+        priorities[no_good_redshift],
+        target_info_array[no_good_redshift]['ancillary_priority']
     )
 
     return priorities
