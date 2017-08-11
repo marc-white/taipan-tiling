@@ -134,7 +134,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 
     # Write the tiles to DB
     iTexec(cursor, candidate_tiles, config_time=prepare_time,
-           disqualify_below_min=False)
+           disqualify_below_min=False, remove_index=True)
     # Commit now in case mNScT not debugged right
     # cursor.connection.commit()
 
