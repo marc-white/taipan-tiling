@@ -201,7 +201,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                                    prisci=False)
             # Switch the field statuses
             # mCS.execute(cursor, remove_inactive_tiles=True)
-            # mScD.execute(cursor)
+            # mScD.execute(cursor)t
             # Complete re-tile of all fields
             fields_to_retile = [t.field_id for t in rCexec(cursor)]
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
@@ -230,8 +230,8 @@ if __name__ == '__main__':
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.date(2019, 2, 1) - sim_start
 
-    # kill_time = None
-    kill_time = datetime.datetime(2019, 1, 1, 0, 0, 0)
+    kill_time = None
+    # kill_time = datetime.datetime(2019, 1, 1, 0, 0, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
