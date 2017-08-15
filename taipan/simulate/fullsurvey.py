@@ -328,36 +328,26 @@ def select_best_tile(cursor, dt, per_end,
         cursor, r['field_id'], dt,
         datetime_to=per_end) for
                      r in scores_array}
-    # Build a field periods array to speed up internal processing
-    field_periods_array = np.array([(k, v[0], v[1]) for k, v in
-                                    field_periods.items() if v[0] is not None],
-                                   dtype={
-                                       'names': ['field_id', 'per_start',
-                                                 'per_end'],
-                                       'formats': ['i4', datetime.datetime,
-                                                   datetime.datetime]
-                                   })
-    field_periods_array.sort(order='field_id')
-    # fields_available = [f for f, v in field_periods.iteritems() if
-    #                     v[0] is not None and v[0] < per_end]
-    # logging.debug('%d fields available at some point tonight' %
-    #               len(fields_available))
+    # logging.debug('Next observing period for each field:')
+    # logging.debug(field_periods)
+    # logging.info('Next available field will rise at %s' %
+    #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
+    #                    field_periods.itervalues() if
+    #                    v[0] is not None]),)
+    #              )
+    fields_available = [f for f, v in field_periods.iteritems() if
+                        v[0] is not None and v[0] < per_end]
+    logging.debug('%d fields available at some point tonight' %
+                  len(fields_available))
     # Further trim fields_available for to account for field observability
     # at the time of observation
-    # fields_available = [f for f in fields_available if
-    #                     field_periods[f][0] is not None and
-    #                     field_periods[f][1] is not None and
-    #                     field_periods[f][0] < dt and
-    #                     field_periods[f][1] > dt + datetime.timedelta(
-    #                         seconds=ts.OBS_TIME)
-    #                     ]
-    fields_available = field_periods_array[np.logical_and(
-        np.logical_and(field_periods_array['per_end'] != None,
-                       field_periods_array['per_start'] < per_end),
-        np.logical_and(field_periods_array['per_start'] < dt,
-                       field_periods_array['per_end'] > dt +
-                       datetime.timedelta(seconds=ts.OBS_TIME)),
-    )]['field_id']
+    fields_available = [f for f in fields_available if
+                        field_periods[f][0] is not None and
+                        field_periods[f][1] is not None and
+                        field_periods[f][0] < dt and
+                        field_periods[f][1] > dt + datetime.timedelta(
+                            seconds=ts.OBS_TIME)
+                        ]
     logging.info('Currently %d fields available for observation' %
                  len(fields_available))
 
