@@ -72,7 +72,7 @@ if __name__ == '__main__':
     midday_end = datetime.datetime(2019, 1, 1, 0, 0)
 
     # Get the targets and fields
-    for i in range(5):
+    for i in range(3):
         logging.warning('Pass %d...' % i)
         # Do the tests
         for w in workers_values:
