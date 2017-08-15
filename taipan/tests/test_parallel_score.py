@@ -55,13 +55,15 @@ if __name__ == '__main__':
     conn = get_connection()
     cursor = conn.cursor()
 
-    workers_values = [1, 4,
-                      int(0.8 * multiprocessing.cpu_count()),
-                      multiprocessing.cpu_count(),
-                      2 * multiprocessing.cpu_count(),
-                      50,
-                      # 100,
-                      ]
+    workers_values = [
+        # 1,
+        # 4,
+        # int(0.8 * multiprocessing.cpu_count()),
+        multiprocessing.cpu_count(),
+        # 2 * multiprocessing.cpu_count(),
+        # 50,
+        # 100,
+    ]
 
     results_dict = {w: [] for w in workers_values}
 

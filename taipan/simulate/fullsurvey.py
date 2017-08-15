@@ -322,6 +322,7 @@ def select_best_tile(cursor, dt, per_end,
     scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
                                             'n_sci_rem'],
                            ignore_zeros=True, unobserved_only=True)
+    scores_array.sort(order='field_id')
 
     field_periods = {r['field_id']: rAS.next_observable_period(
         cursor, r['field_id'], dt,
