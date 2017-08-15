@@ -330,7 +330,8 @@ def select_best_tile(cursor, dt, per_end,
                      r in scores_array}
     # Build a field periods array to speed up internal processing
     field_periods_array = np.array([(k, v[0], v[1]) for k, v in
-                                    field_periods.items()],
+                                    field_periods.items() if v[0] is not None
+                                    and v[1] is not None],
                                    dtype={
                                        'names': ['field_id', 'per_start',
                                                  'per_end'],
