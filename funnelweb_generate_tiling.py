@@ -44,7 +44,7 @@ def calc_dist_priority(parallax):
     distance = 1000. / parallax
     
     if np.abs(distance) <= 150:
-        priority = 2
+        priority = 3
     else:
         priority = 2
 

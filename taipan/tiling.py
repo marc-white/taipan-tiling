@@ -1198,6 +1198,9 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                         t.priority == priority_normal):
                         t.priority += prioritise_extra                
         
+        # Keep a record of what was initially in candidate_targets_range
+        candidate_targets_range_orig = candidate_targets_range[:]
+        
         #Also find the standards in the correct magnitude range.
         standard_targets_range = [t for t in standard_targets 
             if mag_range[0] <= t.mag < mag_range[1]]
@@ -1319,10 +1322,17 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
             before_targets_len = len(candidate_targets_range)
             reobserved_standards = []
             for t in assigned_targets:
-                if t in candidate_targets:
+                # Note: when candidate_targets contains stars with higher than normal 
+                # *initial* priorities, it is possible for a star to be overlooked for
+                # consideration as a science target (observations being preferred in a 
+                # fainter magnitude bin for "high-priority" targets), but still 
+                # considered for selection as a standard target. As such is important
+                # to use candidate_targets_range, rather than simply candidate_targets 
+                # when dealing with assigned targets.
+                if t in candidate_targets_range:
                     candidate_targets.pop(candidate_targets.index(t))
                     candidate_targets_range.pop(candidate_targets_range.index(t))
-                
+  
                     #Count the priority targets we've just assigned in the same way
                     #as they were originally counted
                     if t.priority >= completeness_priority:
