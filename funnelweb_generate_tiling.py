@@ -119,6 +119,9 @@ except NameError:
     else: 
         raise UserWarning("Unknown table type") 
     
+    # Deallocate tabdata
+    del tabdata
+    
     #Take standards from the science targets, and assign the standard property to True
     for t in all_targets:
         if (int(t.mag*100) % int(fwts.settings["inverse_standard_frac"]))==0:
