@@ -27,7 +27,7 @@ from collections import OrderedDict
 #-----------------------------------------------------------------------------------------
 # Helper Functions
 #-----------------------------------------------------------------------------------------
-def calc_dist_priority(parallax):
+def calc_dist_priority(parallax, prioritise_close=False):
     """Function to return a taipan priority integer based on the target distance
     
     Parameters
@@ -35,11 +35,20 @@ def calc_dist_priority(parallax):
     parallax: float
         Parallax of the star in milli-arcsec
     
+    prioritise_close: Boolean
+        Boolean indicating whether to upweight closer stars, or have constant priorities.
+    
     Returns
     -------
     priority: int
         Priority of the star
     """
+    # Check to avoid changing priorities
+    if not prioritise_close:
+        return 2
+    
+    # If prioritise_close, assign a higher priority to closer targets
+    
     # Calculate the distance, where parallax is in milli-arcsec
     distance = 1000. / parallax
     
@@ -88,13 +97,13 @@ try:
     if all_targets:
         pass
 except NameError:
-    print 'Importing test data...'
+    print 'Importing input catalogue...'
     start = datetime.datetime.now()
     #It is important not to duplicate targets, i.e. if a science targets is a guide and
     #a standard, then it should become a single instance of a TaipanTarget, appearing in
     #all lists.
     tabdata = Table.read(fwts.settings["input_catalogue"])
-    print 'Generating targets...'
+    print 'Making mag/DEC/RA/b cuts and generating targets...'
     if fwts.settings["tab_type"] == '2mass':
         all_targets = [tp.TaipanTarget(str(r['mainid']), r['raj2000'], r['dej2000'], 
             priority=2, mag=r['imag'],difficulty=1) for r in tabdata 
@@ -102,8 +111,8 @@ except NameError:
             fwts.settings["dec_min"] < r['dej2000'] < fwts.settings["dec_min"]]
     elif fwts.settings["tab_type"] == 'gaia':
         all_targets = [tp.TaipanTarget(int(r['source_id']), r['ra'], r['dec'], 
-            priority=calc_dist_priority(r["parallax"]), mag=r['phot_g_mean_mag'],
-            difficulty=1) for r in tabdata 
+            priority=calc_dist_priority(r["parallax"], fwts.settings["prioritise_close"]), 
+            mag=r['phot_g_mean_mag'], difficulty=1) for r in tabdata 
             if fwts.settings["ra_min"] < r['ra'] <  fwts.settings["ra_max"] and 
             fwts.settings["dec_min"] < r['dec'] < fwts.settings["dec_max"] and  
             np.abs(r['b']) > fwts.settings["gal_lat_limit"]]

@@ -7,8 +7,7 @@ import numpy as np
 from collections import OrderedDict
 
 # Input catalogue 
-catalogue = ("/Users/adamrains/Google Drive/University/PhD/FunnelWeb/StellarParameters/"
-             "M-dwarf Catalogues/all_tgas.fits")
+catalogue = ("/Users/adamrains/Catalogues/all_tgas.fits")
 
 # Ordered dictionary, so that format is always the same when writing to a file             
 settings = OrderedDict([("input_catalogue", catalogue),
@@ -45,4 +44,5 @@ settings = OrderedDict([("input_catalogue", catalogue),
                         ("repick_after_complete", False),
                         ("recompute_difficulty", True),
                         ("disqualify_below_min", True),
+                        ("prioritise_close", True),
                         ("nthreads", 0)])
