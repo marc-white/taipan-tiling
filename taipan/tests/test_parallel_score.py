@@ -42,7 +42,7 @@ if __name__ == '__main__':
         filemode='w'
     )
     logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)
+    logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.WARNING)
     logging.warning('TESTING PARALLEL SCORING')
