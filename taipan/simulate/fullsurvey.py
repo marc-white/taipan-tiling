@@ -326,10 +326,19 @@ def select_best_tile(cursor, dt, per_end,
     scores_array.sort(order='field_id')
 
     logging.info('Fetching next field periods...')
+
+    fields_available = rAS.find_fields_available(
+        cursor, dt, datetime_to=per_end,
+        field_list=list(scores_array['field_id']),
+        resolution=resolution)
     field_periods = {r['field_id']: rAS.next_observable_period(
         cursor, r['field_id'], dt,
-        datetime_to=per_end) for
-                     r in scores_array}
+        datetime_to=per_end
+    ) for
+        r in
+        # scores_array
+        fields_available
+    }
     # logging.debug('Next observing period for each field:')
     # logging.debug(field_periods)
     # logging.info('Next available field will rise at %s' %
