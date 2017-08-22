@@ -140,10 +140,18 @@ def compute_target_priorities_tree(target_info_array, default_priority=0,
 
     # is_Jselected = np.logical_and(is_in_survey, target_info_array['is_nir'])
     # is_Jselected = is_in_survey & ( target_info_array[ 'is_nir' ] == True )
-    Jmag = target_info_array['mag_j'] - AJ * target_info_array['ebv']
+    Jmag = np.where(target_info_array['mag_j'] > -90.,
+                    target_info_array['mag_j'] - AJ * target_info_array['ebv'],
+                    -99.)
     is_Jselected = np.logical_and(is_in_survey,
-                                  Jmag < ALLSKY_MAGNITUDE_LIMIT)
-    JminusK = target_info_array['col_jk'] - (AJ - AK) * target_info_array['ebv']
+                                  np.logical_and(
+                                      Jmag < ALLSKY_MAGNITUDE_LIMIT,
+                                      Jmag > -90.)
+                                  )
+    JminusK = np.where(target_info_array['col_jk'] > -90.,
+                       target_info_array['col_jk'] -
+                       (AJ - AK) * target_info_array['ebv'],
+                       -99)
     no_good_redshift = (target_info_array['success'] == False)
 
     # print np.sort( JminusK[ is_Jselected ] )
