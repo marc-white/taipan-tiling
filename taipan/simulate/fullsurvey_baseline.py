@@ -162,7 +162,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                 }
             weather_fail_thresh = np.percentile(weather_fails.values(),
                                                 weather_loss * 100.)
-        if curr_date == datetime.date(2019,1,1):
+        if curr_date == sim_start + prior_lowz_end:
             # logging.warning('ABORTING at tile changeover')
             # sys.exit()
             # Modify taipan.core.BUGPOS_MM to add in another 150
