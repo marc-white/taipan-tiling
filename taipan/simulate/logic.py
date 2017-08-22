@@ -419,6 +419,9 @@ def compute_target_priorities_tree_deprecated(
         A list of priorities, corresponding to the target_info_array provided.
     """
 
+    raise DeprecationWarning('compute_target_priorities_tree_deprecated is '
+                             'not maintained and should not be used!')
+
     default_priority = int(default_priority)
 
     # Initialize the priorities array with the default value
@@ -799,8 +802,8 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
         A list of priorities, corresponding to the target_info_array provided.
     """
 
-    raise UserWarning('You are using compute_target_priorities_percase - this '
-                      'is not up-to-date!')
+    raise DeprecationWarning('compute_target_priorities_percase is '
+                             'not maintained and should not be used!')
 
     default_priority = int(default_priority)
 
