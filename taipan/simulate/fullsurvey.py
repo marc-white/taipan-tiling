@@ -282,6 +282,7 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
 
 def select_best_tile(cursor, dt, per_end,
                      midday_end,
+                     midday_start=None,
                      prioritize_lowz=True,
                      resolution=15.,
                      multipool_workers=multiprocessing.cpu_count()):
@@ -304,6 +305,9 @@ def select_best_tile(cursor, dt, per_end,
     midday_end: datetime.datetime object
         Midday after the lowz prioritization period finishes,
         transformed to UTC
+    midday_start: datetime.datetime object, optional
+        Midday before the survey begins,
+        transformed to UTC. Defaults to None.
     prioritize_lowz : Boolean, optional
         Whether or not to prioritize fields with lowz targets by computing
         the hours_observable for those fields against a set end date, and
@@ -386,10 +390,15 @@ def select_best_tile(cursor, dt, per_end,
                                      # cursor=cursor,
                                      dt=dt,
                                      datetime_to=max(
-                                         midday_end
-                                         - datetime.timedelta(
-                                             days=(7./12.)*365.)
-                                         ,
+                                         # End of lowz period, less 6 month
+                                         # buffer
+                                         # midday_end
+                                         # - datetime.timedelta(
+                                         #     days=(7./12.)*365.)
+                                         # ,
+                                         # 12 months from start of survey
+                                         midday_start +
+                                         datetime.timedelta(days=365.),
                                          dt +
                                          datetime.
                                          timedelta(365./2.)
@@ -460,10 +469,17 @@ def select_best_tile(cursor, dt, per_end,
             hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                       dt,
                                                       datetime_to=max(
-                                                          midday_end
-                                                          - datetime.timedelta(
-                                                              days=(7./12.)*365.)
-                                                          ,
+                                                          # End of lowz period,
+                                                          # less 6 month
+                                                          # buffer
+                                                          # midday_end
+                                                          # - datetime.timedelta(
+                                                          #     days=(7./12.)*365.)
+                                                          # ,
+                                                          # 12 months from start of survey
+                                                          midday_start +
+                                                          datetime.timedelta(
+                                                              days=365.),
                                                           dt +
                                                           datetime.
                                                           timedelta(365./2.)
@@ -904,7 +920,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             field_periods, fields_by_tile, hours_obs = select_best_tile(
                 cursor, local_utc_now,
                 dark_end, midday_end_prior,
-                prioritize_lowz=prioritize_lowz_today
+                prioritize_lowz=prioritize_lowz_today,
+                midday_start=midday_start,
             )
             if tile_to_obs is None:
                 # This triggers if fields will be available later tonight,
