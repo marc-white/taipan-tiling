@@ -134,7 +134,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 
     # Write the tiles to DB
     iTexec(cursor, candidate_tiles, config_time=prepare_time,
-           disqualify_below_min=False)
+           disqualify_below_min=False, remove_index=True)
     # Commit now in case mNScT not debugged right
     # cursor.connection.commit()
 
@@ -282,6 +282,7 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
 
 def select_best_tile(cursor, dt, per_end,
                      midday_end,
+                     midday_start=None,
                      prioritize_lowz=True,
                      resolution=15.,
                      multipool_workers=multiprocessing.cpu_count()):
@@ -304,6 +305,9 @@ def select_best_tile(cursor, dt, per_end,
     midday_end: datetime.datetime object
         Midday after the lowz prioritization period finishes,
         transformed to UTC
+    midday_start: datetime.datetime object, optional
+        Midday before the survey begins,
+        transformed to UTC. Defaults to None.
     prioritize_lowz : Boolean, optional
         Whether or not to prioritize fields with lowz targets by computing
         the hours_observable for those fields against a set end date, and
@@ -319,14 +323,26 @@ def select_best_tile(cursor, dt, per_end,
         if no tile is available.
     """
     # Get the latest scores_array
+    logging.info('Fetching scores array...')
     scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
                                             'n_sci_rem'],
                            ignore_zeros=True, unobserved_only=True)
+    scores_array.sort(order='field_id')
 
+    logging.info('Fetching next field periods...')
+
+    fields_available = rAS.find_fields_available(
+        cursor, dt, datetime_to=per_end,
+        field_list=list(scores_array['field_id']),
+        resolution=resolution)
     field_periods = {r['field_id']: rAS.next_observable_period(
         cursor, r['field_id'], dt,
-        datetime_to=per_end) for
-                     r in scores_array}
+        datetime_to=per_end
+    ) for
+        r in
+        # scores_array
+        fields_available
+    }
     # logging.debug('Next observing period for each field:')
     # logging.debug(field_periods)
     # logging.info('Next available field will rise at %s' %
@@ -374,10 +390,15 @@ def select_best_tile(cursor, dt, per_end,
                                      # cursor=cursor,
                                      dt=dt,
                                      datetime_to=max(
-                                         midday_end
-                                         - datetime.timedelta(
-                                             days=(7./12.)*365.)
-                                         ,
+                                         # End of lowz period, less 6 month
+                                         # buffer
+                                         # midday_end
+                                         # - datetime.timedelta(
+                                         #     days=(7./12.)*365.)
+                                         # ,
+                                         # 12 months from start of survey
+                                         midday_start +
+                                         datetime.timedelta(days=365.),
                                          dt +
                                          datetime.
                                          timedelta(365./2.)
@@ -448,10 +469,17 @@ def select_best_tile(cursor, dt, per_end,
             hours_obs_lowz = {f: rAS.hours_observable(cursor, f,
                                                       dt,
                                                       datetime_to=max(
-                                                          midday_end
-                                                          - datetime.timedelta(
-                                                              days=(7./12.)*365.)
-                                                          ,
+                                                          # End of lowz period,
+                                                          # less 6 month
+                                                          # buffer
+                                                          # midday_end
+                                                          # - datetime.timedelta(
+                                                          #     days=(7./12.)*365.)
+                                                          # ,
+                                                          # 12 months from start of survey
+                                                          midday_start +
+                                                          datetime.timedelta(
+                                                              days=365.),
                                                           dt +
                                                           datetime.
                                                           timedelta(365./2.)
@@ -892,7 +920,8 @@ def sim_do_night(cursor, date, date_start, date_end,
             field_periods, fields_by_tile, hours_obs = select_best_tile(
                 cursor, local_utc_now,
                 dark_end, midday_end_prior,
-                prioritize_lowz=prioritize_lowz_today
+                prioritize_lowz=prioritize_lowz_today,
+                midday_start=midday_start,
             )
             if tile_to_obs is None:
                 # This triggers if fields will be available later tonight,

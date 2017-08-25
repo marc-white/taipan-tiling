@@ -13,6 +13,7 @@ Contents:
 
    intro
    install
+   overview
    taipan-tiling
 
 Indices and tables

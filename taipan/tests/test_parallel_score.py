@@ -42,7 +42,7 @@ if __name__ == '__main__':
         filemode='w'
     )
     logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)
+    logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.WARNING)
     logging.warning('TESTING PARALLEL SCORING')
@@ -55,13 +55,15 @@ if __name__ == '__main__':
     conn = get_connection()
     cursor = conn.cursor()
 
-    workers_values = [1, 4,
-                      int(0.8 * multiprocessing.cpu_count()),
-                      multiprocessing.cpu_count(),
-                      2 * multiprocessing.cpu_count(),
-                      50,
-                      # 100,
-                      ]
+    workers_values = [
+        # 1,
+        # 4,
+        # int(0.8 * multiprocessing.cpu_count()),
+        multiprocessing.cpu_count(),
+        # 2 * multiprocessing.cpu_count(),
+        # 50,
+        # 100,
+    ]
 
     results_dict = {w: [] for w in workers_values}
 
@@ -69,8 +71,10 @@ if __name__ == '__main__':
     per_end = datetime.datetime(2017, 9, 3, 0, 0, 0)
     midday_end = datetime.datetime(2019, 1, 1, 0, 0)
 
+    passes = 3
+
     # Get the targets and fields
-    for i in range(5):
+    for i in range(passes):
         logging.warning('Pass %d...' % i)
         # Do the tests
         for w in workers_values:
@@ -86,7 +90,7 @@ if __name__ == '__main__':
 
         logging.warning('... pass complete!')
 
-    logging.warning('RESULTS (%d passes)' % 5)
+    logging.warning('RESULTS (%d passes)' % passes)
     logging.warning('-------')
     for w in workers_values:
         logging.warning('%3d workers: %4.1f +/- %3.1f' % (

@@ -162,7 +162,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                 }
             weather_fail_thresh = np.percentile(weather_fails.values(),
                                                 weather_loss * 100.)
-        if curr_date == datetime.date(2019,1,1):
+        if curr_date == sim_start + prior_lowz_end:
             # logging.warning('ABORTING at tile changeover')
             # sys.exit()
             # Modify taipan.core.BUGPOS_MM to add in another 150
@@ -200,8 +200,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                                    do_d=True,
                                    prisci=False)
             # Switch the field statuses
-            mCS.execute(cursor, remove_inactive_tiles=True)
-            # mScD.execute(cursor)
+            # mCS.execute(cursor, remove_inactive_tiles=True)
+            # mScD.execute(cursor)t
             # Complete re-tile of all fields
             fields_to_retile = [t.field_id for t in rCexec(cursor)]
             retile_fields(cursor, fields_to_retile, tiles_per_field=1,
@@ -211,7 +211,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                           )),
                           disqualify_below_min=False,
                           # prisci=prioritize_lowz_today,
-                          multicores=4
+                          multicores=7
                           )
 
 
@@ -225,13 +225,13 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 9, 1)
+    sim_start = datetime.date(2017, 11, 4)
     sim_end = datetime.date(2022, 7, 1)
     global_start = datetime.datetime.now()
-    prior_lowz_end = datetime.date(2019, 1, 1) - sim_start
+    prior_lowz_end = datetime.date(2019, 2, 13) - sim_start
 
-    # kill_time = None
-    kill_time = datetime.datetime(2019, 1, 1, 0, 0, 0)
+    kill_time = None
+    # kill_time = datetime.datetime(2019, 1, 1, 0, 0, 0)
 
     # Override the sys.excepthook behaviour to log any errors
     # http://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
