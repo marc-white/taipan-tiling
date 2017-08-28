@@ -30,12 +30,14 @@ from matplotlib.cbook import flatten
 # UTILITY FUNCTIONS
 # ------
 
+
 def gen_pa(randomise_pa):
     """Helper function to handle randomising PAs if tile generation
     doesn't already have it built in"""
     if randomise_pa:
         return random.uniform(0., 360.)
     return 0.
+
 
 def compute_bounds(ra_min, ra_max, dec_min, dec_max):
     """
@@ -44,17 +46,17 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
     This function is a helper for other functions in this module, to allow
     for ranges which span 0 RA and/or 0 Dec. It returns the min and max values,
     but modified so they can be directly be used as ranges. This means that
-    some values will become negative, so will need to be modified by (x % 360.)
-    before they can be directly used.
+    some values will become negative, so will need to be modified by
+    :math:`x % 360.` before they can be directly used.
 
     Parameters
     ----------
-    ra_min, ra_max : 
+    ra_min, ra_max : float
         Min and max RA values of the region to tile, in decimal
         degrees. To have a range that includes 0 degrees RA, either specify
         a negative ra_min, or have ra_min > ra_max. Defaults to None.
         
-    dec_min, dec_max : 
+    dec_min, dec_max : float
         Min and max for declination, in decimal 
         degrees. Because of the way declination works,
         dec_min < dec_max by necessity. If this condition is not
@@ -62,9 +64,14 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
 
     Returns
     -------
-    ra_min, ra_max, dec_min, dec_max : 
+    ra_min, ra_max, dec_min, dec_max : float
         The limits modified so they can be used
         as standard ranges.
+
+    Raises
+    ------
+    ValueError
+        Raused if ``dec_min`` :math:`<-90`, or ``dec_max`` :math:`>90`.
     """
 
     # Special case - if the full range has been specified, simply return that
@@ -102,25 +109,25 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
 
 
 def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max, 
-    compute_bounds_forcoords=True):
+                     compute_bounds_forcoords=True):
     """
     Check if the tile is within the specified bounds.
 
     Parameters
     ----------
-    tile : 
+    tile : :class:`TaipanTile`
         The TaipanTile instance to check.
         
-    ra_min, ra_max, dec_min, dec_max : 
+    ra_min, ra_max, dec_min, dec_max : float
         The bounds to check.
         
-    compute_bounds : 
+    compute_bounds : bool
         Boolean value, denoting whether to use the convert_bounds
         function to ensure the bounds are in standard format. Defaults to True.
 
     Returns
     -------
-    within_bounds : 
+    within_bounds : bool
         Boolean value denoting whether the tile centre is within
         the bounds (True) or not (False).
     """
@@ -145,38 +152,38 @@ def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max,
 # -------
 
 def generate_random_tile(ra_min=0.0, ra_max=360.0,
-    dec_min=-90.0, dec_max=90.0, randomise_pa=False):
+                         dec_min=-90.0, dec_max=90.0, randomise_pa=False):
     """
     Generate a randomly-placed TaipanTile within the constraints provided.
 
     Parameters
     ----------
-    ra_min, ra_max : 
+    ra_min, ra_max : float
         Min and max RA values of the region to tile, in decimal 
         degrees. To have a range that includes 0 degrees RA, either specify a 
         negative ra_min, or have ra_min > ra_max.
         Defaults to 0.0 deg and 180.0 deg, respectively.
         
-    dec_min, dec_max : 
+    dec_min, dec_max : float
         Min and max for declination, in decimal 
         degrees. Because of the way declination works,
         dec_min < dec_max by necessity. If this condition is not
         satisfied, dec_min and dec_max will be flipped to make it so.
         Defaults to -90. and + 90., respectively.
         
-    randomise_pa : 
+    randomise_pa : bool
         Boolean value denoting whether to randomise the position
         angle of the generated tiles, or use the default PA of 0 degrees.
         Defaults to False.
 
     Returns
     -------
-    tile : 
+    tile : :class:`TaipanTile`
         The generated TaipanTile object.
     """
 
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max, 
-        dec_min, dec_max)
+                                                      dec_min, dec_max)
 
     # Generate a random RA and dec for the tile centre
     ra_tile = random.uniform(ra_min, ra_max) % 360.
@@ -195,24 +202,24 @@ def generate_SH_tiling(tiling_file, randomise_seed=True, randomise_pa=False):
 
     Parameters
     ----------
-    tiling_file : 
+    tiling_file : str
         The text file holding the Sloane-Harding tiling. These
         should be downloaded from http://neilsloane.com/icosahedral.codes/.
         
-    randomise_seed : 
+    randomise_seed : bool
         Boolean value denoting whether to randomise the location
         of the 'seed' tile, i.e. the tile that would sit at 0 RA, 0 Dec in the
         list of Sloane-Harding tiles. Randomises in RA coordinate only.
         Defaults to True
         
-    randomise_pa : 
+    randomise_pa : bool
         Boolean value denoting whether to randomise the position
         angle of the generated tiles. Defaults to False.
 
 
     Returns
     -------
-    tile_list : 
+    tile_list : list of :class:`TaipanTile`
         A list of TaipanTiles that have been generated from the
         Sloane-Harding tiling.
     """
@@ -221,25 +228,25 @@ def generate_SH_tiling(tiling_file, randomise_seed=True, randomise_pa=False):
         textlines = tiling_fileobj.readlines()
 
     # Group the tile centres
-    tile_cents = [(float(textlines[i*3]), float(textlines[i*3+1]), 
-        float(textlines[i*3+2]))
-        for i in range(len(textlines) / 3)]
+    tile_cents = [(float(textlines[i*3]), float(textlines[i*3+1]),
+                   float(textlines[i*3+2]))
+                  for i in range(len(textlines) / 3)]
     # Convert X, Y, Z to RA, Dec
     tile_cents = [(np.degrees(math.atan2(c[1], c[0])),
-        np.degrees(math.acos(c[2]))- 90.) 
-        for c in tile_cents]
+                   np.degrees(math.acos(c[2]))- 90.)
+                  for c in tile_cents]
     # print tile_cents
     # Randomise positions, if necessary
     if randomise_seed:
         ra_delta = random.uniform(0.0, 180.)
         # print '(%3.1f, %2.1f)' % (ra_delta, dec_delta)
         tile_cents = [((c[0] + ra_delta + 180.) % 360. - 180., c[1])
-            for c in tile_cents]
+                      for c in tile_cents]
         # print tile_cents[0]
     # print len(tile_cents)
 
     tile_list = [tp.TaipanTile(c[0] + 180., c[1], pa=gen_pa(randomise_pa))
-        for c in tile_cents]
+                 for c in tile_cents]
 
     return tile_list
 
@@ -261,12 +268,12 @@ def tiling_consolidate(tile_list):
 
     Parameters
     ----------
-    tile_list : 
+    tile_list : list of :class:`TaipanTile`
         The list of TaipanTile objects that constitute the tiling.
 
     Returns
     -------
-    consolidated_list : 
+    consolidated_list : list of :class:`TaipanTile`
         The list of TaipanTile objects representing the
         consolidation of tile_list. consolidated_list will NOT preserve the
         ordering in tile_list.
@@ -325,7 +332,8 @@ def tiling_consolidate(tile_list):
         targets_left = tile_list[-1].get_assigned_targets_science(
             return_dict=True, include_science_standards=False)
         
-        # Only continue for standards if we have no targets left. NB this next piece of
+        # Only continue for standards if we have no targets left.
+        # NB this next piece of
         # code is mostly cut-and-paste so is bad coding practice!
         if len(targets_left)==0:
             # Grab the targets out of the lowest-completeness tile. Now only 
@@ -334,7 +342,8 @@ def tiling_consolidate(tile_list):
             targets_to_redo = tile_list[-1].get_assigned_targets_science(
                 return_dict=True, only_science_standards=True)
             
-            # Try to assign these target standards to another, more-complete tile
+            # Try to assign these target standards to another,
+            # more-complete tile
             # Be sure not to try re-assignment to the current worst tile!
             n_standards_left = len(targets_to_redo)
             for (fibre, target) in targets_to_redo.iteritems():
@@ -342,19 +351,21 @@ def tiling_consolidate(tile_list):
                     if target.dist_point((t.ra, t.dec)) < tp.TILE_RADIUS]
                 target_reassigned = False
                 
-                #If this is a science target already on another tile, don't try to 
+                #If this is a science target already on another tile,
+                # don't try to
                 #re-assign it. 
-                duplicate_standards = [atile for atile in tiles_to_try if \
-                    target in atile.get_assigned_targets_science()]
+                duplicate_standards = [atile for atile in tiles_to_try if
+                                       target in
+                                       atile.get_assigned_targets_science()]
                 if len(duplicate_standards) > 0:
                     target_reassigned = True
                 while len(tiles_to_try) > 0 and target_reassigned == False:
                     # Attempt to assign target to tile
-                    targets_returned, removed_targets = tiles_to_try[0].assign_tile(
-                        [target], check_tile_radius=False, 
-                        recompute_difficulty=False,
-                        overwrite_existing=False,
-                        method='priority')
+                    targets_returned, removed_targets = tiles_to_try[
+                        0].assign_tile([target], check_tile_radius=False,
+                                       recompute_difficulty=False,
+                                       overwrite_existing=False,
+                                       method='priority')
                     if len(targets_returned) == 0:
                         # Target has been re-assigned
                         target_reassigned = True
@@ -371,11 +382,13 @@ def tiling_consolidate(tile_list):
         # We have now been through all the targets to try and re-assign from
         # this tile. There are now two options:
         # If all unassigned science targets are assigned to another tile, we can 
-        # burn this tile. Otherwise, the tile needs to be added to the consolidated_list
+        # burn this tile. Otherwise, the tile needs to be added to the
+        # consolidated_list
         targets_left = tile_list[-1].get_assigned_targets_science()
         all_reassigned = True
         for t in targets_left:
-            duplicate_obs = [atile for atile in tile_list[:-1] if t in atile.get_assigned_targets_science()]
+            duplicate_obs = [atile for atile in tile_list[:-1] if t in
+                             atile.get_assigned_targets_science()]
             if len(duplicate_obs)==0:
                 all_reassigned = False
                 break            
@@ -419,21 +432,21 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
     
     'SH' -- Sloane-Harding tiling centres. In this method, a full grid of
     SH tiles are generated, picked in a greedy fashion, and then
-    consolidated. This procedure is repeated until the completeness_target
+    consolidated. This procedure is repeated until the ``completeness_target``
     is reached.
         
     'random' -- A tile is randomly generated within the specified RA and Dec
     limits, and then picked. The process is repeated until the
     completeness_target is reached.
         
-    'random-set' -- As for 'random', but tiling_set_size tiles are generated
+    'random-set' -- As for 'random', but ``tiling_set_size`` tiles are generated
     at once.
         
     'random-target' -- A tile is centred on a randomly-selected remaining
     science target and is unpicked. Process is repeated until the
-    completeness_target is reached.
+    ``completeness_target`` is reached.
         
-    'random-target-set' -- As for 'random-target', but tiling_set_size tiles
+    'random-target-set' -- As for 'random-target', but ``tiling_set_size`` tiles
     are generated at once.
         
     'average' -- A tile is generated at the average RA, Dec of the remaining
@@ -441,83 +454,88 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
     location of highest remaining target density). The tile is then
     unpicked. The process repeats until completeness_target is reached,
     or until a tile cannot have science targets assigned to it (i.e. the
-    average position contains no targets), and which point the tiling_method
-    is switched to random_target.
+    average position contains no targets), and which point the ``tiling_method``
+    is switched to 'random_target'.
 
     Parameters
     ----------
-    candidate_targets : 
-        The list of TaipanTargets (science) to tile. Each
+    candidate_targets : list of :class:`TaipanTarget`
+        The list of :class:`TaipanTarget` (science) to tile. Each
         target in the list will appear once somewhere in the tiling, unless the
-        completeness_target is reached first.
+        ``completeness_target`` is reached first.
         
-    guide_targets, standard_targets : 
-        Guide and standard TaipanTargets to
+    guide_targets, standard_targets : list of :class:`TaipanTarget`
+        Guide and standard :class:`TaipanTarget` to
         assign to the tilings. These may be repeated across tiles.
         
-    completeness_target : 
-        A float in the range (0, 1] denoting what level of
+    completeness_target : float
+        A float in the range :math:`(0, 1]` denoting what level of
         completeness is required to be achieved before the tiling can be 
         considered complete. Defaults to 1.0 (that is, all science targets 
         must be assigned).
         
-    tiling_method : 
+    tiling_method : str
         String denoting which tiling method to use (see above). 
         Defaults to 'SH' (Sloane-Harding tile distribution.)
         
-    randomise_pa : 
+    randomise_pa : bool
         Boolean value, denoting whether to randomise the PA of the
         generated tiles. Defaults to True.
         
-    tiling_order : 
+    tiling_order : str
         String denoting the order in which to attempt to unpick
-        tiles. Only has an effect if tiling_method = 'SH', 'random-set' or
-        'random-target-set'. May have one of the following values:
+        tiles. Only has an effect if ``tiling_method = 'SH'``, ``'random-set'``
+         or ``'random-target-set'``. May have one of the following values:
         
-        random - Randomised order
-        density - Tiles with the highest number of candidates will be tiled 
-        first. 
-        
-        priority - Tiles with the highest cumulative target priority will be
+        'random '- Randomised order
+        'density' - Tiles with the highest number of candidates will be tiled
+        first.
+        'priority' - Tiles with the highest cumulative target priority will be
         tiled first.
             
-    randomise_SH : 
+    randomise_SH : bool
         Boolean value denoting whether to randomise the RA position
         of the 'seed' tile in the Sloane-Harding tiling. Only has an effect if
-        tiling_method='SH'. Defaults to True.
+        ``tiling_method='SH'``. Defaults to True.
         
-    tiling_file : 
+    tiling_file : str, path
         String containing the filepath to the Sloane-Harding tiling
         to use if tiling_method = 'SH'. Defaults to 'ipack.3.8192.txt',
         which is the best-coverage tiling for Taipan-sized tiles.
         
-    ra_min, ra_max, dec_min, dec_max : 
+    ra_min, ra_max, dec_min, dec_max : float
         The min/max values for tile centre RA
         and Dec. Defaults to 0., 360., -90. and 90., respectively.
         
-    tiling_set_size : 
+    tiling_set_size : int
         The number of tiles to generate at a time for the 
         random-set and random-target-set tiling methods. Defaults to 1000.
         
     tile_unpick_method, combined_weight, sequential_ordering, rank_supplements,
     repick_after_complete : 
-        Values to pass to the tile's unpick_tile method for
-        target assignment. See the documentation for taipan.core for the meaning
-        and limits of these values.
+        Values to pass to the tile's :any:``unpick_tile`` method for
+        target assignment. See the :any:``unpick_tile`` documentation for the
+        meaning and limits of these values.
 
     Returns
     -------
-    tile_list : 
+    tile_list : list of :class:`TaipanTile`
         The list of TaipanTiles corresponding to the tiling generated.
         
-    completeness : 
+    completeness : float
         A float in the range [0, 1] describing the level of
         completeness achieved, that is, the percentage of targets successfully
         assigned.
         
-    remaining_targets : 
+    remaining_targets : list of :class:`TaipanTarget`
         The list of science TaipanTargets that were not
         assigned during this tiling.
+
+    Raises
+    ------
+    ValueError
+        Raised if any of the input restriction listed above in ``Parameters``
+        are violated.
     """
 
     TILING_METHODS = [
@@ -689,43 +707,44 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
     Parameters
     ----------
-    candidate_targets, standard_targets, guide_targets : 
+    candidate_targets, standard_targets, guide_targets : list of
+    :class:`TaipanTarget`
         The lists of science,
-        standard and guide targets to consider, respectively. Should be lists
-        of TaipanTarget objects.
+        standard and guide targets to consider, respectively.
         
-    completeness_target : 
-        A float in the range (0, 1] denoting the science
+    completeness_target : float
+        A float in the range :math:`(0, 1]` denoting the science
         target completeness to stop at. Defaults to 1.0 (full completeness).
         
-    ranking_method : 
+    ranking_method : str
         The scheme to use for ranking the tiles. See the
-        documentation for TaipanTile.calculate_tile_score for details.
+        documentation for :any:`calculate_tile_score` for details.
         
     tiling_method : 
         The method by which to generate a tiling set. Currently available are:
         'SH' - Use Slaone-Harding tilings
-        'user' - Use a user-provided set of TaipanTiles as the 'seed' tiling
+        'user' - Use a user-provided set of :class:`TaipanTile` as the 'seed'
+        tiling
 
-    tiles:
+    tiles : list of :class:`TaipanTile`
         List of TaipanTile objects to be used as the initial distribution of
-        tiles. Only required if tiling_method='user'. If tiling_method='user'
-        and tiles is not provided/is not a list of TaipanTiles, and error will
-        be thrown.
+        tiles. Only required if ``tiling_method='user'``. If
+        ``tiling_method='user'`` and ``tiles`` is not provided/is not a list of
+        :class:`TaipanTile`, :any:`ValueError` will be raised.
         
-    randomise_pa : 
+    randomise_pa : bool
         Optional Boolean, denoting whether to randomise the pa of
         seed tiles or not. Defaults to True.
         
-    randomise_SH : 
+    randomise_SH : bool
         Optional Boolean, denoting whether or not to randomise the
         RA of the 'seed' of the SH tiling. Defaults to True.
         
-    tiling_file : 
+    tiling_file : str, path
         The SH tiling file to use for generating tiling centres.
         Defaults to 'ipack.3.8192.txt'.
         
-    ra_min, ra_max, dec_min, dec_max : 
+    ra_min, ra_max, dec_min, dec_max : float
         The RA and Dec bounds of the region to
         be considered, in decimal degrees. To have an RA range spanning across 
         0 deg RA, either use a negative value for ra_min, or give an ra_min >
@@ -734,38 +753,38 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
     tiling_set_size : 
         Not relevant at the current time.
         
-    tile_unpick_method : 
+    tile_unpick_method : str
         The scheme to be used for unpicking tiles. Defaults to
-        'sequential'. See the documentation for TaipanTile.unpick_tile for 
+        'sequential'. See the documentation for :any:`unpick_tile` for
         details.
         
     combined_weight, sequential_ordering : 
         Additional arguments to be used in
         the tile unpicking process. See the documentation for 
-        TaipanTile.unpick_tile for details.
-        
-    rank_supplements : 
+        :any:`unpick_tile`.
+
+    rank_supplements : bool
         Optional Boolean value, denoting whether to attempt to
         assign guides/standards in priority order. Defaults to False.
         
-    repick_after_complete : 
+    repick_after_complete : bool
         Boolean value, denoting whether to repick each tile
         after unpicking. Defaults to True.
         
-    recompute_difficulty : 
+    recompute_difficulty : bool
         Boolean value, denoting whether to recompute target
         difficulties after a tile is moved to the results lsit. Defaults to
         True.
 
     Returns
     -------
-    tile_list : 
+    tile_list : list of :class:`TaipanTile`
         The list of tiles making up the tiling.
         
-    final_completeness : 
+    final_completeness : float
         The target completeness achieved.
         
-    candidate_targets : 
+    candidate_targets : list of :class:`TaipanTarget`
         Any targets from candidate_targets that do not
         appear in the final tiling_list (i.e. were not assigned to a successful
         tile).
@@ -928,15 +947,17 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         affected_tiles.append(candidate_tiles[-1])
         for tile in affected_tiles:
             # print 'inter: %d' % len(candidate_targets)
-            burn = tile.unpick_tile(candidate_targets, standard_targets, 
-                guide_targets,
-                overwrite_existing=True, check_tile_radius=True,
-                recompute_difficulty=False,
-                method=tile_unpick_method, combined_weight=combined_weight,
-                sequential_ordering=sequential_ordering,
-                rank_supplements=rank_supplements, 
-                repick_after_complete=False,
-                consider_removed_targets=False)
+            burn = tile.unpick_tile(candidate_targets, standard_targets,
+                                    guide_targets,
+                                    overwrite_existing=True,
+                                    check_tile_radius=True,
+                                    recompute_difficulty=False,
+                                    method=tile_unpick_method,
+                                    combined_weight=combined_weight,
+                                    sequential_ordering=sequential_ordering,
+                                    rank_supplements=rank_supplements,
+                                    repick_after_complete=False,
+                                    consider_removed_targets=False)
             j += 1
             logging.info('Completed %d / %d' % (j, len(affected_tiles)))
         # print 'g : %d' % len(candidate_targets)
@@ -967,8 +988,9 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
                          'relaxing requirements')
             disqualify_below_min = False
             ranking_list = [tile.calculate_tile_score(method=ranking_method,
-                disqualify_below_min=disqualify_below_min) 
-                for tile in candidate_tiles]
+                                                      disqualify_below_min=
+                                                      disqualify_below_min)
+                            for tile in candidate_tiles]
             # print ranking_list
 
     # Consolidate the tiling
@@ -1013,7 +1035,7 @@ def generate_tiling_funnelweb(candidate_targets, standard_targets,
                               repick_after_complete=True, exp_base=3.0,
                               recompute_difficulty=True, nthreads=0):
     """
-    Generate a tiling based on the greedy algorithm operating on a set of magnitude 
+    Generate a tiling based on the greedy algorithm operating on a set of magnitude
     ranges sequentially. Within each magnitude range, a complete set of tiles are 
     selected that enables completeness higher than the minimum priority only.
 
@@ -1470,6 +1492,10 @@ def multicore_greedy(obj,
                      # guide_targets=None,
                      npass=1,
                      **kwargs):
+    """
+    DEPRECATED - early attempt to multithread the generation of tiles.
+    """
+    raise DeprecationWarning('multicore_greedy is deprecated, do not use!')
     # ctm = obj.available_targets(ns.candidate_targets_master)
     # st = obj.available_targets(ns.standard_targets)
     # gd = obj.available_targets(ns.guide_targets)
@@ -1493,6 +1519,27 @@ def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
                                    guide_targets,
                                    repeat_targets=True,
                                    **kwargs):
+    """
+    Helper function for the current implementation of multithreading
+    within :any:`generate_tiling_greedy_npasses`.
+
+    Parameters
+    ----------
+    tile : :class:`TaipanTile`
+        Tile to be unpicked
+    npass : int
+        Number of passes to make over the tile.
+    candidate_targets, standard_targets, guide_targets : list of
+    :class:`TaipanTarget`
+        List of candidate science, standard and guide targets to assign
+    repeat_targets : bool
+        Can targets be repeated between tiles? Defaults to True.
+
+    Returns
+    -------
+    output_tiles : list of :class:`TaipanTile`
+        List of unpicked tiles, based on the input `tile`
+    """
     logging.info('Tiling for field %d (RA %3.1f, DEC %2.1f)' %
                  (tile.field_id, tile.ra, tile.dec))
     if repeat_targets:
@@ -1530,8 +1577,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    multicores=1):
     """
     Generate a tiling based on the greedy algorithm, but instead of going
-    to some completeness target, generate the n best tiles for each input tile
-    (i.e. position).
+    to some completeness target, generate the :math:`n` best tiles for each
+    input tile (i.e. position).
 
     This algorithm works as follows:
 
@@ -1542,39 +1589,40 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
     Parameters
     ----------
-    candidate_targets, standard_targets, guide_targets :
+    candidate_targets, standard_targets, guide_targets : list of
+    :class:`TaipanTarget`
         The lists of science,
         standard and guide targets to consider, respectively. Should be lists
         of TaipanTarget objects.
 
-    ranking_method :
+    ranking_method : str
         The scheme to use for ranking the tiles. See the
-        documentation for TaipanTile.calculate_tile_score for details.
+        documentation for :any:`calculate_tile_score` for details.
 
-    tiling_method :
+    tiling_method : str
         The method by which to generate a tiling set. Currently available are:
         'SH' - Use Slaone-Harding tilings
         'user' - Use a user-provided set of TaipanTiles as the 'seed' tiling
 
-    tiles:
+    tiles: list of :class:`TaipanTile`
         List of TaipanTile objects to be used as the initial distribution of
-        tiles. Only required if tiling_method='user'. If tiling_method='user'
-        and tiles is not provided/is not a list of TaipanTiles, and error will
-        be thrown.
+        tiles. Only required if tiling_method='user'. If
+        ``tiling_method='user'`` and ``tiles`` is not provided/is not a list
+        of :any:`TaipanTile`, :any:``ValueError`` will be raised.
 
-    randomise_pa :
+    randomise_pa : bool
         Optional Boolean, denoting whether to randomise the pa of
         seed tiles or not. Defaults to True.
 
-    randomise_SH :
+    randomise_SH : bool
         Optional Boolean, denoting whether or not to randomise the
         RA of the 'seed' of the SH tiling. Defaults to True.
 
-    tiling_file :
+    tiling_file : str, path
         The SH tiling file to use for generating tiling centres.
         Defaults to 'ipack.3.8192.txt'.
 
-    ra_min, ra_max, dec_min, dec_max :
+    ra_min, ra_max, dec_min, dec_max : float
         The RA and Dec bounds of the region to
         be considered, in decimal degrees. To have an RA range spanning across
         0 deg RA, either use a negative value for ra_min, or give an ra_min >
@@ -1583,41 +1631,46 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
     tiling_set_size :
         Not relevant at the current time.
 
-    tile_unpick_method :
+    tile_unpick_method : str
         The scheme to be used for unpicking tiles. Defaults to
-        'sequential'. See the documentation for TaipanTile.unpick_tile for
+        'sequential'. See the documentation for :any:`unpick_tile` for
         details.
 
     combined_weight, sequential_ordering :
         Additional arguments to be used in
         the tile unpicking process. See the documentation for
-        TaipanTile.unpick_tile for details.
+        :any:`unpick_tile` for details.
 
-    rank_supplements :
+    rank_supplements : bool
         Optional Boolean value, denoting whether to attempt to
         assign guides/standards in priority order. Defaults to False.
 
-    repick_after_complete :
+    repick_after_complete : bool
         Boolean value, denoting whether to repick each tile
         after unpicking. Defaults to True.
 
-    recompute_difficulty :
+    recompute_difficulty : bool
         Boolean value, denoting whether to recompute target
-        difficulties after a tile is moved to the results lsit. Defaults to
+        difficulties after a tile is moved to the results list. Defaults to
         True.
 
-    repeat_targets:
+    repeat_targets: bool
         Boolean value, denoting whether different fields can use the same
         targets that have already been assigned (True), or if each tile
         generated must have an independent set of science targets assigned
         (False). Defaults to False.
 
+    multicores : int
+        The number of threaded processes to use in tile generation. Defaults to
+        1 (i.e. no threading). We recommend you set this value to the number
+        of cores in your system, or one less than.
+
     Returns
     -------
-    tile_list :
+    tile_list : list of :class:`TaipanTile`
         The list of tiles making up the tiling.
 
-    candidate_targets :
+    candidate_targets : list of :class:`TaipanTarget`
         Any targets from candidate_targets that do not
         appear in the final tiling_list (i.e. were not assigned to a successful
         tile).
