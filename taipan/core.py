@@ -5,6 +5,14 @@
 # Created: Marc White, 2015-09-14
 # Last modified: Marc White, 2016-01-19
 
+"""Core functionality for taipan tiling/scheduling module
+
+This module contains the basic functionality for the taipan tiling/scheduling
+code. It defines the basic :class:`TaipanTarget` and :class:`TaipanTile`
+objects (both of which are subclasses of a generic :class:`TaipanPoint` class),
+and associated functionality/cosntants.
+"""
+
 import csv
 import logging
 import math
@@ -27,32 +35,84 @@ from sklearn.neighbors import KDTree as skKDTree
 
 # Code marking & JSON write-out
 VERSION = 0.9
+""":obj:`float`: Code version"""
 NAME = 'TaipanSurveyTiler'
+""":obj:`str`: Name for writing to tile definition files"""
 SOFTWARE_TYPE = 'SurveySimulator'
+""":obj:`str`: Software type for writing to tile definition files"""
 SURVEY = 'Taipan|Taipan'
+""":obj:`str`: Survey string for writing to tile definition files"""
 TILE_CONFIG_FILE_VERSION = 0.1
+""":obj:`float`:Version of tile definition file specification in use"""
 INSTRUMENT_NAME = 'AAO.Taipan'
+""":obj:`str`: Instrument name"""
 FILE_PURPOSE = 'CoD.Testing'
+""":obj:`str`: Purpose for generation of tiles (for tile definition file)"""
 JSON_DTFORMAT_NAIVE = '%Y-%m-%dT%H:%M:%S'
+""":obj:`str`: Format for naive datetime strings in the tile definition file"""
 JSON_DTFORMAT_TZ = '%Y-%m-%dT%H:%M:%S%z'
+""":obj:`str`: Format for timezone-d datetime strings in the tile definition file"""
 
 # Computational break-even points
 # Number of targets needed to make it worth doing difficulty calculations
 # with a KDTREE
 BREAKEVEN_KDTREE = 50
+""":obj:`int`: Number of points after which KDTree distance calculation is done
+
+Using a :any:`cKDTree` for computing the distances between points on a unit 
+sphere (i.e. the distances/grouping of targets/tiles in the survey) is 
+vastly more efficient for large numbers of targets. However, for only a few
+targets, it is faster to just brute-force the distances between all points and
+compute target distances/clustering directly. This value is an initial guess
+for the break-even point where brute-force and :any:`cKDTree` approaches takes
+approximately the same wall time (note this hasn't actually been tested at 
+all, it is a complete guess).
+"""
 
 
 # Instrument variables
 TARGET_PER_TILE = 120
+""":obj:`int`: The maximum number of science targets to be assigned per tile"""
 STANDARDS_PER_TILE = 10
+""":obj:`int`: The maximum number of standard targets to be assigned per tile"""
 STANDARDS_PER_TILE_MIN = 5
+""":obj:`int`: The minimum number of standard targets a tile must have to be 
+valid"""
 SKY_PER_TILE = 20
+""":obj:`int`: The maximum number of sky targets to be assigned per tile"""
 SKY_PER_TILE_MIN = 20
+""":obj:`int`: The minimum number of sky targets a tile must have to be 
+valid"""
 GUIDES_PER_TILE = 9
+""":obj:`int`: The maximum number of guide targets to be assigned per tile"""
 GUIDES_PER_TILE_MIN = 3
+""":obj:`int`: The minimum number of standard targets a tile must have to be 
+valid"""
 FIBRES_PER_TILE = (TARGET_PER_TILE + STANDARDS_PER_TILE 
     + SKY_PER_TILE + GUIDES_PER_TILE)
+""":obj:`int`: The number of fibres per tile, based on the maximum numbers of 
+each target type which may be assigned.
+
+This is computed at module load as 
+``FIBRES_PER_TILE = (TARGET_PER_TILE + STANDARDS_PER_TILE 
++ SKY_PER_TILE + GUIDES_PER_TILE)``.
+"""
 INSTALLED_FIBRES = 159
+""":obj:`int`: The number of fibres installed in the instrument.
+
+This value is simply a number. 
+
+Raises
+------
+Exception
+    Raised if :any:`FIBRES_NORMAL` + 
+    :any:`FIBRES_GUIDE` does not equal :any:`INSTALLED_FIBRES`. Note this check
+    is only performed at module load.
+Exception
+    An :any:`Exception` will be raised if the
+    module detects that :any:`INSTALLED_FIBRES` does not equal 
+    :any:`FIBRES_PER_TILE`.
+"""
 if FIBRES_PER_TILE < INSTALLED_FIBRES:
     raise Exception('WARNING: Not all fibres will be utilised. '
                     'Check the fibre constants in taipan/core.py.')
@@ -374,6 +434,8 @@ BUGPOS_MM = {1: (-129, 87.4),
              308: (133.4, -70.9),
              309: (129, -87.4),
              }
+""":obj:`dict` of :obj:`int`, (:obj:`float`, :obj:`float`) mappings: Home 
+positions of the Taipan fibres in plate millimetres"""
 
 BUGPOS_MM_ORIG = {
              1: (-129.0, 87.4),
@@ -535,22 +597,56 @@ BUGPOS_MM_ORIG = {
              157: (44.9, -3.2),
              158: (49.3, 13.2),
              159: (146.6, -21.7)}
+""":obj:`dict` of :obj:`int`, (:obj:`float`, :obj:`float`) mappings: Home 
+positions of the Taipan fibres in millimetres relative to plate centre
+
+Note
+----
+
+Deprecated. This was the original definition of :any:`BUGPOS_MM`, 
+before the ability to switch to 300-fibre configuration was 
+introduced.
+"""
 
 ARCSEC_PER_MM = 67.2
-# Convert BUGPOS_MM to arcsec
+""":obj:`float`: Conversion factor from millimetres to arcseconds.
+
+Correct usage is: arcseconds = :any:`ARCSEC_PER_MM` * millimetres."""
 BUGPOS_ARCSEC = {key: (value[0]*ARCSEC_PER_MM, value[1]*ARCSEC_PER_MM)
                  for key, value in BUGPOS_MM.iteritems()}
+""":obj:`dict` of :obj:`int`, (:obj:`float`, :obj:`float`) mappings: Home 
+positions of the Taipan fibres in arcseconds relative to plate centre
+
+Values are computed at module load using :any:`BUGPOS_MM` and
+:any:`ARCSEC_PER_MM`.
+"""
 # Convert these lateral shifts into a distance & PA from the
 # tile centre
 BUGPOS_OFFSET = {key : ( math.sqrt(value[0]**2 + value[1]**2), 
                          math.degrees(math.atan2(value[0], value[1])) 
                             % 360., )
                  for key, value in BUGPOS_ARCSEC.iteritems()}
+""":obj:`dict` of :obj:`int`, (:obj:`float`, :obj:`float`) mappings: Home 
+positions of the Taipan fibres in arcsecond distance and position angle from
+the plate centre
+
+Values are computed at module load from :any:`BUGPOS_ARCSEC`. Position angle
+values are stored in degrees.
+"""
 
 # Define which fibres are the guide bundles
 FIBRES_GUIDE = [
     46, 51, 56, 149, 155, 161, 254, 259, 264,
 ]
+""":obj:`list` of `int`: List of guide fibre IDs.
+
+Raises
+------
+Exception
+    Raised if :any:`FIBRES_NORMAL` + 
+    :any:`FIBRES_GUIDE` does not equal :any:`INSTALLED_FIBRES`. Note this check
+    is only performed at module load.
+"""
 FIBRES_GUIDE.sort()
 # Uncomment the following code to force GUIDES_PER_TILE 
 # to be as high as possible
@@ -718,9 +814,25 @@ FIBRES_NORMAL = [f for f in
                   307,
                   308]
                  if f not in FIBRES_GUIDE]
+""":obj:`list` of :obj:`int`: List of normal (i.e. non-guide) fibres installed.
+
+The module will always load with the 150-fibre configuration setup. The correct
+way to switch to the 300-fibre configuration is to use :any:`_alter_fibres`.
+
+Raises
+------
+Exception
+    Raised if :any:`FIBRES_NORMAL` + 
+    :any:`FIBRES_GUIDE` does not equal :any:`INSTALLED_FIBRES`. Note this check
+    is only performed at module load.
+"""
 # FIBRES_NORMAL = [f for f in BUGPOS_OFFSET if f not in FIBRES_GUIDE]
 FIBRES_NORMAL.sort()
 FIBRES_NORMAL_150 = FIBRES_NORMAL[:]
+""":obj:`list` of :obj:`int`: List of normal (i.e. non-guide) fibres installed
+in the 150-fibre configuration.
+
+This is copied from :any:`FIBRES_NORMAL` at module load."""
 
 if len(FIBRES_NORMAL) + len(FIBRES_GUIDE) != INSTALLED_FIBRES:
     raise Exception('The number of fibre positions defined'
@@ -731,14 +843,60 @@ if len(FIBRES_NORMAL) + len(FIBRES_GUIDE) != INSTALLED_FIBRES:
                     (len(FIBRES_NORMAL), len(FIBRES_GUIDE), INSTALLED_FIBRES, ))
 
 FIBRE_EXCLUSION_DIAMETER = 10.0 * 60.0  # arcsec
+""":obj:`float`, arcseconds: The exclusion diameter of a fibre"""
 FIBRE_EXCLUSION_RADIUS = FIBRE_EXCLUSION_DIAMETER / 2.0
+""":obj:`float`, arcseconds: The exclusion radius of a fibre
+
+Computed at module load as :any:`FIBRE_EXCLUSION_DIAMETER` :math:`/ 2.0`"""
 TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec
+""":obj:`float`, arcseconds: Radius of a Taipan tile (i.e. the radius of the 
+field plate
+
+Note
+----
+The tiling code assumes that target centres can be placed on the field out to a 
+distance of :any:`TILE_RADIUS` from the field plate centre. This value may need
+further refinement.
+"""
 TILE_DIAMETER = 2.0 * TILE_RADIUS     # arcsec
+""":obj:`float`, arcseconds: Diameter of a Taipan tile (i.e. the diameter of the 
+field plate
+
+Computed at module load from :any:`TILE_RADIUS`."""
 PATROL_RADIUS = 1.2 * 3600.           # arcsec
+""":obj:`float`, arcseconds: Patrol radius of any given fibre
+
+The patrol radius is the distance any fibre is permitted to move from its home
+position as defined by, e.g., :any:`BUGPOS_ARCSEC` or :any:`BUGPOS_OFFSET`."""
 
 # Quadrant definition for sky fibre allocation
 QUAD_RADII = [TILE_RADIUS, 6830.52, 3415.26, 0.]
+""":obj:`list` of :obj:`float`, arcseconds: Boundaries of the annuli used to
+randomly assign sky fibres.
+
+See :any:`TaipanTile.unpick_tile` for details of how this is used.
+
+Raises
+------
+ValueError
+    Raised if :any:`QUAD_RADII` does not have length one greater than
+    :any:`QUAD_PER_RADII`.
+"""
 QUAD_PER_RADII = [12, 6, 2]
+""":obj:`list` of :obj:`int`: Numbers of sky fibres to assign per annuli defined
+by :any:`QUAD_RADII`.
+
+See :any:`TaipanTile.unpick_tile` for details of how this is used.
+
+Raises
+------
+ValueError
+    Raised if :any:`QUAD_RADII` does not have length one greater than
+    :any:`QUAD_PER_RADII`.
+ValueError
+    Raised if the sum of :any:`QUAD_PER_RADII` (that is, the total number of
+    sky fibres to be assigned to a tile) does not match :any:`SKY_PER_TILE`.
+"""
 if len(QUAD_PER_RADII) != len(QUAD_RADII)-1:
     raise ValueError('QUAD_PER_RADII must have one less element than '
                      'QUAD_RADII')
@@ -747,6 +905,11 @@ if sum(QUAD_PER_RADII) != SKY_PER_TILE:
                       'SKY_PER_TILE. These are meant to be the same!')
 
 FIBRES_PER_QUAD = []
+""":obj:`list` of :obj:`list` of :obj:`int`: Groups fibres by sky quadrant
+
+Each sub-list of :any:`FIBRES_PER_QUAD` gives all the fibres IDs which reside 
+in the same sky fibre quadrant, as computed at module load from 
+:any:`QUAD_RADII` and :any:`QUAD_PER_RADII`."""
 for i in range(len(QUAD_RADII))[:-1]:
     theta = 360. / QUAD_PER_RADII[i]
     for j in range(QUAD_PER_RADII[i]):
@@ -759,8 +922,16 @@ for i in range(len(QUAD_RADII))[:-1]:
 
 
 TARGET_PRIORITY_MIN = 0
+""":obj:`int`: Minimum allowed priority value for a :any:`TaipanTarget`"""
 TARGET_PRIORITY_MAX = 100
+""":obj:`int`: Maximum allowed priority value for a :any:`TaipanTarget`"""
 TARGET_PRIORITY_MS = 50
+""":obj:`int`: Main-survey priority cutoff for :any:`TaipanTarget`
+
+Targets with a priority less than :any:`TARGET_PRIORITY_MS` are considered 
+to be main survey (i.e. not priority) targets, which affects the calculation of
+things like target difficulty.
+"""
 
 
 # -----
@@ -775,25 +946,29 @@ def _alter_fibres(no_fibres=150):
     (i.e. science-capable) fibres. The number (9) and position of guide
     fibres are not changed.
 
-    IMPORTANT: This function is designed to increase the number of fibres to
-    300, or decrease it back down to 150. Sensible behaviour cannot be
-    guaranteed if you raise the number of fibres above the default 150,
-    and then lower it to a number that isn't 150!
+    .. warning: This function is designed to increase the number of fibres to
+                300, or decrease it back down to 150. Sensible behaviour cannot
+                be
+                guaranteed if you raise the number of fibres above the default
+                150,
+                and then lower it to a number that isn't 150!
 
     Parameters
     ----------
-    no_fibres : int, defaults to 150
+    no_fibres : :obj:`int`, defaults to 150
         The number of science-capable fibres to place on the tile.
-        If no_fibres > the current number of fibres, new fibres will be
-        'spawned' half-way between adjacent fibres. If no_fibres < the current
-        number of fibres, the fibres dict will simply be trimmed to the
-        correct length.
-        Due to the identification of guide fibres, no_fibres may not be less
-        than max(FIBRES_GUIDE).
+        The :any:`FIBRES_NORMAL`, :any:`INSTALLED_FIBRES`,
+        :any:`TARGET_PER_TILE` and :any:`FIBRES_PER_TILE` values will be
+        updated as needed.
 
     Returns
     -------
     Nil. Module parameters are updated.
+
+    Raises
+    ------
+    :any:`ValueError`
+        Raised if ``no_fibres`` isn't 150 or 300.
     """
     # Input checking
     no_fibres = int(no_fibres)
@@ -851,7 +1026,7 @@ def aitoff_plottable(radec, ra_offset=0.0):
     
     Parameters
     ----------
-    radec : 2-tuple of floats
+    radec : 2-tuple of float
         Right Ascension and Declination in degrees.
     ra_offset : float
         Number of degrees to offset the centre of the coordinate system.
@@ -859,7 +1034,7 @@ def aitoff_plottable(radec, ra_offset=0.0):
 
     Returns
     -------
-    ra, dec : floats, in radians
+    ra, dec : 2-tuple of float, in radians
         (ra, dec) coordinates in radians
     """
     ra, dec = radec
@@ -873,9 +1048,9 @@ def dist_points(ra, dec, ra1, dec1):
 
     Parameters
     ----------
-    ra, dec : floats, degrees
+    ra, dec : float, degrees
         First position
-    ra1, dec1 : floats, degrees
+    ra1, dec1 : float, degrees
         Second position
 
     Returns
@@ -899,9 +1074,9 @@ def dist_points_approx(ra, dec, ra1, dec1):
 
     Parameters
     ----------
-    ra, dec : floats, degrees
+    ra, dec : float, degrees
         First position
-    ra1, dec1 : floats, degrees
+    ra1, dec1 : float, degrees
         Second position
 
     Returns
@@ -924,9 +1099,9 @@ def dist_points_mixed(ra, dec, ra1, dec1, dec_cut=30.0):
 
     Parameters
     ----------
-    ra, dec : floats, degrees
+    ra, dec : float, degrees
         First position
-    ra1, dec1 : floats, degrees
+    ra1, dec1 : float, degrees
         Second position
     dec_cut: float, optional
         Declination value below which an approximate calculation can be used;
@@ -1003,7 +1178,7 @@ def compute_offset_posn(ra, dec, dist, pa):
     """
     Compute a new position based on a given position, a distance
     from that position, and a position angle from that position.
-    Based on http://williams.best.vwh.net/avform.htm .
+    Based on http://williams.best.vwh.net/avform.htm.
 
     Parameters
     ----------
@@ -1053,7 +1228,7 @@ def generate_ranking_list(candidate_targets,
         :meth:`TaipanTile.assign_tile` and :meth:`TaipanTile.unpick_tile` --
         see the
         documentation for those functions for details. Defaults to 'priority'.
-    combined_weight, sequential_ordering : optional
+    combined_weight, sequential_ordering : float and string, optional
         Extra parameters for the
         'combined_weighted' and 'sequential' ranking options. See docs for
         assign_tile/unpick_tile for details. Defaults to 1.0 and (1,2)
@@ -1061,7 +1236,7 @@ def generate_ranking_list(candidate_targets,
 
     Returns
     -------
-    ranking_list: list of ints or floats
+    ranking_list: list of int or float
         A list of ints/floats describing the ranking of the
         candidate_targets. The largest values corresponds to the
         most highly-ranked target. The positions in the list correspond to the
@@ -1123,40 +1298,50 @@ def compute_target_difficulties(target_list, full_target_list=None,
     """
     Compute the target difficulties for a list of targets.
 
-    Compute the target difficulties for a given list of TaipanTargets. The
-    'difficulty' is simply the number of targets within FIBRE_EXCLUSION_RADIUS
-    of the target of interest. Note that the target itself will be included
-    in this number; therefore, the minimum value of difficulty will be 1.
+    Compute the target difficulties for a given list of :class:`TaipanTarget`s.
+    The 'difficulty' is simply the number of targets within
+    :any:`FIBRE_EXCLUSION_RADIUS` of the target of interest. Note that the
+    target itself will be included in this number; therefore,
+    the minimum value of difficulty will be 1.
 
     Parameters
     ----------
-    target_list : list of :class:`TaipanTarget` s
+    target_list : list of :class:`TaipanTarget`
         The list of TaipanTargets to compute the difficulty for.
-    full_target_list : list of :class: `TaipanTarget`s
-        The full list of targets to use in the difficulty computation. This is
-        useful for situations where targets need to be considered in a 
+    full_target_list : list of :class:`TaipanTarget`
+        The full list of targets to use in the difficulty computation.
+
+        This is useful for situations where targets need to be considered in a
         re-computation of difficulty, but the difficulty of those targets need
         not be updated. This occurs, e.g. when target difficulties must be
         updated after some targets have been assigned to a tile. Only targets
-        within TILE_RADIUS + FIBRE_EXCLUSION_RADIUS of the tile centre need
-        updating; however, targets within 
-        TILE_RADIUS + 2*FIBRE_EXCLUSION_RADIUS need to be considered in the 
-        calculation.
-        If given, target_list MUST be a sublist of full_target_list. If not,
-        an ValueError will be thrown.
-        Defaults to None, in which case, target difficulties are computed for
-        all targets in target_lists against target_list itself.
-    verbose : Boolean, optional
+        within :any:`TILE_RADIUS` + :any:`FIBRE_EXCLUSION_RADIUS` of the tile
+        centre need updating; however, targets within
+        :any:`TILE_RADIUS` + 2 * :any:`FIBRE_EXCLUSION_RADIUS` need to be
+        considered in the calculation.
+        If given, ``target_list`` MUST be a sublist of ``full_target_list``.
+        If not, a ValueError will be raised.
+        Defaults to :any:`None`, in which case, target difficulties are computed
+        for all targets in ``target_list`` against ``target_list`` itself.
+    verbose : bool, optional
         Whether to print detailed debug information to the root logger. Defaults
         to False.
     leafsize : int, optional
         The leafsize (i.e. number of targets) where it becomes more efficient
         to construct a KDTree rather than brute-force the distances between
-        targets. Defaults to the module default (i.e. BREAKEVEN_KDTREE).
+        targets. Defaults to the module default (i.e. :any:`BREAKEVEN_KDTREE`).
 
     Returns
     ------- 
-    Nil. TaipanTargets updated in-place.
+    Nil. :class:`TaipanTarget` within ``target_list`` updated in-place.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``target_list`` is not a sublist of ``full_target_list``.
+    UserWarning
+        Raised if any target in ``target_list`` ends up with a difficulty
+        less than 1.
     """
 
     tree_function = cKDTree
@@ -1228,27 +1413,27 @@ def compute_target_difficulties(target_list, full_target_list=None,
 def targets_in_range(ra, dec, target_list, dist,
                      leafsize=BREAKEVEN_KDTREE):
     """
-    Return the subset of target_list within dist of (ra, dec).
+    Return the subset of ``target_list`` within ``dist`` of (``ra``, ``dec``).
 
     Computes the subset of targets/tiles within range of the given (ra, dec)
     coordinates.
 
     Parameters
     ----------
-    ra, dec : floats
+    ra, dec : float
         The RA and Dec of the position to be investigated, in decimal
         degrees.
-    target_list : list of :class:`TaipanPoint`
+    target_list : list of :class:`TaipanPoint` (or children of)
         The list of TaipanPoint child objects to consider.
     dist : float
         The distance to test against, in *arcseconds*.
     leafsize : int, optional
         The size of the leaves in the KDTree structure. Defaults to
-        BREAKEVEN_KDTREE.
+        :any:`BREAKEVEN_KDTREE`.
 
     Returns
     -------
-    targets_in_range : list of :class:`TaipanPoint`
+    targets_in_range : list of :class:`TaipanPoint` (or children of)
         The list of input targets/tiles which are within dist of
         (ra, dec).
     """
@@ -1285,7 +1470,7 @@ def targets_in_range_multi(ra_dec_list, target_list, dist,
 
     Parameters
     ----------
-    ra_dec_list : iterable of 2-tuples of floats
+    ra_dec_list : iterable of 2-tuples of float
         An iterable of (ra, dec) tuples to compute the targets in range of.
     target_list : list of :class:`TaipanTarget`
         The list of TaipanTarget objects to consider.
@@ -1318,25 +1503,25 @@ def targets_in_range_multi(ra_dec_list, target_list, dist,
     return targets
 
 
-def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS, \
+def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS,
                            leafsize=BREAKEVEN_KDTREE):
     """
-    Alias to targets_in_range_multi for use when passing a list of
+    Alias to :any:`targets_in_range_multi` for use when passing a list of
     TaipanPoint child objects (typically tiles).
 
     Parameters
     ----------
-    tile_list : list of :class:`TaipanPoint`
+    tile_list : list of :class:`TaipanPoint` (or children of)
         List of TaipanPoint objects (typically TaipanTiles).
-    target_list : list of :class:`TaipanPoint`
+    target_list : list of :class:`TaipanPoint` (or children of)
         List of TaipanPoint objects (typically TaipanTargets) to consider.
     leafsize : int, optional
         Optional. Leafsize of the constructed KDTree. Defaults to
-        BREAKEVEN_KDTREE.
+        :any:`BREAKEVEN_KDTREE`.
 
     Returns
     -------
-
+    As for :any:`targets_in_range_multi`.
     """
 
     return targets_in_range_multi(
@@ -1353,16 +1538,18 @@ def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS, \
 
 class TaipanPoint(object):
     """
-    A root class for TaipanTarget and TaipanTile, including RA, Dec and
+    A root class for :class:`TaipanTarget` and :class:`TaipanTile`,
+    including RA, Dec and
     associated convenience functions.
     """
+
     def __init__(self, ra, dec, usposn=None):
         """
         Parameters
         ----------
         ra, dec : float, degrees
             Target RA, Dec in degrees
-        usposn : 3-tuple of floats, optional
+        usposn : 3-tuple of float, optional
             Tile position in (x,y,z) on the unit sphere, defaults to None.
         """
         self._ra = None
@@ -1378,7 +1565,14 @@ class TaipanPoint(object):
         
     @property
     def ra(self):
-        """Target RA"""
+        """:obj:`float`: Right acsension (RA) in decimal degrees
+
+        Raises
+        ------
+        Exception:
+            If ``ra`` is set to :any:`None`; if ``ra`` is outside the range
+            :math:`[0,360)`.
+        """
         return self._ra
 
     @ra.setter
@@ -1390,7 +1584,14 @@ class TaipanPoint(object):
 
     @property
     def dec(self):
-        """Target dec"""
+        """:obj:`float`: Declination (Dec) in decimal degrees
+
+        Raises
+        ------
+        Exception:
+            If ``dec`` is set to :any:`None`; if ``dec`` is outside the range
+            :math:`[-90,90]`.
+        """
         return self._dec
 
     @dec.setter
@@ -1402,7 +1603,18 @@ class TaipanPoint(object):
 
     @property
     def usposn(self):
-        """Target position on the unit sphere, should be 3-list or 3-tuple"""
+        """3-tuple of :obj:`float`: (x,y,z) position on the unit sphere
+
+        This Cartesian representation of the point position is required
+        to utilize the :any:`cKDTree` distance calculation method.
+
+        Raises
+        ------
+        Exception
+            Raised if ``usposn`` is not a 3-tuple (or list), if any of the three
+            values are outside the valid range :math:`[-1,1]`, or if the
+            three values do no satisfy :math:`x^2 + y^2 + z^2 = 1.0`.
+        """
         return self._usposn
 
     @usposn.setter
@@ -1434,9 +1646,14 @@ class TaipanPoint(object):
         Compute the position of this target on the unit sphere from its
         RA and Dec values.
 
-        Parameters
-        ----------
-        Nil.
+        No input parameters are required for this function - the internal values
+        of ``ra`` and ``dec`` are accessed instead.
+
+        Raises
+        ------
+        Exception:
+            Raised if ``ra`` or ``dec`` is :any:`None`. Note that the input
+            checking on these values should protect against this occurring.
         """
         if self.ra is None or self.dec is None:
             raise Exception('Cannot compute usposn because'
@@ -1445,13 +1662,14 @@ class TaipanPoint(object):
         return
 
     def ranked_index(self, usposns, maxdist):
-        """Given a list of positions on the unit sphere, find a ranked list of indices
-        to these points within a maximum distance. NOTE - this can be sped up even
-        more in an obvious way !!!
+        """Given a list of positions on the unit sphere, find a ranked list of
+        indices to these points within a maximum distance.
+
+        .. note: This can be sped up even more in an obvious way!
         
         Parameters
         ----------
-        usposns: numpy (npoints,3) array
+        usposns: numpy (npoints, 3) array
             The unit sphere positions we're to compute distances to
         
         maxdist: float
@@ -1459,22 +1677,24 @@ class TaipanPoint(object):
         
         Returns
         -------
-        ix: numpy int array
+        ix : numpy int array
         """
-        #distance vectors. A numpy way for speed.
-        fibre_dists = usposns - np.tile(self.usposn, len(usposns)).reshape(usposns.shape)
-        #Convert to arcsec, for the magnitude of the vector
+        # distance vectors. A numpy way for speed.
+        fibre_dists = usposns - np.tile(self.usposn, len(usposns)).reshape(
+            usposns.shape)
+        # Convert to arcsec, for the magnitude of the vector
         fibre_dists = dist_angular(np.sqrt(np.sum(fibre_dists**2,1)))*3600.
-        #Consider the closest points/fibers only.
+        # Consider the closest points/fibers only.
         permitted_ix = np.where(fibre_dists < PATROL_RADIUS)[0]
         return permitted_ix[np.argsort(fibre_dists[permitted_ix])]
 
     def dist_usposn(self, usposn):
-        """Given a unit sphere position, find the distance to this target
+        """Given a unit sphere position, find the distance to this
+        :class:`TaipanPoint`
         
         Parameters
         ----------
-        usposn: numpy (3) float array
+        usposn: numpy (3) float array or 3-tuple of :obj:`float`
             The unit sphere position we want to find the distance to.
         
         Returns
@@ -1491,7 +1711,7 @@ class TaipanPoint(object):
 
         Parameters
         ----------
-        radec : 2-tuple of floats
+        radec : 2-tuple of float
             The sky position to test. Should be in decimal degrees.
 
         Returns
@@ -1516,9 +1736,12 @@ class TaipanPoint(object):
         Compute the distance between this target and a given position using
         an approximate calculation.
 
+        This calculation is faster than the full :any:`dist_point` calculation,
+        but sacrifices accuracy the closer the point(s) are to the poles.
+
         Parameters
         ----------
-        radec : 2-tuple of floats
+        radec : 2-tuple of float
             The sky position to test. Should be in decimal degrees.
 
         Returns
@@ -1537,12 +1760,14 @@ class TaipanPoint(object):
     def dist_point_mixed(self, radec, dec_cut=30.):
         """
         Compute the distance between this target and a given position using
-        a split implementation - an approximate calculation near the equator,
+        a split implementation
+
+        This function uses an approximate calculation near the equator,
         and an exact implementation near the poles.
 
         Parameters
         ----------
-        radec : 2-tuple of floats
+        radec : 2-tuple of float
             The sky position to test. Should be in decimal degrees.
         dec_cut: float, optional
             The (absolute) RA value above which the exact implementation
@@ -1565,6 +1790,8 @@ class TaipanPoint(object):
         """
         Compute the distance between this target and another target.
 
+        This function is a convenience wrapper to :any:`dist_point`.
+
         Parameters
         ----------
         tgt : :class:`TaipanTarget`
@@ -1580,7 +1807,10 @@ class TaipanPoint(object):
 
     def dist_target_approx(self, tgt):
         """
-        Compute the APPROX distance between this target and another target.
+        Compute the approximates distance between this target and another
+        target.
+
+        This function is a convenience wrapper to :any:`dist_point_approx`.
 
         Parameters
         ----------
@@ -1598,6 +1828,8 @@ class TaipanPoint(object):
     def dist_target_mixed(self, tgt, dec_cut=30.):
         """
         Compute the mixed distance between this target and another target.
+
+        This function is a convenience wrapper to :any:`dist_target_mixed`.
 
         Parameters
         ----------    
@@ -1618,7 +1850,7 @@ class TaipanPoint(object):
  
 class TaipanTarget(TaipanPoint):
     """
-    Holds information and convenience functions for a TAIPAN
+    Holds information and convenience functions for a Taipan
     observing target.
     """
 
@@ -1729,7 +1961,14 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def idn(self):
-        """TAIPAN target ID"""
+        """:obj:`int`: Target ID
+
+        Raises
+        ------
+        Exception
+            Raised if ``idn`` set to :any:`None`, or to anything other than
+            :obj:`int`.
+        """
         return self._idn
 
     @idn.setter
@@ -1740,6 +1979,14 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def priority(self):
+        """:obj:`int`: Target priority
+
+        Raises
+        ------
+        ValueError
+            Raised if priority is outside the range
+            [:any:`TARGET_PRIORITY_MIN`, :any:`TARGET_PRIORITY_MAX`].
+        """
         return self._priority
 
     @priority.setter
@@ -1753,6 +2000,11 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def priority_original(self):
+        """:obj:`int`: Original :any:`priority` of target
+
+        This is used to keep track of the previous `priority` of the
+        :any:`TaipanTarget` if changed
+        """
         return self._priority_original
 
     @priority_original.setter
@@ -1766,7 +2018,7 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def standard(self):
-        """Is this target a standard"""
+        """:obj:`bool`: Denotes if this target is a standard"""
         return self._standard
 
     @standard.setter
@@ -1776,7 +2028,7 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def science(self):
-        """Is this target a science target"""
+        """:obj:`bool`: Denotes if this target is a science target"""
         return self._science
 
     @science.setter
@@ -1786,7 +2038,7 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def guide(self):
-        """Is this target a guide"""
+        """:obj:`bool`: Denotes if this target is a guide"""
         return self._guide
 
     @guide.setter
@@ -1808,7 +2060,13 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def mag(self):
-        """Target Magnitude"""
+        """:obj:`float`: Target magnitude
+
+        Raises
+        ------
+        AssertionError
+            Raised if ``mag`` outside the range :math:`[-10,30]`.
+        """
         return self._mag
 
     @mag.setter
@@ -1819,7 +2077,7 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def h0(self):
-        """Is this a h0 target?"""
+        """:obj:`bool`: Denotes if this target is an H0-survey target"""
         return self._h0
 
     @h0.setter
@@ -1829,7 +2087,8 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def lowz(self):
-        """Is this a lowz target?"""
+        """:obj:`bool`: Denotes if this target is an low redshift-survey
+        target"""
         return self._lowz
 
     @lowz.setter
@@ -1839,7 +2098,8 @@ class TaipanTarget(TaipanPoint):
 
     @property
     def vpec(self):
-        """Is this a vpec (peculiar velocity) target?"""
+        """:obj:`bool`: Denotes if this target is an peculiar velocity
+        survey target"""
         return self._vpec
 
     @vpec.setter
@@ -1849,12 +2109,8 @@ class TaipanTarget(TaipanPoint):
 
     def return_target_code(self):
         """
-        Return a single-character string based on the type of TaipanTarget passed
-        as a function argument.
-
-        Parameters
-        ----------
-        Nil.
+        Return a single-character string based on the type of TaipanTarget
+        passed as a function argument.
 
         Returns
         -------
@@ -1887,6 +2143,8 @@ class TaipanTarget(TaipanPoint):
         targets that are too close to this target to be on the same
         tile. Note that, if the calling target is in the target list,
         it will appear in the returned list of forbidden targets.
+
+        This is a convenient wrapper for :any:`targets_in_range`.
 
         Parameters
         ----------    
@@ -1954,33 +2212,39 @@ class TaipanTarget(TaipanPoint):
         Calculate & set the difficulty of this target.
 
         Difficulty is defined as the number of targets within a 
-        FIBRE_EXCLUSION_DIAMETER of the calling target. This means that this
-        function will need to be invoked every time the comparison list changes.
+        :any:`FIBRE_EXCLUSION_DIAMETER` of the calling target. This means that
+        this function will need to be invoked every time the comparison list
+        changes.
+
+        This function simply measures the length of the return from
+        :any:`excluded_targets`.
+
+        Note that if the calling target is also within tgts, it will count
+        towards the computed difficulty.
 
         Parameters
         ----------     
         tgts : list of :class:`TaipanTarget`
             List of targets to compare to.
-        approx : Boolean, optional
+        approx : bool, optional
             Boolean value, denoting whether to calculate distances using
             the approximate method. Defaults to False.
-        mixed : Boolean, optional
+        mixed : bool, optional
             Boolean value, denoting whether to calculate distances using
             the mixed method (approx if dec < dec_cut, full otherwise). Defaults
             to False.
 
         Returns
         -------     
-            Nil. Target's difficulty parameter is updated in place. Note
-            that if the calling target is also within tgts, it will count
-            towards the computed difficulty.
+        Nil. Target's difficulty parameter is updated in place.
         """
         self.difficulty = len(self.excluded_targets(tgts))
         return
 
     def compute_difficulty_approx(self, tgts):
         """
-        As for compute_difficulty, but use the approx distance calculation.
+        As for :any:`compute_difficulty`, but use the approximate distance
+        calculation.
 
         Parameters
         ----------
@@ -1992,7 +2256,8 @@ class TaipanTarget(TaipanPoint):
 
     def compute_difficulty_mixed(self, tgts, dec_cut=30.):
         """
-        As for compute_difficulty, but use the mixed distance calculation.
+        As for :any:`compute_difficulty`, but use the mixed distance
+        calculation.
 
         Parameters
         ----------
@@ -2003,7 +2268,7 @@ class TaipanTarget(TaipanPoint):
             Defaults to 30.0
         """
         self.difficulty = len(self.excluded_targets_mixed(tgts,
-            dec_cut=30.))
+                                                          dec_cut=30.))
         return
 
     def is_target_forbidden(self, tgts):
@@ -2017,7 +2282,7 @@ class TaipanTarget(TaipanPoint):
 
         Returns
         -------    
-        forbidden : Boolean
+        forbidden : bool
             If this target is forbidden or not, based on the input target list.
         """
         if len(tgts) == 0:
@@ -2031,7 +2296,7 @@ class TaipanTarget(TaipanPoint):
 
 class TaipanTile(TaipanPoint):
     """
-    Holds information and convenience functions for a TAIPAN tile configuration
+    Holds information and convenience functions for a Taipan tile configuration
     """
 
     def __init__(self, ra, dec, field_id=None, pk=None, usposn=None,
@@ -2045,7 +2310,7 @@ class TaipanTile(TaipanPoint):
             field_id this tile belongs to, defaults to None.
         pk : int, optional
             Tile primary key (from database), defaults to None.
-        usposn : 3-tuple of floats, optional
+        usposn : 3-tuple of float, optional
             Tile position in (x,y,z) on the unit sphere, defaults to None.
         pa : float
             Position angle of tile. Defaults to 0.0.
@@ -2093,8 +2358,25 @@ class TaipanTile(TaipanPoint):
 
     @property
     def fibres(self):
-        """Assignment of fibres"""
+        """:obj:`dict`: Fibre assignments
+
+        ``fibres`` takes the form of a dictionary, with keys corresponding
+        to fibre IDs (as per :any:`FIBRES_NORMAL` and :any:`FIBRES_GUIDE`),
+        and values being either a :any:`TaipanTarget` object, or special
+        string(s) corresponding to special cases.
+
+        Note that the fibres dictionary shouldn't be directly written to;
+        :any:`assign_fibre` should be used instead. Direct assignment to the
+        ``fibres`` dictionary may result in unexpected behaviour.
+
+        Raises
+        ------
+        Exception
+            Raised if the attempted value of ``fibres`` is not a dict, with
+            keys matching :any:`FIBRES_NORMAL` + :any:`FIBRES_GUIDE`.
+        """
         return self._fibres
+
     @fibres.setter
     def fibres(self, d):
         if (not isinstance(d, dict) or [i for
@@ -2111,7 +2393,12 @@ class TaipanTile(TaipanPoint):
 
     @property
     def pa(self):
-        """Tile position angle (PA)"""
+        """:obj:`int`: Tile position angle (PA)
+
+        Raises
+        ------
+        ValueError
+            Raised if ``pa`` outside the allowed range :math:`[0,360)`."""
         return self._pa
 
     @pa.setter
@@ -2123,7 +2410,11 @@ class TaipanTile(TaipanPoint):
 
     @property
     def field_id(self):
-        """Tile field ID"""
+        """:obj:`int`: Field ID for this particular tile.
+
+        In Taipan nomenclature, a *field* is simply a pre-defined position on
+        the sky. Any number of tiles may be generated for a given field.
+        """
         return self._field_id
 
     @field_id.setter
@@ -2136,7 +2427,11 @@ class TaipanTile(TaipanPoint):
 
     @property
     def pk(self):
-        """Unique database ID"""
+        """:obj:`int`: Unique tile identifier
+
+        Designed for use with :any:`TaipanDB`. Should be unique, although no
+        attempt to enforce this is done within Python.
+        """
         return self._pk
 
     @pk.setter
@@ -2149,8 +2444,15 @@ class TaipanTile(TaipanPoint):
 
     @property
     def mag_max(self):
-        """Maximum Target Magnitude"""
+        """:obj:`float`: Maximum target magnitude allowed on this tile
+
+        Raises
+        ------
+        AssertionError
+            Raised if ``mag_max`` is outside the allowed range
+            :math:`(-10,30)`."""
         return self._mag_max
+
     @mag_max.setter
     def mag_max(self, m):
         if m:
@@ -2159,8 +2461,15 @@ class TaipanTile(TaipanPoint):
 
     @property
     def mag_min(self):
-        """Minimum Target Magnitude"""
+        """:obj:`float`: Minimum target magnitude allowed on this tile
+
+        Raises
+        ------
+        AssertionError
+            Raised if ``mag_min`` is outside the allowed range
+            :math:`(-10,30)`."""
         return self._mag_min
+
     @mag_min.setter
     def mag_min(self, m):
         if m:
@@ -2175,6 +2484,12 @@ class TaipanTile(TaipanPoint):
         Note that scheduling based fields (e.g. times, statuses) will *not*
         be included. These should be computed/inserted after this base-level
         dictionary is generated.
+
+        Returns
+        -------
+        :obj:`dict`
+            The dictionary representing the JSON configuration file for this
+            tile
         """
         json_dict = dict()
 
@@ -2240,8 +2555,15 @@ class TaipanTile(TaipanPoint):
 
     def priority(self):
         """
-        Calculate the priority ranking of this tile. Do this by summing
-        up the priorities of the TaipanTargets within the tile.
+        Calculate the priority ranking of this tile.
+
+        Priority ranking is determined as the simple sum of the priority of
+        all assigned science targets.
+
+        Returns
+        -------
+        int
+            The priority ranking of the tile.
         """
         priority = sum([t.priority for t in self.fibres 
                         if isinstance(t, TaipanTarget)
@@ -2251,8 +2573,10 @@ class TaipanTile(TaipanPoint):
 
     def difficulty(self):
         """
-        Calculate the difficulty ranking of this tile. Do this by summing
-        up the difficulties of the TaipanTargets within the tile.
+        Calculate the difficulty ranking of this tile.
+
+        Difficulty ranking is computed as the sum of
+        the difficulties of the TaipanTargets within the tile.
         """
         difficulty = sum([t.difficulty for t in self.fibres 
                           if isinstance(t, TaipanTarget)
@@ -2262,7 +2586,7 @@ class TaipanTile(TaipanPoint):
 
     def remove_duplicates(self, assigned_targets):
         """
-        Un-assign any targets appearing in assigned_objects that are
+        Un-assign any targets appearing in ``assigned_targets`` that are
         attached to a fibre in this tile.
 
         Parameters
@@ -2353,7 +2677,7 @@ class TaipanTile(TaipanPoint):
 
     def compute_fibre_travel(self, fibre):
         """
-        Compute the distance a fibre is from it's home position
+        Compute the distance a fibre is from its home position
 
         Parameters
         ----------
@@ -2362,9 +2686,9 @@ class TaipanTile(TaipanPoint):
 
         Returns
         -------
-        dist : float, in arcsecs
-            The number of arcsecs the fibre is from home. Returns np.nan if this
-            can't be computed (e.g. sky fibre).
+        dist : float, arcsecs
+            The number of arcsecs the fibre is from home. Returns :any:`np.nan`
+            if this can't be computed (e.g. sky fibre).
         """
         fibre_pos = self.compute_fibre_posn(fibre)
         if isinstance(self.fibres[fibre], TaipanTarget):
@@ -2376,7 +2700,8 @@ class TaipanTile(TaipanPoint):
 
     def get_assigned_targets(self, return_dict=False):
         """
-        Return a list of all TaipanTargets currently assigned to this tile.
+        Return a list of all :any:`TaipanTarget` currently assigned to this
+        tile.
 
         Parameters
         ----------    
@@ -2405,16 +2730,18 @@ class TaipanTile(TaipanPoint):
 
         Parameters
         ----------    
-        return_dict : Boolean
+        return_dict : bool
             Boolean value denoting whether to return the result as
             a dictionary with keys corresponding to fibre number (True), or
             a simple list of targets (False). Defaults to False.
             
-        include_science_standards :
-            Do we include here any targets that happen to be both science and standards?
+        include_science_standards : bool
+            Do we include here any targets that happen to be both science and
+            standards?
     
-        include_science_standards :
-            Only include here any targets that happen to be both science and standards.
+        include_science_standards : bool
+            Only include here any targets that happen to be both science and
+            standards.
 
         Returns
         -------    
@@ -2444,8 +2771,9 @@ class TaipanTile(TaipanPoint):
         Parameters
         ----------    
 
-        include_science_standards :
-            Do we include here any targets that happen to be both science and standards?
+        include_science_standards : bool
+            Do we include here any targets that happen to be both science and
+            standards?
 
         Returns
         -------    
@@ -2496,7 +2824,8 @@ class TaipanTile(TaipanPoint):
 
     def get_assigned_targets_guide(self, return_dict=False):
         """
-        Return a list of guide TaipanTargets currently assigned to this tile.
+        Return a list of guide :any:`TaipanTarget` currently assigned to this
+        tile.
 
         Parameters
         ----------    
@@ -2603,9 +2932,9 @@ class TaipanTile(TaipanPoint):
         ----------    
         tgts : list of :class:`TaipanTarget`
             List of targets to check against.
-        leafsize : int, optional
+        leafsize : int
             Leaf size for bulk distance calculations. Defaults to
-            BREAKEVEN_KDTREE.
+            :any:`BREAKEVEN_KDTREE`.
 
         Returns
         -------    
@@ -2620,7 +2949,8 @@ class TaipanTile(TaipanPoint):
         return available_targets
 
     def calculate_tile_score(self, method='completeness',
-                             combined_weight=1.0, disqualify_below_min=True, exp_base=3.0):
+                             combined_weight=1.0, disqualify_below_min=True,
+                             exp_base=3.0):
         """
         Compute a ranking score for this tile.
 
@@ -2640,35 +2970,36 @@ class TaipanTile(TaipanPoint):
         
         'priority-sum' -- The cumulative priority of the assigned targets.
         
-        'priority-expsum' -- The cumulative priority of the assigned targets, raised
-        to an exponential power
-        
+        'priority-expsum' -- The cumulative priority of the assigned targets,
+        raised to an exponential power (i.e. the sum of ``exp_base**priority``).
+
         'priority-prod' -- The priority product of the assigned targets.
-        
+
         'combined-weighted-sum' -- The sum of a combined weight of difficulty
         and priority, as given by the combined_weight variable.
-        
+
         'combined-weighted-prod' -- The product of a combined weight of
         difficulty and priority.
 
         Parameters
-        ----------    
+        ----------
         method : str
             String denoting the ranking method to be used. See above for
             details. Defaults to 'completeness'.
-            
-        combined_weight : float, optional
+
+        combined_weight : float
             Denotes the combined weighting
             to be use for combined-weighted-sum/prod. Defaults to 1.0.
             
-        disqualify_below_min : Boolean, optional
+        disqualify_below_min : bool
             Denotes whether to
-            rank tiles with a nubmer of guides below GUIDES_PER_TILE_MIN or
-            a number of standards below STANDARDS_PER_TILE_MIN a score of
-            0. Defaults to True.
+            rank tiles with a nubmer of guides below :any:`GUIDES_PER_TILE_MIN`
+            or a number of standards below :any:`STANDARDS_PER_TILE_MIN` a
+            score of 0. Defaults to True.
             
-        exp_base : float, optional 
-            Defaults to 2.0.
+        exp_base : float
+            The exponential base used for 'priority-expsum` tile scores.
+            Defaults to 3.0.
 
         Returns
         -------    
@@ -2762,9 +3093,18 @@ class TaipanTile(TaipanPoint):
         Assign sky fibres by randomly selecting one fibre in each of the
         pre-defined quadrants of the tile.
 
-        Returns
-        -------
-        Nil. Fibres on the tile are assigned as 'sky'.
+        The aim of this sky assignment method is to avoid introducing
+        systematics by forcing a pseudo-random selection of which fibre to
+        assign to a sky target. The algorithm works as follows:
+
+        - The tile is divided into a set of annuli, using the radial boundaries
+          specified by :any:`QUAD_RADII`.
+        - Each annuli is split into :any:`QUAD_PER_RADII` chunks. The values of
+          :any:`QUAD_RADII` and :any:`QUAD_PER_RADII` have been tuned such that
+          each resulting tile segment is of equal area.
+        - Within each segment (i.e. for each sub-list within
+          :any:`FIBRES_PER_QUAD`), one fibre is chosen at random and assigned
+          the special value 'sky'.
         """
         logging.info('Assigning sky fibres')
 
@@ -2871,7 +3211,8 @@ class TaipanTile(TaipanPoint):
         Assign a target from the target list to the given fibre in this 
         tile using any one of a multitude of methods. Note that this 
         function will first set the fibre to be empty, and then attempt 
-        to fill it. 
+        to fill it.
+
         This function will not assign a target to a fibre if no valid
         target is available. This is expected behaviour, and NO WARNING
         will be given. Therefore, if no target is available to the fibre,
@@ -2883,7 +3224,7 @@ class TaipanTile(TaipanPoint):
         
         *most_diffucult* - Assign the target within the patrol radius
         that has the most other targets within its exclusion radius 
-        (FIBRE_EXCLUSION_DIAMETER).
+        (:any:`FIBRE_EXCLUSION_DIAMETER`).
         
         *priority* - Assign the highest-priority target within the patrol
         radius.
@@ -2895,7 +3236,7 @@ class TaipanTile(TaipanPoint):
         
         *sequential* - Prioritise targets for this fibre based on closest,
         most_difficult and priority in the order given by
-        sequential_ordering variable (see below).
+        ``sequential_ordering`` argument (see below).
 
         Parameters
         ----------    
@@ -2911,38 +3252,37 @@ class TaipanTile(TaipanPoint):
             all targets are within the tile.
             Defaults to True.
             
-        check_patrol_radius : Boolean, optional
-            Boolean denoting whether the
+        check_patrol_radius : bool
+            Denotes whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the patrol radius of this fibre.
             Defaults to True.
             
-        check_tile_radius : Boolean, optional
-            Boolean denoting whether the
+        check_tile_radius : bool
+            Denotes whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the tile. Defaults to True.
             
-        recompute_difficulty : Boolean, optional
-        
-            Boolean denoting whether to recompute the
+        recompute_difficulty : bool
+            Denotes whether to recompute the
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
-            function (targets affected are within FIBRE_EXCLUSION_RADIUS +
-            TILE_RADIUS of the tile centre; targets for assignment are
-            only within TILE_RADIUS). Defaults to True.
+            function (targets affected are within :any:`FIBRE_EXCLUSION_RADIUS`
+            + :any:`TILE_RADIUS` of the tile centre; targets for assignment are
+            only within :any:`TILE_RADIUS`). Defaults to True.
 
-        method : str, optional
+        method : str
             The method to be used. Must be one of the methods
             specified above. Defaults to ``"combined_weighted"``.
             
-        order_closest_secondary : Boolean, optional
+        order_closest_secondary : bool
             A Boolean value describing if candidate
             targets should be ordered by distance from the fibre rest position
-            as a secondary consideration. Has no effect if method='closest'.
+            as a secondary consideration. Has no effect if ``method='closest'``.
             Defaults to True.
             
-        combined_weight : float, optional
+        combined_weight : float
             A float > 0 describing how to weight between
             difficulty and priority. A value of 1.0 (default) weights
             equally. Values below 1.0 preference difficultly; values
@@ -2950,12 +3290,12 @@ class TaipanTile(TaipanPoint):
             a value of 2.0 will cause priority to be weighted twice as
             heavily as difficulty).
             
-        sequential_ordering : 3-tuple of ints
+        sequential_ordering : 3-tuple of int
             A three-tuple or length-3 list determining
             in which order to sequence potential targets. It must
             contain the integers 0, 1 and 2, which correspond to the
             position of closest (0), most_difficult (1) and priority (2)
-            in the ordering sequence. Defaults to (0, 1, 2).
+            in the ordering sequence. Defaults to (2, 1, 0).
 
         Returns
         -------    
@@ -2968,6 +3308,12 @@ class TaipanTile(TaipanPoint):
             The target that was removed from this fibre
             during the allocation process. Returns None if no object was on
             this fibre originally.
+
+        Raises
+        ------
+        ValueError
+            Raised if the argument restrictions listed in ``Parameters`` are
+            violated.
         """
         FIBRE_ALLOC_METHODS = [
             'closest',
@@ -3110,7 +3456,7 @@ class TaipanTile(TaipanPoint):
         
         *most_difficult* - Attempt to assign the targets in order of descending
         difficulty, where difficulty is defined as the number of targets
-        within FIBRE_EXCLUSION_DIAMETER of the target considered.
+        within :any:`FIBRE_EXCLUSION_DIAMETER` of the target considered.
         NOTE: Difficulty is computed based on the entire candidate_targets
         list, not just those targets within the tile radius.
             
@@ -3129,25 +3475,27 @@ class TaipanTile(TaipanPoint):
         ----------    
         candidate_targets : list of :class:`TaipanTarget`
             Objects to consider assigning to this tile.
-        check_tile_radius : Boolean, optional
+
+        check_tile_radius : bool
             Boolean denoting whether the
             candidate_targets list needs to be trimmed down such that
             all targets are within the tile. Defaults to True.
             
-        recompute_difficulty : Boolean, optional
+        recompute_difficulty : bool
             Boolean denoting whether to recompute the
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
-            function (targets affected are within FIBRE_EXCLUSION_DIAMETER +
-            TILE_RADIUS of the tile centre; targets for assignment are
-            only within TILE_RADIUS). Defaults to True.
+            function (targets affected are within
+            :any:`FIBRE_EXCLUSION_DIAMETER` + :any:`TILE_RADIUS` of the tile
+            centre; targets for assignment are
+            only within :any:`TILE_RADIUS`). Defaults to True.
             
-        method : string, optional.
+        method : str
             The method to use to choose the target to assign (see above).
             Defaults to 'priority'.
             
-        combined_weight : float, optional
+        combined_weight : float
             A float > 0 describing how to weight between
             difficulty and priority. A value of 1.0 (default) weights
             equally. Values below 1.0 preference difficultly; values
@@ -3155,14 +3503,14 @@ class TaipanTile(TaipanPoint):
             a value of 2.0 will cause priority to be weighted twice as
             heavily as difficulty).
             
-        sequential_ordering : 2-tuple of ints, optional
+        sequential_ordering : 2-tuple of int
             A two-tuple or length-2 list determining
             in which order to sequence potential targets. It must
             contain the integers 1 and 2, which correspond to the
             position of most_difficult (1) and priority (2)
-            in the ordering sequence. Defaults to (1, 2).
+            in the ordering sequence. Defaults to (2, 1).
             
-        overwrite_existing : Boolean, optional
+        overwrite_existing : bool
             A Boolean value, denoting whether to overwrite an
             existing target allocation if the best fibre for the chosen target
             already has a target assigned. Defaults to False.
@@ -3177,6 +3525,12 @@ class TaipanTile(TaipanPoint):
         tile_former_tgt : :class:`TaipanTarget`
             The target that may have been removed from the tile
             during this procedure. Returns None if this did not occur.
+
+        Raises
+        ------
+        ValueError
+            Raised if any of the argument constraints listed in ``Parameters``
+            are violated.
         """
         TILE_ALLOC_METHODS = [
             'most_difficult',
@@ -3188,7 +3542,7 @@ class TaipanTile(TaipanPoint):
         # Input checking and type casting
         if method not in TILE_ALLOC_METHODS:
             raise ValueError('Invalid allocation method passed! Must'
-                ' be one of %s' % (str(TILE_ALLOC_METHODS), ))
+                             ' be one of %s' % (str(TILE_ALLOC_METHODS), ))
         combined_weight = float(combined_weight)
         if combined_weight <= 0.:
             raise ValueError('Combined weight must be > 0')
@@ -3197,14 +3551,16 @@ class TaipanTile(TaipanPoint):
                 'containing the ints 1 and 2 once each')
         if recompute_difficulty and not check_tile_radius:
             raise ValueError('recompute_difficulty requires a full '
-                'target list (i.e. that would require check_tile_radius)')
+                             'target list (i.e. that would require '
+                             'check_tile_radius)')
 
         fibre_former_tgt = None
 
         # Calculate rest positions for all fibres
         # Ensure that permitted_fibres *actually exist* (i.e. consider 150 vs 300)
         fibre_posns = {fibre: self.compute_fibre_posn(fibre) 
-            for fibre in BUGPOS_MM if fibre not in FIBRES_GUIDE and fibre in FIBRES_NORMAL}
+                       for fibre in BUGPOS_MM if fibre not in FIBRES_GUIDE and
+                       fibre in FIBRES_NORMAL}
 
         # Trim the candidate list to this tile
         candidate_targets_return = candidate_targets[:]
@@ -3246,7 +3602,8 @@ class TaipanTile(TaipanPoint):
 
             # Identify the closest fibre to this target
             # print 'Finding available fibres...'
-            # PARALLEL: The following lines take up 25% of this routine. Shouldn't use
+            # PARALLEL: The following lines take up 25% of this routine.
+            # Shouldn't use
             # the GIL if possible for threading.
             fibre_dists = {fibre: tgt.dist_point(fibre_posns[fibre])
                 for fibre in fibre_posns}
@@ -3303,12 +3660,13 @@ class TaipanTile(TaipanPoint):
         Assign guides to this tile.
 
         Guides are assigned their own special fibres. This function will
-        attempt to assign up to GUIDES_PER_TILE to the guide fibres. If
+        attempt to assign up to :any:`GUIDES_PER_TILE` to the guide fibres. If
         necessary, it will then remove targets from this tile to allow
-        up to GUIDES_PER_TILE_MIN to be assigned. This is more complex than for
-        standards, because we are not removing targets to assign standards to
-        their fibres - rather, we have to work out the best targets to drop so
-        other fibres are no longer within FIBRE_EXCLUSION_DIAMETER of the guide
+        up to :any:`GUIDES_PER_TILE_MIN` to be assigned. This is more complex
+        than for standards, because we are not removing targets to assign
+        standards to their fibres - rather, we have to work out the best
+        targets to drop so other fibres are no longer within
+        :any:`FIBRE_EXCLUSION_DIAMETER` of the guide
         we wish to assign.
 
         Parameters
@@ -3325,16 +3683,16 @@ class TaipanTile(TaipanPoint):
             
         combined_weight, sequential_ordering : float, 2-tuple of ints
             Additional control options
-            for the specified target_method. See docs for assign_tile/
-            unpick_tile for description. Defaults to 1.0 and (1,2)
+            for the specified target_method. See docs for :any:`assign_tile`/
+            :any:`unpick_tile` for description. Defaults to 1.0 and (2, 1)
             respectively.
             
-        check_tile_radius : Boolean, optional
+        check_tile_radius : bool
             Boolean value, denoting whether to reduce the
             guide_targets list to only those targets within the tile radius.
             Defaults to True.
             
-        rank_guides : Boolean, optional
+        rank_guides : bool
             Attempt to assign guides in priority order. This allows
             for 'better' guides to be specified. Defaults to False.
 
@@ -3527,18 +3885,20 @@ class TaipanTile(TaipanPoint):
         available targets, standards, guides and 'skies' to a particular tile.
         In the case of using a single target allocation method, it is more
         efficient to have a stand-alone function, rather than make repeated 
-        calls to assign_fibre or assign_tile, because the ranking criterion for
-        targets need only be computed once (although, note that this function
-        does call assign_tile and assign_fibre in certain scenarios). 
+        calls to :any:`assign_fibre` or :any:`assign_tile`, because the ranking
+        criterion for targets need only be computed once (although, note that
+        this function does call :any:`assign_tile` and :any:`assign_fibre`
+        in certain scenarios).
+
         For custom unpicking strategies, which may use different target 
         selection methods at different stages, construct your own routine that 
-        uses calls to assign_fibre and/or assign_tile.
+        uses calls to :any:`assign_fibre` and/or :any:`assign_tile`.
 
         This function will attempt to unpick around any existing fibre
-        assignments on this tile. Use the overwrite_existing keyword argument
-        to alter this behaviour.
+        assignments on this tile. Use the ``overwrite_existing`` keyword
+        argument to alter this behaviour.
 
-        Target assignment methods are as for assign_tile.
+        Target assignment methods are as for :any:`assign_tile`.
 
         Parameters
         ----------    
@@ -3547,36 +3907,36 @@ class TaipanTile(TaipanPoint):
             assigning to this tile. These are the science targets.
             
         standard_targets, guide_targets : :class:`TaipanTarget` list
-            Objects
-            to consider assigning to this tile as standards and guides
+            Objects to consider assigning to this tile as standards and guides
             respectively. Standards, guides and sky fibres are assigned after
             science targets.
             
-        overwrite_existing : bool, optional
+        overwrite_existing : :obj:`bool`
             Boolean, denoting whether to remove all existing
             fibre assignments on this tile before attempting to unpick. Defaults
             to False.
             
-        check_tile_radius : bool, optional
+        check_tile_radius : :obj:`bool`
             Boolean denoting whether the
             input target lists need to be trimmed down such that
             all targets are within the tile. Defaults to True.
             
-        recompute_difficulty : bool, optional
+        recompute_difficulty : :obj:`bool`
             Boolean denoting whether to recompute the
             difficulty of the leftover targets after target assignment.
             Note that, if True, check_tile_radius must be True; if not,
             not all of the affected targets will be available to the
-            function (targets affected are within FIBRE_EXCLUSION_DIAMETER +
-            TILE_RADIUS of the tile centre; targets for assignment are
-            only within TILE_RADIUS). Defaults to True.
+            function (targets affected are within
+            :any:`FIBRE_EXCLUSION_DIAMETER` +
+            :any:`TILE_RADIUS` of the tile centre; targets for assignment are
+            only within :any:`TILE_RADIUS`). Defaults to True.
             
-        method : string, optional
+        method : str
             The method to use to choose science targets to assign. See the
             documentation for assign_tile for an explanation of the available
             methods. Defaults to 'priority'.
             
-        combined_weight : float, optional
+        combined_weight : float
             A float > 0 describing how to weight between
             difficulty and priority. A value of 1.0 (default) weights
             equally. Values below 1.0 preference difficultly; values
@@ -3584,35 +3944,35 @@ class TaipanTile(TaipanPoint):
             a value of 2.0 will cause priority to be weighted twice as
             heavily as difficulty).
             
-        sequential_ordering : 2-tuple of ints, optional
+        sequential_ordering : 2-tuple of int
             A two-tuple or length-2 list determining
             in which order to sequence potential targets. It must
             contain the integers 1 and 2, which correspond to the
             position of most_difficult (1) and priority (2)
             in the ordering sequence. Defaults to (2, 1).
             
-        rank_supplements : bool, optional
+        rank_supplements : bool
             Boolean value, denoting whether for rank the lists
             of standards and guides by their priority. This allows for the
             preferential selection of 'better' guides and standards, if this
             information is encapsulated in their stored priority values.
             Defaults to False.
             
-        repick_after_complete : bool, optional
+        repick_after_complete : bool
             value denoting whether to invoke this
-            tile's repick_tile function once unpicking is complete. Defaults to
-            True.
+            tile's :any:`repick_tile` function once unpicking is complete.
+            Defaults to True.
             
-        consider_removed_targets : bool, optional        
+        consider_removed_targets : bool
             Boolean value denoting whether to
-            place targets removed (due to having overwrite_existing=True) back
-            into the candidate_targets list. Defaults to True.
+            place targets removed (due to having ``overwrite_existing=True``)
+            back into the candidate_targets list. Defaults to True.
 
-        assign_sky_first : bool, optional
+        assign_sky_first : bool
             Flag denoting whether to assign to sky fibres as the first step
             of unpicking (True), or simply make the 'leftover' fibres sky at
             the end of unpicking (False). Defaults to True. Assigning the
-            sky fibres semi-randomly first via the self.assign_sky() method
+            sky fibres semi-randomly first via the :any:`assign_sky` method
             has the advantage of avoiding systematic issues with making
             certain fibres the desginated sky fibres, and attempts to ensure
             an even distribution of sky fibres.
@@ -3627,9 +3987,16 @@ class TaipanTile(TaipanPoint):
             Any science targets that are removed from the tile and not
             re-assigned will also be appended to this list.
             
-        removed_targets : empty list
+        removed_targets : empty :obj:`list`
             Deprecated - will now always be the empty list. A
             warning will be printed if this list somehow becomes non-empty.
+
+        Raises
+        ------
+        ValueError
+            Raised if any of the argument limitations are violated. See the
+            ``Parameters`` section above, as well as the documentation for
+            :any:`assign_fibre` and :any:`assign_tile`.
         """
 
 
@@ -3643,16 +4010,17 @@ class TaipanTile(TaipanPoint):
         # Input checking and type casting
         if method not in TILE_ALLOC_METHODS:
             raise ValueError('Invalid allocation method passed! Must'
-                ' be one of %s' % (str(TILE_ALLOC_METHODS), ))
+                             ' be one of %s' % (str(TILE_ALLOC_METHODS), ))
         combined_weight = float(combined_weight)
         if combined_weight <= 0.:
             raise ValueError('Combined weight must be > 0')
         if sorted(list(sequential_ordering)) != [1,2]:
             raise ValueError('sequential_ordering must be a list or 2-tuple '
-                'containing the 1 and 2 once each')
+                             'containing the 1 and 2 once each')
         if recompute_difficulty and not check_tile_radius:
             raise ValueError('recompute_difficulty requires a full '
-                'target list (i.e. that would require check_tile_radius)')
+                             'target list (i.e. that would require '
+                             'check_tile_radius)')
 
         removed_targets = []
 
@@ -4134,7 +4502,7 @@ class TaipanTile(TaipanPoint):
             (i.e. file will be saved in present working directory.) Note that,
             if defined, the destination directory must already exist, or an
             IOError will be raised.
-        return_filename : Boolean, optional
+        return_filename : Boolean
             Boolean value denoting whether the function should return the
             full path to the written file. Defaults to False.
 

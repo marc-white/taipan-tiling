@@ -15,6 +15,7 @@ Contents:
    install
    overview
    taipan-tiling
+   simulator
 
 Indices and tables
 ==================
