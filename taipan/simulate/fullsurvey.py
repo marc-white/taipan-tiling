@@ -70,6 +70,17 @@ def hours_obs_reshuffle(f,
     return hrs
 
 
+def field_period_reshuffle(f,
+                           dt=None, per_end=None,
+                           ):
+    with get_connection().cursor() as cursor_int:
+        period = rAS.next_observable_period(
+            cursor_int, f, dt,
+            datetime_to=per_end,
+        )
+    return period
+
+
 def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                    commit=True):
     """
@@ -336,14 +347,24 @@ def select_best_tile(cursor, dt, per_end,
         field_list=list(scores_array['field_id']),
         resolution=resolution)
     fields_available.sort(order='field_id')
-    field_periods = {r['field_id']: rAS.next_observable_period(
-        cursor, r['field_id'], dt,
-        datetime_to=per_end,
-    ) for
-        r in
-        # scores_array
-        fields_available
-    }
+
+    if multipool_workers == 1:
+        field_periods = {r['field_id']: rAS.next_observable_period(
+            cursor, r['field_id'], dt,
+            datetime_to=per_end,
+        ) for
+            r in
+            # scores_array
+            fields_available
+        }
+    else:
+        field_periods_partial = partial(field_period_reshuffle, dt=dt,
+                                        per_end=per_end)
+        pool = multiprocessing.Pool(multipool_workers)
+        field_periods = pool.map(field_periods_partial, fields_available)
+        pool.close()
+        pool.join()
+
     # logging.debug('Next observing period for each field:')
     # logging.debug(field_periods)
     # logging.info('Next available field will rise at %s' %
