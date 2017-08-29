@@ -335,9 +335,10 @@ def select_best_tile(cursor, dt, per_end,
         cursor, dt, datetime_to=per_end,
         field_list=list(scores_array['field_id']),
         resolution=resolution)
+    fields_available.sort(order='field_id')
     field_periods = {r['field_id']: rAS.next_observable_period(
         cursor, r['field_id'], dt,
-        datetime_to=per_end
+        datetime_to=per_end,
     ) for
         r in
         # scores_array
