@@ -15,4 +15,5 @@ tandem.
    :maxdepth: 2
 
    simulator_highlevel
+   simulator_lowlevel
 

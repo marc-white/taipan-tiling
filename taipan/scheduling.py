@@ -1,3 +1,10 @@
+"""Taipan scheduling functionality.
+
+This module handles the details of scheduling for the Taipan simulator/tiling
+package, including the computation of visibilities, time conversions, sun/moon
+positions, etc.
+"""
+
 import numpy as np
 import datetime
 import pytz
@@ -19,40 +26,60 @@ import ephem
 # define twilight values for when observing can start/must end
 
 SOLAR_TWILIGHT_HORIZON = np.radians(-10.)      # radians everywhere
+""":obj:`float`, radians: Sun distance below the horizon at solar twilight"""
 LUNAR_TWILIGHT_HORIZON = np.radians(0.)        # radians everywhere
+""":obj:`float`, radians: Moon distance below the horizon at lunar twilight"""
 
 SOLAR_HORIZON = SOLAR_TWILIGHT_HORIZON - np.radians(0.24)
+""":obj:`float`, radians: Sun distance below the horizon at dark time"""
 LUNAR_HORIZON = LUNAR_TWILIGHT_HORIZON - np.radians(0.27)
+""":obj:`float`, radians: Moon distance below the horizon at dark time"""
 
 SUN = ephem.Sun()
+""":any:`ephem.Sun`: :any:`ephem` Sun object"""
 MOON = ephem.Moon()
+""":any:`ephem.Sun`: :any:`ephem` Moon object"""
 
 # define and establish emph.Observer object for UKST-Taipan
 #  all from https://en.wikipedia.org/wiki/Siding_Spring_Observatory
 UKST_LATITUDE = -31.272231
-UKST_LONGITUDE = +149.071233 
+""":obj:`float`: Latitude of the UK Schmidt Telescope"""
+UKST_LONGITUDE = +149.071233
+""":obj:`float`: Longitude of the UK Schmidt Telescope"""
 UKST_ELEVATION = 1165  # metres
+""":obj:`float`: Elevation of the UK Schmidt Telescope"""
 UKST_TIMEZONE = pytz.timezone('Australia/Sydney')
+""":any:`pytz.timezone`: Local timezone of the UK Schmidt Telescope"""
 
 # Create a standard ephem Observer object for UKST
 UKST_TELESCOPE = ephem.Observer()
+""":any:`ephem.Observer`: :any:`ephem` Observer object representing UKST"""
 UKST_TELESCOPE.lat = np.radians(UKST_LATITUDE)   # radians everywhere
 UKST_TELESCOPE.lon = np.radians(UKST_LONGITUDE)  # radians everywhere
 UKST_TELESCOPE.elevation = UKST_ELEVATION
 UKST_TELESCOPE.temp = 10.
 
 SECONDS_PER_DAY = 86400.
+""":obj:`float`: Number of seconds per day"""
 
 ALMANAC_RESOLUTION_MAX = 60. * 4.
+""":obj:`float`: Maximum allowed resolution of :any:`Almanac` objects"""
 
 # Constant for converting from ephem times to MJD
 EPHEM_TO_MJD = 15019.5
+""":obj:`float`: Conversion factor between :any:`ephem` and standard MJD 
+times"""
 EPHEM_DT_STRFMT = '%Y/%m/%d %H:%M:%S'
+""":obj:`str`: Standard formatting string for :any:`ephem` datetimes"""
 
 # Observing constants
 SLEW_TIME = (5. * 60.) + (0.8 * 60)  # seconds, configure + calibrations
+""":obj:`float`, seconds: Slew time of the UKST"""
 OBS_TIME = (15. * 60.) + (1. * 60.)  # seconds, obs + readout
+""":obj:`float`, seconds: Length of a Taipan observation, including readout"""
 POINTING_TIME = (SLEW_TIME + OBS_TIME) / SECONDS_PER_DAY  # days
+""":obj:`float`, days: Time for a total observation (slew + observe), in *days* 
+"""
 
 
 # ______________________________________________________________________________
@@ -62,16 +89,18 @@ POINTING_TIME = (SLEW_TIME + OBS_TIME) / SECONDS_PER_DAY  # days
 def get_utc_datetime(dt, tz=UKST_TIMEZONE):
     """
     Compute a UTC datetime from a naive datetime (dt) in a given timezone (tz)
+
     Parameters
     ----------
-    dt:
+    dt: :any:`datetime.datetime`
         Naive datetime to be converted to UTC.
-    tz:
-        Timezone that the naive datetime is in. Defaults to UKST_TIMEZONE.
+    tz: :any:`pytz.timezone`
+        Timezone that the naive datetime is in. Defaults to
+        :any:`UKST_TIMEZONE`.
 
     Returns
     -------
-    dt_utc:
+    dt_utc: :any:`datetime.datetime`
         A timezone-aware datetime, with tz=pytz.utc.
     """
 
@@ -81,22 +110,23 @@ def get_utc_datetime(dt, tz=UKST_TIMEZONE):
 
 def get_ephem_set_rise(date, observer=UKST_TELESCOPE):
     """
-    Determine the sunrise and sunset for the given date
+    Determine the sunrise and sunset for the given date.
+
     Parameters
     ----------
-    date:
+    date: :any:`datetime.date`
         The date of the observing night. Note this is the date the night starts
-        on. Should be a Python datetime.date object.
-    observer:
+        on.
+    observer: :any:`ephem.Observer`
         An ephem.Observer instance holding information on the observing
-        location. Defaults to UKST_TELESCOPE.
+        location. Defaults to :any:`UKST_TELESCOPE`.
 
     Returns
     -------
-    sunrise, sunset:
+    sunrise, sunset: float
         The time of sunset on the given night, and the following sunrise. Note
         that the values returned are in the date standard of the ephem module -
-        to convert to MJD, add EPHEM_TO_MJD
+        to convert to MJD, add :any:`EPHEM_TO_MJD`.
     """
     # Set the observer date to midday before observing starts
     observer.date = get_utc_datetime(datetime.datetime.combine(
@@ -110,21 +140,21 @@ def get_ephem_set_rise(date, observer=UKST_TELESCOPE):
 
 def ephem_to_dt(ephem_dt, fmt=EPHEM_DT_STRFMT):
     """
-    Convert a pyephem dt to a Python datetime object. Note that the output
-    datetime.datetime will be in UTC, NOT local.
+    Convert an :any:`ephem` dt to a Python :any:`datetime.datetime` object.
+    Note that the output datetime.datetime will be in UTC, NOT local.
+
     Parameters
     ----------
-    ephem_dt:
-        The pyephem dt to convert. Float
+    ephem_dt: float
+        The pyephem dt to convert.
     fmt:
-        Optional, the strptime format for converting to datetime. Defaults to
-        EPHEM_DT_STRFMT.
+        Deprecated.
 
     Returns
     -------
-    dt:
-        A Python datetime.datetime instance. It will be timezone-naive, but the
-        value will correspond to UTC.
+    dt: :any:`datetime.datetime`
+        A Python :any:`datetime.datetime` instance. It will be timezone-naive,
+        but the value will correspond to UTC.
     """
     # dt = datetime.datetime.strptime(str(ephem.Date(ephem_dt)), fmt)
     dt = ephem.Date(ephem_dt).datetime()
@@ -134,17 +164,18 @@ def ephem_to_dt(ephem_dt, fmt=EPHEM_DT_STRFMT):
 def localize_utc_dt(dt, tz=UKST_TIMEZONE):
     """
     Convert a naive datetime (which is assumed to be UTC) to a local datetime
+
     Parameters
     ----------
-    dt:
+    dt: :any:`datetime.datetime`
         Input datetime. Should be timezone-naive, but intended to represent
         UTC.
-    tz:
+    tz: :any:`pytz.timezone`
         The timezone to push the datetime into.
 
     Returns
     -------
-    dt_local:
+    dt_local: :any:`datetime.datetime`
         A local datetime. Note that dt_local will still be timezone-naive.
     """
     dt_local = pytz.utc.localize(dt).astimezone(tz).replace(tzinfo=None)
@@ -158,14 +189,14 @@ def utc_local_dt(dt, tz=UKST_TIMEZONE):
 
     Parameters
     ----------
-    dt:
+    dt: :any:`datetime.datetime`
         The datetime to convert.
-    tz:
+    tz: :any:`pytz.timezone`
         The 'local' timezone. Defaults to UKST_TIMEZONE.
 
     Returns
     -------
-    dt_utc:
+    dt_utc: :any:`datetime.datetime`
         A naive timezone, but cast into UTC timezone.
     """
     dt_utc = tz.localize(dt).astimezone(pytz.utc).replace(tzinfo=None)
@@ -180,6 +211,11 @@ class Almanac(object):
     """
     Object which stores observability information for a specific point on the
     sky.
+
+    At its core, and :any:`Almanac` object is mapping of datetimes to
+    sky brightness, sun and moon altitude, and other useful information. It is
+    cheaper to pre-compute this information and store it rather than generate
+    it on-the-fly (particularly when interfacing with :any:`TaipanDB`).
     """
 
     # Define class attributes
@@ -197,8 +233,12 @@ class Almanac(object):
     # Setters & getters
     @property
     def ra(self):
-        """
-        RA for this almanac
+        """:obj:`float`: Right ascension (RA) for this Almanac
+
+        Raises
+        ------
+        ValueError
+            Raised if passed RA is outside the allowed range :math:`[0,360)`.
         """
         return self._ra
 
@@ -214,8 +254,12 @@ class Almanac(object):
 
     @property
     def dec(self):
-        """
-        RA for this almanac
+        """:obj:`float`: Declination (Dec) for this Almanac
+
+        Raises
+        ------
+        ValueError
+            Raised if passed Dec is outside the allowed range :math:`[-90,90]`.
         """
         return self._dec
 
@@ -231,9 +275,7 @@ class Almanac(object):
 
     @property
     def field_id(self):
-        """
-        Field_id this Almanac corresponds to
-        """
+        """:obj:`int`: Field ID this :any:`Almanac` corresponds to"""
         return self._field_id
 
     @field_id.setter
@@ -243,8 +285,13 @@ class Almanac(object):
 
     @property
     def start_date(self):
-        """
-        Almanac start date as a datetime date object
+        """:any:`datetime.datetime`: First date in this :class:`Almanac`
+
+        Raises
+        ------
+        ValueError
+            Raised if ``start_date`` is not an instance of
+            :any:`datetime.datetime`, or is after ``end_date``.
         """
         return self._start_date
 
@@ -261,8 +308,13 @@ class Almanac(object):
 
     @property
     def end_date(self):
-        """
-        Almanac start date as a datetime date object
+        """:any:`datetime.datetime`: Last date in this :class:`Almanac`
+
+        Raises
+        ------
+        ValueError
+            Raised if ``end_date`` is not an instance of
+            :any:`datetime.datetime`, or is before ``start_date``.
         """
         return self._end_date
 
@@ -273,16 +325,22 @@ class Almanac(object):
                              "datetime.datetime.date")
         if self.start_date is not None:
             if d < self.start_date:
-                raise ValueError("Requested end_date is after the existing "
+                raise ValueError("Requested end_date is before the existing "
                                  "start_date for this almanac")
         self._end_date = d
 
     @property
     def data(self):
-        """
-        An OrderedDict of the type:
-        date_j2000: airmass
-        An OrderedDict is used to keep the entries in date (i.e. key) order
+        """:any:`numpy.ndarray`: Airmass data
+
+        Should be a two-column :any:`numpy.ndarray`, with columns ``date``
+        and ``airmass``.
+
+        Raises
+        ------
+        ValueError
+            Raised if the passed array is not of the correct structure (or
+            not an array at all)
         """
         return self._data
 
@@ -300,8 +358,18 @@ class Almanac(object):
 
     @property
     def minimum_airmass(self):
-        """
-        The minimum airmass that this almanac will consider 'observable'
+        """:obj:`float`: minimum airmass considered 'observable'
+
+        Although called `minimum_airmass`, it is really the maximum airmass
+        that will be considered observable. The 'minimum' comes from it being
+        the minimum altitude above the horizon considered observable.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``minimum_airmass` is outside the valid range (0, 100).
+            Note that the maximum practical value of airmass is :math:`~38`;
+            values up to 100 are allowed as 99 is used as a special value.
         """
         return self._minimum_airmass
 
@@ -321,8 +389,16 @@ class Almanac(object):
 
     @property
     def resolution(self):
-        """
-        Resolution of almanac in minutes
+        """:obj:`float`, mins: :class:`Almanac` resolution
+
+        The resolution parameter dictates how finely-grained the date
+        information stored in the :class:`Almanac` is.
+
+        Raises
+        ------
+        ValueError
+            Raise if `resolution` is outside the allowed range
+            :math:`(0,` :any:`ALMANAC_RESOLUTION_MAX` :math:`)`.
         """
         return self._resolution
 
@@ -338,8 +414,12 @@ class Almanac(object):
 
     @property
     def observer(self):
-        """
-        ephem observer object
+        """:any:`ephem.Observer`: :any:`ephem` Observer for this :any:`Almanac`
+
+        Raises
+        ------
+        ValueError
+            Raised if anything but an :any:`ephem.Observer` is provided
         """
         return self._observer
 
@@ -353,17 +433,45 @@ class Almanac(object):
     # Helper functions
     def compute_end_date(self, observing_period):
         """
-        Compute the end date for this almanac and set it
+        Compute the end date for this :any:`Almanac` and set it.
+
+        Parameters
+        ----------
+        observing_period : float
+            The length of the observing period in days.
         """
         delta = datetime.timedelta(observing_period)
         end_date = self.start_date + delta
         self.end_date = end_date
 
     def get_observing_period(self):
+        """
+        Compute and return the observing period for this :any:`Almanac`
+
+        Returns
+        -------
+        float, days
+            The observing period of the :any:`Almanac` in days
+        """
         return (self.end_date -
                 self.start_date).total_seconds() / SECONDS_PER_DAY
 
     def generate_file_name(self):
+        """
+        Generate the file name for this :class:`Almanac`.
+
+        To use the inbuilt functionality of this module to automatically find
+        and read in :class:`Almanac` objects from file without having to
+        re-compute them, it is important that they are saved to disk using
+        the file name generated by this function.
+
+        Returns
+        -------
+        filename : :obj:`str`
+            A file name for this :class:`Almanac`, constructed from its
+            parameters (i.e. dates, resolutions, sky position). The file
+            extension used is ``.amn``.
+        """
         filename = 'almanac_R%3.1f_D%2.1f_start%s_end%s_res%3f.amn' % (
             self.ra, self.dec, self.start_date.strftime('%y%m%d'),
             self.end_date.strftime('%y%m%d'), self.resolution,
@@ -375,6 +483,48 @@ class Almanac(object):
                  observing_period=None, observer=UKST_TELESCOPE,
                  minimum_airmass=2.0, resolution=15.,
                  populate=True, alm_file_path='./'):
+        """
+        __init__ function for the :class:`Almanac` class.
+
+        Assuming ``populate=True``, this function will attempt to load an
+        Almanac from file by looking in `alm_file_path` for a file with a name
+        matching the one generated by :any:`generate_file_name`. If found,
+        it will load the data without the need for recomputation.
+
+        Parameters
+        ----------
+        ra : :obj:`float`, decimal degrees
+            Right ascension
+        dec : :obj:`float`, decimal degrees
+            Declination
+        start_date : :obj:`datetime.datetime`
+            Start date
+        end_date : :obj:`datetime.datetime`
+            End date
+        observing_period : :obj:`float`, days
+            Length of observing period for this :class:`Almanac`. Defaults to
+            :obj:`None` (is not required if ``end_date`` is used).
+        observer : :any:`ephem.Observer`
+            Defaults to :any:`UKST_TELESCOPE`
+        minimum_airmass : float
+            Maximum airmass (i.e. minimum altitude) to be considered
+            observable. Defaults to 2.0.
+        resolution : float, minutes
+            Resolution of the :any:`Almanac`. Defaults to 15.
+        populate : bool
+            Flag denoting whether ``__init__`` method should populate the data
+            arrays. Defaults to try.
+        alm_file_path : :obj:`str`, path
+            File path where the function should look for saved almanacs.
+            Defaults to the present working directory.
+
+        Raises
+        ------
+        ValueError
+            Raised if the user attempts to specify neither of ``end_date`` or
+            ``observing_period``. If both are specified, ``end_date`` takes
+            precedence.
+        """
         if end_date is None and observing_period is None:
             raise ValueError("Must specify either one of end_date or "
                              "observing_period")
@@ -407,8 +557,25 @@ class Almanac(object):
 
     # Save & read from disk
     # Uses pickle to seralize objects
-    # These functions are maintained for legacy purposes only
     def save(self, filename=None, filepath=alm_file_path):
+        """
+        Save this :class:`Almanac` to disk using :any:`pickle`.
+
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name to give to the output file. Defaults to None, so that
+            :any:`generate_file_name` will be used instead. Keeping this value
+            as :obj:`None` is *strongly* recommended.
+        filepath : :obj:`str`
+            Directory to save the :any:`Almanac` to. Defaults to
+            :any:`alm_file_path`.
+
+        Raises
+        ------
+        ValueError
+            Raised if the provided ``filepath`` does not end in '/'.
+        """
         if filepath[-1] != '/':
             raise ValueError('filepath must end with /')
         if filename is None:
@@ -419,12 +586,31 @@ class Almanac(object):
 
     def load(self, filepath=alm_file_path):
         """
+        Load almanac data from file.
+
         This function will attempt to load an almanac based on the file name of
         almanacs available in the directory specified by filepath. This will be
         based on the RA, Dec, starttime, endtime and resolution information
         encoded within the filename. If successful, the function returns True.
         If a filename matching the calling
         almanac is not found, then the function will exit and return False.
+
+        Parameters
+        ----------
+        filepath : :obj:`str`
+            Path to the directory in which saved :class:`Almanac` objects may
+            be found.
+
+        Returns
+        -------
+        bool
+            True denotes that data was successfully loaded from file; False
+            denotes otherwise.
+
+        Raises
+        ------
+        ValueError
+            Raised if the provided ``filepath`` does not end in '/'.
         """
         if filepath is None:
             filepath = './'
@@ -455,6 +641,25 @@ class Almanac(object):
 
     # Computation functions
     def generate_almanac_bruteforce(self, full_output=True):
+        """
+        Compute Almanac data.
+
+        Parameters
+        ----------
+        full_output : :obj:`bool`
+            Denotes whether the function should return all the computed data
+            (True), or the total number of data points computed (False).
+            Defaults to True.
+
+        Returns
+        -------
+        time_total : :obj:`float`, hours
+            The number of hours that this :class:`Almanac` has had computed
+            for it. Only returned if ``full_output=False``.
+        dates_j2000, sol_alt, lun_alt, target_alt, dark_time : :obj:`numpy.array`
+            Full computed Almanac data. Only returned if ``full_output=True``.
+
+        """
         # Define almanac-dependent horizons
         observable = np.arcsin(1. / self.minimum_airmass)
 
@@ -557,18 +762,18 @@ class Almanac(object):
 
         Parameters
         ----------
-        datetime_from:
+        datetime_from: :obj:`datetime.datetime`
             Datetime which to consider from. Must be within the bounds of the
             Almanac.
-        datetime_to:
+        datetime_to: :obj:`datetime.datetime`
             Datetime which to consider to. Defaults to None, in which case the
             entire Almanac is checked from datetime_from.
-        tz:
+        tz: :obj:`pytz.timezone`
             The pytz timezone the observer is in. Defaults to UKST_TIMEZONE.
 
         Returns
         -------
-        obs_start, obs_end:
+        obs_start, obs_end: float
             The start and end times when this field is observable. Note that
             datetimes are returned in pyephem format.
         """
@@ -640,15 +845,16 @@ class Almanac(object):
         """
         Calculate how many hours this field is observable for between two
         datetimes.
+
         Parameters
         ----------
-        datetime_from, datetime_to:
+        datetime_from, datetime_to: :obj:`datetime.datetime`
             The datetimes between which we should calculate the number of
             observable hours remaining. These datetimes must be between the
             start and end dates of the almanac, or an error will be returned.
             datetime_to will default to None, such that the remainder of the
             almanac will be used.
-        exclude_grey_time, exclude_dark_time:
+        exclude_grey_time, exclude_dark_time: :obj:`bool`
             Boolean value denoting whether to exclude grey time or dark time
             from the calculation. Defaults to exclude_grey_time=True,
             exclude_dark_time=False (so only dark time will be counted as
@@ -658,24 +864,24 @@ class Almanac(object):
             True, False (dark time only)
             Attempting to set both value to True will raise a ValueError, as
             this would result in no available observing time.
-        dark_almanac:
+        dark_almanac: :class:`DarkAlmanac`
             An instance of DarkAlmanac used to compute whether time is grey or
             dark. Defaults to None, at which point a DarkAlmanac will be
             constructed (if required).
-        tz:
+        tz: :obj:`pytz.timezone`
             The timezone that the (naive) datetime objects are being passed as.
             Defaults to UKST_TIMEZONE.
-        hours_better:
+        hours_better: :obj:`bool`
             Optional Boolean, denoting whether to return only
             hours_observable which have airmasses superior to the airmass
             at datetime_now (True) or not (False). Defaults to False.
-        minimum_airmass: float
+        minimum_airmass: :obj:`float`
             Something of a misnomer; this is actually the *maximum* airmass at which
             a field should be considered visible (a.k.a. the minimum altitude).
             Defaults to 2.0 (i.e. an altitude of 30 degrees). If hours_better
             is used, the comparison airmass will be the minimum of the airmass at
             datetime_from and minimum_airmass.
-        airmass_delta : float
+        airmass_delta : :obj:`float`
             Denotes the delta airmass that should be used to compute
             hours_observable if hours_better=True. The hours_observable will be
             computed against a threshold airmass value of
@@ -686,7 +892,7 @@ class Almanac(object):
 
         Returns
         -------
-        hours_obs:
+        hours_obs: :obj:`float`
             The number of observable hours for this field between datetime_from
             and datetime_to.
 
@@ -849,7 +1055,6 @@ class Almanac(object):
 class DarkAlmanac(Almanac):
     """
     Subclass of Almanac, which holds information on what times are 'dark'
-    Holds no RA, Dec information
     """
 
     _sun_alt = None
@@ -857,6 +1062,9 @@ class DarkAlmanac(Almanac):
     # Setters and getters
     @property
     def ra(self):
+        """
+        Locked to 0.
+        """
         return 0.
 
     @ra.setter
@@ -868,6 +1076,9 @@ class DarkAlmanac(Almanac):
 
     @property
     def dec(self):
+        """
+        Locked to 0.
+        """
         return self._dec
 
     @dec.setter
@@ -879,6 +1090,9 @@ class DarkAlmanac(Almanac):
 
     @property
     def minimum_airmass(self):
+        """
+        Locked to 2.0.
+        """
         return self._minimum_airmass
 
     @minimum_airmass.setter
@@ -890,9 +1104,12 @@ class DarkAlmanac(Almanac):
     @property
     def data(self):
         """
-        An OrderedDict of the type:
-        date_j2000: airmass
-        An OrderedDict is used to keep the entries in date (i.e. key) order
+        As for the data attribute of :any:`Almanac`, but with different columns
+
+        The columns required for a :any:`DarkAlmanac` ``data`` array are:
+        'date'
+        'dark_time'
+        'sun_alt'
         """
         return self._data
 
@@ -1040,19 +1257,22 @@ class DarkAlmanac(Almanac):
         Internal helper function.
         Calculate the start (and if needed, end) pyehpem dt for computing a
         night/grey/dark period.
-        dt:
+
+        Parameters
+        ----------
+        dt: : :obj:`datetime.datetime`
             Datetime from which to begin searching.
-        limiting_dt:
+        limiting_dt: :obj:`datetime.datetime`
             Datetime beyond which should not be investigated. Useful for, e.g.
             getting the dark time for a single night. Defaults to None, at which
             point the entire DarkAlmanac will be searched.
-        tz:
+        tz: :obj:`pytz.timezone`
             The timezone of the naive datetime object passed as dt. Defaults
             to UKST_TELESCOPE.
 
         Returns
         -------
-        ephem_dt, ephem_limiting_dt:
+        ephem_dt, ephem_limiting_dt: float
             The start and end dts of the interval in question, expressed in the
             pyephem datetime convention.
         """
@@ -1088,21 +1308,22 @@ class DarkAlmanac(Almanac):
     def next_night_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Determine when the next period of night time is
+
         Parameters
         ----------
-        dt:
+        dt: :obj:`datetime.datetime`
             Datetime from which to begin searching.
-        limiting_dt:
+        limiting_dt: :obj:`datetime.datetime`
             Datetime beyond which should not be investigated. Useful for, e.g.
             getting the dark time for a single night. Defaults to None, at which
             point the entire DarkAlmanac will be searched.
-        tz:
+        tz: :obj:`pytz.timezone`
             The timezone of the naive datetime object passed as dt. Defaults
             to UKST_TELESCOPE.
 
         Returns
         -------
-        night_start, night_end:
+        night_start, night_end: float
             The datetimes at which the next block of night time starts and ends.
             If dt is in a night time period, dark_start should be approximately
             dt (modulo the resolution of the DarkAlmanac). Note that values
@@ -1152,21 +1373,22 @@ class DarkAlmanac(Almanac):
     def next_dark_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Determine when the next period of dark time is
+
         Parameters
         ----------
-        dt:
+        dt: :obj:`datetime.datetime`
             Datetime from which to begin searching.
-        limiting_dt:
+        limiting_dt: :obj:`datetime.datetime`
             Datetime beyond which should not be investigated. Useful for, e.g.
             getting the dark time for a single night. Defaults to None, at which
             point the entire DarkAlmanac will be searched.
-        tz:
+        tz: :obj:`pytz.timezone`
             The timezone of the naive datetime object passed as dt. Defaults
             to UKST_TELESCOPE.
 
         Returns
         -------
-        dark_start, dark_end:
+        dark_start, dark_end: float
             The datetimes at which the next block of dark time starts and ends.
             If dt is in a dark time period, dark_start should be approximately
             dt (modulo the resolution of the DarkAlmanac). Note that values
@@ -1214,21 +1436,22 @@ class DarkAlmanac(Almanac):
     def next_grey_period(self, dt, limiting_dt=None, tz=UKST_TIMEZONE):
         """
         Determine when the next period of grey time is
+
         Parameters
         ----------
-        dt:
+        dt: :obj:`datetime.datetime`
             Datetime from which to begin searching.
-        limiting_dt:
+        limiting_dt: :obj:`datetime.datetime`
             Datetime beyond which should not be investigated. Useful for, e.g.
             getting the dark time for a single night. Defaults to None, at which
             point the entire DarkAlmanac will be searched.
-        tz:
+        tz: :obj:`pytz.timezone`
             The timezone of the naive datetime object passed as dt. Defaults
             to UKST_TELESCOPE.
 
         Returns
         -------
-        grey_start, grey_end:
+        grey_start, grey_end: float
             The datetimes at which the next block of grey time starts and ends.
             If dt is in a grey time period, dark_start should be approximately
             dt (modulo the resolution of the DarkAlmanac). Note that values
