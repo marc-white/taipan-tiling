@@ -434,7 +434,7 @@ def select_best_tile(cursor, dt, per_end,
 
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
-                               unobserved=True, threshold_value=50,
+                               unobserved=True, threshold_value=30,
                                assigned_only=True)
         lowz_of_interest = [f for f in fields_to_calculate if f in lowz_fields]
         stan_fields = [f for f in fields_to_calculate if f not in
