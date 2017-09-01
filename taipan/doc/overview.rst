@@ -1,5 +1,6 @@
+***************
 System overview
-===============
+***************
 
 This page is designed to provide a high-level overview of how the
 tiling system works. This overview predominantly covers the
@@ -7,6 +8,18 @@ tiling system works. This overview predominantly covers the
 module; users should review the TaipanDB documentation for how this is
 interfaced with the database system. Simulator/scheduling operations
 are described elsewhere (TBD).
+
+Tiling
+======
+
+'Tiling' is the generic name for the procedure of assigning any kind of
+target (science object, standard, guide, sky, ...) to a particular pointing
+of the telescope. As the survey progresses, a series of circular 'tiles' are
+built-up across the sky.
+
+To implement this concept in code, we have developed :any:`python` objects
+which represent targets in the Taipan survey, and the tiles they may be
+assigned to.
 
 :any:`TaipanTarget` objects
 ---------------------------
@@ -128,6 +141,49 @@ sky receive a special value of ``'sky'`` instead of a reference to a
 will attempt to position fibres assigned as sky around the assigned target.
 Cone of Darkness has authority to switch fibre assignments to assist it in
 placing the sky fibres.
+
+.. _simulation:
+
+Simulation
+==========
+
+Live Operations
+===============
+
+Live operations have yet to be implemented. However, this should be a fairly
+straightforward re-packaging of the :ref:`simulation` code,
+to be triggered
+by the :any:`Jeeves` virtual observer at the appropriate times. The imagined
+workflow is as follows:
+
+1. During day time, the code will plan (using
+   :any:`taipan.simulate.sim_do_night`) observations for the upcoming evening.
+   With the ``instant_dq`` option disabled (and fake data quality analysis
+   disabled as well), the remaining tiles will be set as ``queued`` in the
+   database.
+2. Observing definition files for each queued tile will be written to a
+   specified location in the Taipan computing architecture. These tiles will
+   contain timestamps in their filenames, allowing :any:`Jeeves` to identify
+   which tile to observe when.
+3. :any:`Jeeves` will attempt to execute the night's observing plan, as implied
+   by the observing definition files present. Not all tiles may be executed due
+   to, e.g., weather losses, and on tiles that are observed, not every target
+   may be successfully observed.
+4. Throughout the night and into the morning, the :any:`TLDR` data reduction
+   system will be processing incoming data, and writing the results
+   (success/failure) of observations back to the managing database.
+5. Once data reduction is complete, all fields affected by the night's
+   observations will be re-tiled, removing the existing prepared tiles for those
+   fields. This has the effect of folding-in the results from the night's
+   observations.
+
+At this point, the sequence returns to step 1.
+
+Under this scheme, the tiling/scheduling code has no work to do overnight.
+It is considered wise to allow the scheduler to run during the day, allowing
+human operators to confirm it is operating correctly before observations begin.
+A later goal of the survey is to implement live re-scheduling. The scheme for
+this would be as follows:
 
 .. rubric:: Footnotes
 
