@@ -225,10 +225,10 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 11, 4)
+    sim_start = datetime.date(2017, 12, 4)
     sim_end = datetime.date(2022, 7, 1)
     global_start = datetime.datetime.now()
-    prior_lowz_end = datetime.date(2019, 2, 13) - sim_start
+    prior_lowz_end = datetime.date(2022, 7, 1) - sim_start
 
     kill_time = None
     # kill_time = datetime.datetime(2019, 1, 1, 0, 0, 0)
