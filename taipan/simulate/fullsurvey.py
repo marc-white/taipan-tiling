@@ -364,6 +364,8 @@ def select_best_tile(cursor, dt, per_end,
         field_periods = pool.map(field_periods_partial, fields_available)
         pool.close()
         pool.join()
+        field_periods = {fields_available[i]: field_periods[i] for i
+                         in range(len(field_periods))}
 
     # logging.debug('Next observing period for each field:')
     # logging.debug(field_periods)
