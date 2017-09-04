@@ -1712,6 +1712,7 @@ def select_and_replace_best_tile(tile_list, ranking_list, candidate_tiles,
     
     return remaining_priority_targets
 
+
 def repick_within_radius(tile_list, candidate_tiles, candidate_targets_range, 
                          standard_targets_range, guide_targets_range, 
                          tile_unpick_settings, n_radii=2):
@@ -1848,14 +1849,84 @@ def perform_greedy_tiling(candidate_targets, candidate_targets_range,
                             for tile in candidate_tiles]
                             
     return candidate_targets, candidate_targets_range, tile_list
+
+
+def greedy_tile_mag_range(candidate_targets, standard_targets, guide_targets, 
+                          candidate_tiles, ranking_method, disqualify_below_min_range, 
+                          exp_base, mag_ranges, completeness_target, 
+                          completeness_priority, recompute_difficulty, randomise_pa, 
+                          tile_unpick_settings, mag_ranges_prioritise, range_ix, 
+                          priority_normal, prioritise_extra):
+    """Function to perform a greedy sky tiling for a given magnitude range.
     
+    Single parameter output in the form of a list enables for parallel computation of 
+    differing magnitude ranges using the joblib library.
     
-def test(a, b, output):
-    """Small function for testing multiprocessing.
+    TODO: Clean up input list and dependencies, current form is minimally working version
+    for initial parallel implementation.
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    
     """
-    c = a + b
-    output.put([a,b,c])
-    return c
+    # Initialise the tile list
+    tile_list = []
+    
+    mag_range = mag_ranges[range_ix]
+    
+    # Perform check to see if using priority magnitude ranges
+    try:
+        mag_range_prioritise = mag_ranges_prioritise[range_ix]
+    except:
+        mag_range_prioritise = None
+    
+    # Check to see if this is the final magnitude range to be considered
+    last_range = not (range_ix < (len(mag_ranges) - 1))  
+    
+    # Determine targets, standards, and guides                                                   
+    candidate_targets_range = get_targets_mag_range(candidate_targets, mag_range, 
+                                                    [priority_normal,
+                                                    prioritise_extra],
+                                                    mag_range_prioritise, last_range)  
+    
+    standard_targets_range = get_standards_mag_range(standard_targets, mag_range)
+    
+    non_candidate_guide_targets = get_guides_mag_range(guide_targets, 
+                                                       candidate_targets_range)
+    
+    logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0], mag_range[1]))
+    logging.info("Mag range to prioritize: {0:5.1f} {1:5.1f}".format(
+             mag_range_prioritise[0],mag_range_prioritise[1]))
+    logging.info("Number of targets in this range: {0:d}".format(
+             len(candidate_targets_range)))
+    
+    # Generate tiling for the magnitude range
+    candidate_targets, candidate_targets_range, tile_list = perform_greedy_tiling(
+            candidate_targets, candidate_targets_range, standard_targets_range, 
+            non_candidate_guide_targets, candidate_tiles, ranking_method, 
+            disqualify_below_min_range, exp_base, mag_range, completeness_target, 
+            completeness_priority, recompute_difficulty, randomise_pa, 
+            tile_unpick_settings)
+      
+    # Now return the priorities to as they were for the remaining targets.
+    for target in candidate_targets_range:
+        target.priority = target.priority_original
+    
+    # Consolidate the tiling
+    tile_list = tiling_consolidate(tile_list)
+
+    print "......Done"
+      
+    logging.info('For mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
+        mag_range_prioritise[1]))
+    logging.info('Total Tiles so far = {0:d}'.format(len(tile_list))) 
+    
+    return [candidate_targets, candidate_targets_range, tile_list]
+    
+    
 
 def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
                                  guide_targets, completeness_target = 1.0,
@@ -1871,7 +1942,7 @@ def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
                                  tile_unpick_method='combined_weighted',
                                  combined_weight=4.0, sequential_ordering=(2, 1), 
                                  rank_supplements=False, repick_after_complete=True, 
-                                 exp_base=3.0, recompute_difficulty=True, nthreads=0):
+                                 exp_base=3.0, recompute_difficulty=True, n_cores=1):
     """
     Generate a tiling based on the greedy algorithm operating on a set of magnitude 
     ranges sequentially. Within each magnitude range, a complete set of tiles are 
@@ -2006,6 +2077,7 @@ def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
         raise ValueError('completeness_target must be in the range (0, 1]')
     
     # Dictionary of tiling settings
+    # TODO: Pass this in separately, rather than defining here
     tile_unpick_settings = {"overwrite_existing":True, 
                             "check_tile_radius":True, 
                             "recompute_difficulty":False, 
@@ -2027,66 +2099,34 @@ def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
         if is_within_bounds(t, ra_min, ra_max, dec_min, dec_max)]
 
     candidate_targets_master = candidate_targets[:]
+    #candidate_targets = mp.Manager().list(candidate_targets_master)
     
     # Initialise some of our counter variables
     no_submitted_targets = len(candidate_targets_master)
     if no_submitted_targets == 0:
         raise ValueError('Attempting to generate a tiling with no targets!')
     
-    # Perform the tiling algorithm for every magnitude range
-    disqualify_below_min_range = disqualify_below_min
-    for range_ix, mag_range in enumerate(mag_ranges):
-        # Initialise the tile list
-        tile_list = []
+    # Generate a greedy style tiling for each magnitude range    
+    results = Parallel(n_jobs=n_cores, backend="multiprocessing")(
+                delayed(greedy_tile_mag_range)(candidate_targets[:], standard_targets,
+                                               guide_targets, 
+                                               candidate_tiles, ranking_method, 
+                                               disqualify_below_min, 
+                                               exp_base, mag_ranges, 
+                                               completeness_target, 
+                                               completeness_priority, 
+                                               recompute_difficulty, randomise_pa, 
+                                               tile_unpick_settings, 
+                                               mag_ranges_prioritise, range_ix,
+                                               priority_normal, prioritise_extra)
+                                        for range_ix, mag_range in enumerate(mag_ranges))  
         
-        # Perform check to see if using priority magnitude ranges
-        try:
-            mag_range_prioritise = mag_ranges_prioritise[range_ix]
-        except:
-            mag_range_prioritise = None
-        
-        # Check to see if this is the final magnitude range to be considered
-        last_range = not (range_ix < (len(mag_ranges) - 1))  
-        
-        # Determine targets, standards, and guides                                                   
-        candidate_targets_range = get_targets_mag_range(candidate_targets, mag_range, 
-                                                        [priority_normal,
-                                                        prioritise_extra],
-                                                        mag_range_prioritise, last_range)  
-        
-        standard_targets_range = get_standards_mag_range(standard_targets, mag_range)
-        
-        non_candidate_guide_targets = get_guides_mag_range(guide_targets, 
-                                                           candidate_targets_range)
-        
-        logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0], mag_range[1]))
-        logging.info("Mag range to prioritize: {0:5.1f} {1:5.1f}".format(
-                 mag_range_prioritise[0],mag_range_prioritise[1]))
-        logging.info("Number of targets in this range: {0:d}".format(
-                 len(candidate_targets_range)))
-        
-        # Generate tiling for the magnitude range
-        candidate_targets, candidate_targets_range, tile_list = perform_greedy_tiling(
-                candidate_targets, candidate_targets_range, standard_targets_range, 
-                non_candidate_guide_targets, candidate_tiles, ranking_method, 
-                disqualify_below_min_range, exp_base, mag_range, completeness_target, 
-                completeness_priority, recompute_difficulty, randomise_pa, 
-                tile_unpick_settings)
-          
-        # Now return the priorities to as they were for the remaining targets.
-        for target in candidate_targets_range:
-            target.priority = target.priority_original
-        
-        # Consolidate the tiling
-        tile_list = tiling_consolidate(tile_list)
-    
-        print "......Done"
-          
-        logging.info('For mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
-            mag_range_prioritise[1]))
-        logging.info('Total Tiles so far = {0:d}'.format(len(tile_list)))   
-        
-        tile_lists.append(tile_list)
+    # Join everything back together, where results are of form:
+    # [candidate_targets, candidate_targets_range, tile_list]
+    # TODO: Combine separate versions of candidate_targets after each magnitude range 
+    # returns, or create multiprocessing safe version
+    for range_ix in xrange(len(mag_ranges)):
+        tile_lists.append(results[range_ix][2])
 
     # Concatenate tiling lists from each range
     tile_list = []
@@ -2096,69 +2136,23 @@ def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
     # Return the tiling, the completeness factor and the remaining targets
     final_completeness = float(no_submitted_targets 
         - len(candidate_targets)) / float(no_submitted_targets)
-
+    
+    # Perform a global re-pick if not done during tiling
     if not repick_after_complete:
-        # Do a global re-pick, given we didn't do it on the fly
-        print "Performing global repick..."
+        start = time.time()
+        print "Performing global repick...",
+        
         for t in tile_list:
             t.repick_tile()
+            
+        finish = time.time()
+        delta = finish - start
+        print ("done in %d:%02.1f") % (delta/60, delta % 60.)
     
     print "Tiling complete! \n"
     
     return tile_list, final_completeness, candidate_targets   
     
-    """
-        # Construct processes
-        processes.append(mp.Process(target=tile_mag_range, args=(
-            candidate_targets[:], candidate_targets_range, standard_targets_range, 
-            non_candidate_guide_targets, candidate_tiles, tile_unpick_method, 
-            combined_weight, sequential_ordering,  rank_supplements,  
-            repick_after_complete, ranking_method, disqualify_below_min_range, exp_base, 
-            mag_range, mag_ranges_prioritise[range_ix], completeness_target, 
-            completeness_priority, recompute_difficulty, randomise_pa, output)))
-        processes[-1].name = str(mag_range)
-        #processes.append(mp.Process(target=test, args=(mag_range[0],mag_range[1],output)))
-    # Limit the number of active processes at any one time
-    total_processes = len(processes)
-    finished_processes = 0
-    
-    for process in processes:
-        print process.name
-    
-    while len(processes) > 0:
-        print len(processes)
-        # Start processes up to the limit
-        running_processes = []
-        
-        for process_i in xrange(0, nthreads):
-            if len(processes) > 0:
-                running_processes.append(processes.pop())
-                
-        # Run processes
-        for process_i in running_processes:
-            print "Starting process:", process_i.name
-            process_i.start()
-        
-        print len(running_processes)
-        
-        # Exit the completed processes    
-        for process_i in running_processes:
-            print "Ending process:", process_i.name
-            candidate_targets_i, candidate_targets_range_i, tile_list_i = output.get()
-            tile_lists.append(tile_list_i)
-            process_i.join()
-            
-            finished_processes += 1
-            
-    # Get the results
-    #for mag_range_i in xrange(0, total_processes):
-        #candidate_targets_i, candidate_targets_range_i, tile_list_i = output.get()
-            
-        #tile_lists.append(tile_list_i)
-    
-    import pdb
-    pdb.set_trace()
-    """ 
 
 # ----------------------------------------------------------------------------------------
 

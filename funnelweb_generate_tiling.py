@@ -164,7 +164,7 @@ print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
 #-----------------------------------------------------------------------------------------
 print 'Commencing tiling...'
 start = datetime.datetime.now()
-tiling, completeness, remaining_targets = tl.generate_tiling_funnelweb(
+tiling, completeness, remaining_targets = tl.generate_tiling_funnelweb_mp(
     candidate_targets, 
     standard_targets, 
     guide_targets,
@@ -190,7 +190,7 @@ tiling, completeness, remaining_targets = tl.generate_tiling_funnelweb(
     exp_base=fwts.settings["exp_base"],
     recompute_difficulty=fwts.settings["recompute_difficulty"], 
     disqualify_below_min=fwts.settings["disqualify_below_min"], 
-    nthreads=fwts.settings["nthreads"])
+    n_cores=fwts.settings["n_cores"])
 end = datetime.datetime.now()
 
 #-----------------------------------------------------------------------------------------

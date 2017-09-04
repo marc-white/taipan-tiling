@@ -13,8 +13,8 @@ catalogue = ("/Users/adamrains/Catalogues/all_tgas.fits")
 settings = OrderedDict([("input_catalogue", catalogue),
                         ("tab_type", "gaia"),
                         ("ra_min", 0),
-                        ("ra_max", 10),
-                        ("dec_min", -10),
+                        ("ra_max", 30),
+                        ("dec_min", -30),
                         ("dec_max", 0),
                         ("gal_lat_limit", 0),
                         ("tiling_method", "SH"),
@@ -44,5 +44,5 @@ settings = OrderedDict([("input_catalogue", catalogue),
                         ("repick_after_complete", False),
                         ("recompute_difficulty", True),
                         ("disqualify_below_min", True),
-                        ("prioritise_close", True),
-                        ("nthreads", 0)])
+                        ("prioritise_close", False),
+                        ("n_cores", 4)])
