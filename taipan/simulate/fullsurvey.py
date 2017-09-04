@@ -55,10 +55,32 @@ SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 # HELPER FUNCITONS
 
 
-def hours_obs_reshuffle(f,
-                        # cursor=get_connection().cursor(),
+def _hours_obs_reshuffle(f,
+                         # cursor=get_connection().cursor(),
                         dt=None, datetime_to=None,
-                        hours_better=True, airmass_delta=0.05):
+                         hours_better=True, airmass_delta=0.05):
+    """
+    Helper function for parallelizing the determination of hours observable
+
+    Parameters
+    ----------
+    f : :obj:`int`
+        Field ID
+    dt : :obj:`datetime.datetime`
+        Current datetime
+    datetime_to : :obj:`datetime.datetime`
+        Datetime to consider to for the computation of hours available.
+    hours_better : :obj:`bool`
+        See documentation for :any:`readAlmanacStats.hours_observable`.
+    airmass_delta : obj:`float`
+        See documentation for :any:`readAlmanacStats.hours_observable`.
+
+    Returns
+    -------
+    hrs: :obj:`float`
+        The number of hours that this field remains observable over the
+        prescribed time period.
+    """
     # Multipool process needs its own cursor
     # if cursor is None:
     #     cursor = get_connection().cursor()
@@ -70,9 +92,28 @@ def hours_obs_reshuffle(f,
     return hrs
 
 
-def field_period_reshuffle(f,
-                           dt=None, per_end=None,
-                           ):
+def _field_period_reshuffle(f,
+                            dt=None, per_end=None,
+                            ):
+    """
+    Helper function for parallelizing the retrieval of next available field
+    period
+
+    Parameters
+    ----------
+    f : :obj:`int`
+        Field ID
+    dt : :obj:`datetime.datetime`
+        Datetime that we are searching forward from (inclusively)
+    per_end : :obj:`datetime.datetime`
+        End of the time period we are searching through
+
+    Returns
+    -------
+    period : (:obj:`datetime.datetime`, :obj:`datetime.datetime`) or
+    (:obj:`None`, :obj:`None`)
+        Time period that this field is observable for
+    """
     with get_connection().cursor() as cursor_int:
         period = rAS.next_observable_period(
             cursor_int, f, dt,
@@ -358,7 +399,7 @@ def select_best_tile(cursor, dt, per_end,
             fields_available
         }
     else:
-        field_periods_partial = partial(field_period_reshuffle, dt=dt,
+        field_periods_partial = partial(_field_period_reshuffle, dt=dt,
                                         per_end=per_end)
         pool = multiprocessing.Pool(multipool_workers)
         field_periods = pool.map(field_periods_partial, fields_available)
@@ -401,7 +442,7 @@ def select_best_tile(cursor, dt, per_end,
                       row in scores_array if
                       row['field_id'] in fields_available}
 
-    hours_obs_stan_partial = partial(hours_obs_reshuffle,
+    hours_obs_stan_partial = partial(_hours_obs_reshuffle,
                                      # cursor=cursor,
                                      dt=dt,
                                      datetime_to=dt + datetime.timedelta(
@@ -410,7 +451,7 @@ def select_best_tile(cursor, dt, per_end,
                                      airmass_delta=0.05
                                      )
 
-    hours_obs_lowz_partial = partial(hours_obs_reshuffle,
+    hours_obs_lowz_partial = partial(_hours_obs_reshuffle,
                                      # cursor=cursor,
                                      dt=dt,
                                      datetime_to=max(

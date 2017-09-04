@@ -157,7 +157,8 @@ by the :any:`Jeeves` virtual observer at the appropriate times. The imagined
 workflow is as follows:
 
 1. During day time, the code will plan (using
-   :any:`taipan.simulate.sim_do_night`) observations for the upcoming evening.
+   :any:`taipan.simulate.fullsurvey.sim_do_night`) observations for the upcoming
+   evening.
    With the ``instant_dq`` option disabled (and fake data quality analysis
    disabled as well), the remaining tiles will be set as ``queued`` in the
    database.
