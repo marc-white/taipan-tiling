@@ -1,6 +1,12 @@
 High-level Simulator Functionality
 ==================================
 
+taipan.simulate.simulate
+------------------------
+
+.. automodule:: taipan.simulate.simulate
+    :members:
+
 taipan.simulate.fullsurvey
 --------------------------
 

@@ -125,25 +125,27 @@ def _field_period_reshuffle(f,
 def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                    commit=True):
     """
+    Perform initial database set-up at the start of the run
+
     This initial step prepares the database for the simulation run by getting
     the fields in from the database, performing the initial tiling of fields,
-    and then returning that information to the database for later use.\d
+    and then returning that information to the database for later use.
+
+    Note that this function does *not* do any target loading, almanac loading
+    or related functions - these should have been done previously using the
+    utitlies available in :any:`TaipanDB`.
 
     Parameters
     ----------
-    cursor:
+    cursor : :obj:`psycopg2.connection.cursor`
         psycopg2 cursor for interacting with the database.
-    prepare_time:
+    prepare_time: :obj:`datetime.datetime`
         Optional; datetime.datetime instance that the database should be
         considered to be prepared at (e.g., initial tiles will have
         date_config set to this). Defaults to datetime.datetime.now().
-    commit:
+    commit: :obj:`bool`
         Optional; Boolean value denoting whether to hard-commit changes to
         actual database. Defaults to True.
-
-    Returns
-    -------
-    Nil. Database updated in place.
     """
 
     logger = logging.getLogger()
@@ -209,6 +211,82 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                     prob_lowz_each=0.8, prisci=False,
                     do_diffs=False,
                     hrs_better=None, airmass=None):
+    """
+    Perform simulated data analysis on simulated observations
+
+    This function is effectively a wrapper to
+    :any:`taipan.simulate.simulate.test_redshift_success`.
+    It also handles all the
+    necessary database options around the actual determination of the
+    redshift success. The procedure is:
+
+    - Get the target IDs of all observed targets
+    - Run `taipan.simulate.test_redshift_success` on these targets
+    - Record the result to the observing log first
+    - Increment the visits or repeats number of the targets in the database
+      as appropriate (visits increments if the observation was unsuccessful,
+      repeats increments and visits goes to 0 if successful)
+    - Update the science target information (e.g. priorities) based on the
+      updated success/visits/repeats
+    - Mark the tiles passed in as 'observed' in the database
+    - Set all tiles in the database to be unqueued
+
+    Note that this algorithm has two important assumptions:
+
+    - Targets will only be observed once on the tile set passed in. Therefore,
+      this function should be called before every attempt to re-tile
+      any fields based on observational results.
+    - *All* tiles marked as 'queued' in the simulator (that is, sent to be
+      observed, but status currently unknown) should be passed to this function
+      at once. The last step of the algorithm above (set all tiles to unqueued)
+      is a safety check against errant flags, and will destroy the queued
+      status of any tiles that are legitimately still queued, even if they've
+      not been passed to this function.
+
+
+    Parameters
+    ----------
+    cursor : :obj:`psycopg2.connection.cursor`
+        Cursor for database communication
+    tiles_observed : :obj:`list` of :any:`TaipanTile`
+        The list of :any:`TaipanTile` observed
+    tiles_observed_at : :obj:`list` of :obj:`datetime.datetime`
+        The list of times that ``tiles_observed`` were observed at. There
+        is a one-to-one correspondence between tiles and observing times.
+    prob_bugfail : :obj:`float`
+        The probability of any one Starbug failing (e.g. failing to find
+        correct position, falling off the plate, other malfunction) for any
+        one observation. Must be <= 1.
+    prob_vpec_first : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the first visit. Must be <= 1.
+    prob_vpec_second : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the second visit. Must be <= 1.
+    prob_vpec_third : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the second visit. Must be <= 1.
+    prob_vpec_fourth : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the second visit. Must be <= 1.
+    prob_lowz_each : :obj:`float`
+        Probability that a low redshift science target will be successfully
+        observed on *any* visit. Must be <= 1.
+    prisci : :obj:`bool`
+        Flag denoting whether to use priority science or main survey tiling
+        schema.
+    do_diffs : :obj:`bool`
+        Flag denoting whether to recompute target difficulties are evaluating
+        observation success.
+    hrs_better : :obj:`float`
+        DEPRECATED. The hours_better value of the tile when observed. This
+        functionality is now handled by the observing_log database table; should
+        leave this as default value (:obj:`None`).
+    airmass : obj:`float`
+        DEPRECATED. The airmass the tile when observed. This
+        functionality is now handled by the observing_log database table; should
+        leave this as default value (:obj:`None`).
+    """
     # -------
     # FAKE DQ/SCIENCE ANALYSIS
     # -------
