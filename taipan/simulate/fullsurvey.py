@@ -474,16 +474,17 @@ def select_best_tile(cursor, dt, per_end,
         ) for
             r in
             # scores_array
-            fields_available
+            fields_available['field_id']
         }
     else:
         field_periods_partial = partial(_field_period_reshuffle, dt=dt,
                                         per_end=per_end)
         pool = multiprocessing.Pool(multipool_workers)
-        field_periods = pool.map(field_periods_partial, fields_available)
+        field_periods = pool.map(field_periods_partial,
+                                 fields_available['field_id'])
         pool.close()
         pool.join()
-        field_periods = {fields_available[i]: field_periods[i] for i
+        field_periods = {fields_available['field_id'][i]: field_periods[i] for i
                          in range(len(field_periods))}
 
     # logging.debug('Next observing period for each field:')
