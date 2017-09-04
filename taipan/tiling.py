@@ -1632,9 +1632,17 @@ def select_and_replace_best_tile(tile_list, ranking_list, candidate_tiles,
                                  candidate_targets, candidate_targets_range, 
                                  completeness_priority, recompute_difficulty, 
                                  randomise_pa, remaining_priority_targets):
-    """No return values as only candidate_tiles, candidate_targets, and
+    """Function to select the highest ranked tile for the final tiling, and re-generated
+    a replacement. 
+    
+    No return values as only candidate_tiles, candidate_targets, and
     candidate_targets_range are modified, but all are lists so changes will be reflected
     out of scope.
+    
+    Parameters
+    ----------
+    
+    
     """
     # Find the highest-ranked tile in the candidates_list, and remove it
     tile_i = np.argmax(ranking_list)
@@ -1707,7 +1715,11 @@ def select_and_replace_best_tile(tile_list, ranking_list, candidate_tiles,
 def repick_within_radius(tile_list, candidate_tiles, candidate_targets_range, 
                          standard_targets_range, guide_targets_range, 
                          tile_unpick_settings, n_radii=2):
-    """
+    """Function to repick neighbouring tiles after selecting a tile for the final tiling
+    to account for target duplication between tiles.
+    
+    Parameters
+    ----------
     """
     # Repick any tiles within n_radii*TILE_RADIUS of it, and then add to the ranking_list
     logging.info('Re-picking affected tiles...')
@@ -1739,7 +1751,15 @@ def perform_greedy_tiling(candidate_targets, candidate_targets_range,
                           ranking_method, disqualify_below_min_range, exp_base, 
                           mag_range, completeness_target, completeness_priority, 
                           recompute_difficulty, randomise_pa, tile_unpick_settings):
-    """
+    """Function to perform the greedy tiling algorithm given targets, standards, guides,
+    and a selection of tiles.
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    
     """
     # Create initial tile unpicks
     # Note that we are *not* updating candidate_targets during this process,
@@ -1793,8 +1813,8 @@ def perform_greedy_tiling(candidate_targets, candidate_targets_range,
         
         # Repick all tiles within a given radius of the selected tile
         repick_within_radius(tile_list, candidate_tiles, candidate_targets_range, 
-                         standard_targets_range, guide_targets_range, 
-                         tile_unpick_settings, n_radii=2)
+                             standard_targets_range, guide_targets_range, 
+                             tile_unpick_settings, n_radii=2)
         
         # Recalculate the ranking list
         ranking_list = [tile.calculate_tile_score(method=ranking_method,
@@ -1973,9 +1993,8 @@ def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
     tile_lists = []
 
     # Input checking
-    TILING_METHODS = [
-        'SH',               # Sloane-Harding
-    ]
+    TILING_METHODS = ['SH',]     # Sloane-Harding
+
     if tiling_method not in TILING_METHODS:
         raise ValueError('tiling_method must be one of %s' % str(TILING_METHODS))
 
@@ -2002,12 +2021,13 @@ def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
     ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max, dec_min, dec_max)
 
     # Generate the SH tiling to cover the region of interest
-    candidate_tiles = generate_SH_tiling(tiling_file, 
-        randomise_seed=randomise_SH, randomise_pa=randomise_pa)
+    candidate_tiles = generate_SH_tiling(tiling_file, randomise_seed=randomise_SH, 
+                                         randomise_pa=randomise_pa)
     candidate_tiles = [t for t in candidate_tiles
         if is_within_bounds(t, ra_min, ra_max, dec_min, dec_max)]
 
     candidate_targets_master = candidate_targets[:]
+    
     # Initialise some of our counter variables
     no_submitted_targets = len(candidate_targets_master)
     if no_submitted_targets == 0:
