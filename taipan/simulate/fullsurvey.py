@@ -502,7 +502,7 @@ def select_best_tile(cursor, dt, per_end,
 
     logging.info('Fetching next field periods...')
 
-    logging.debug('-- Finding available fields')
+    logging.info('-- Finding available fields')
     fields_available = rAS.find_fields_available(
         cursor, dt, datetime_to=per_end,
         field_list=list(scores_array['field_id']),
@@ -512,7 +512,7 @@ def select_best_tile(cursor, dt, per_end,
     nop_workers = 1  # Set to 1 for single-thread next_observable_period,
     # set to multipool_workers to utilize threading
 
-    logging.debug('-- Computing field periods')
+    logging.info('-- Computing field periods')
     if nop_workers == 1:
         field_periods = {r['field_id']: rAS.next_observable_period(
             cursor, r['field_id'], dt,
@@ -546,7 +546,7 @@ def select_best_tile(cursor, dt, per_end,
                   len(fields_available))
     # Further trim fields_available for to account for field observability
     # at the time of observation
-    logging.debug('-- Trimming fields_available to now')
+    logging.info('-- Trimming fields_available to now')
     fields_available = [f for f in fields_available if
                         field_periods[f][0] is not None and
                         field_periods[f][1] is not None and
@@ -560,7 +560,7 @@ def select_best_tile(cursor, dt, per_end,
     # Rank the available fields
     logging.info('Computing field scores')
     start = datetime.datetime.now()
-    logging.debug('-- Forming tile score dictonary')
+    logging.info('-- Forming tile score dictonary')
     tiles_scores_raw = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
                         for
                         row in scores_array if
@@ -602,7 +602,7 @@ def select_best_tile(cursor, dt, per_end,
     fields_to_calculate = list(set(fields_by_tile.values()))
     fields_to_calculate.sort()
 
-    logging.debug('-- Calculating scores')
+    logging.info('-- Calculating scores')
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
                                unobserved=True, threshold_value=30,
