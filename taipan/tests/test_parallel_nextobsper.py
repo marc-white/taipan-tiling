@@ -78,7 +78,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.WARNING)
-    logging.warning('TESTING PARALLEL SCORING')
+    logging.warning('TESTING PARALLEL next_observable_period')
     logging.warning('NOTE: Your system has %d cores' %
                     multiprocessing.cpu_count())
 
@@ -122,8 +122,8 @@ if __name__ == '__main__':
             start = datetime.datetime.now()
 
             if w == 1:
-                field_periods = {r['field_id']: readAlmanacStats.next_observable_period(
-                    cursor, r['field_id'], dt,
+                field_periods = {r: readAlmanacStats.next_observable_period(
+                    cursor, r, dt,
                     datetime_to=per_end,
                 ) for
                     r in
