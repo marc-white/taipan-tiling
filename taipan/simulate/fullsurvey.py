@@ -520,7 +520,7 @@ def select_best_tile(cursor, dt, per_end,
         ) for
             r in
             # scores_array
-            fields_available['field_id']
+            fields_available
         }
     else:
         field_periods_partial = partial(_field_period_reshuffle, dt=dt,
