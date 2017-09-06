@@ -90,8 +90,8 @@ if __name__ == '__main__':
 
     workers_values = [
         1,
-        # 4,
-        # int(0.8 * multiprocessing.cpu_count()),
+        4,
+        int(0.8 * multiprocessing.cpu_count()),
         multiprocessing.cpu_count(),
         # 2 * multiprocessing.cpu_count(),
         # 50,
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         logging.warning('Pass %d...' % i)
         fields_available = random.sample(all_fields, no_of_fields)
         # Do the tests
-        for w in workers_values:
+        for w in random.shuffle(workers_values):
             logging.warning('   %3d workers' % w)
             start = datetime.datetime.now()
 
