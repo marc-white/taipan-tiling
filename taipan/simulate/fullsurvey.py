@@ -419,38 +419,79 @@ def select_best_tile(cursor, dt, per_end,
     """
     Select the best tile to observe at the current datetime.
 
+    The algorithm for determining the best tile is as follows:
+
+    - Read in the tile score information from the database
+    - Use the almanac information stored in the database to determine which
+      tiles will be available for observation within the current time period.
+    - For those tiles, compute an 'hours remaining' statistic from the
+      almanacs database. This is the number of hours that the field will
+      be observable over some period of time (which may be evaluated differently
+      depending on which targets are in which fields, whether we are in
+      priority or main survey operations, etc.)
+    - Compute the number of targets awaiting observation on the available
+      fields.
+    - Compute the final tile score (see below)
+    - Return the primary key of the tile to observe (or :obj:`None` if no tile
+      is available).
+
+    The final tile score is computed as:
+
+    .. math::
+        \textrm {metric} * targets rem. / hours rem. \sum_x \t{l}
+
+    This has the effect of:
+
+    - Prioritising fields that have a lot of targets left to go through;
+    - Prioritising fields that will not be available very often in the upcoming
+      months/years.
+
+    The exact details of which targets count towards this score, and over
+    which time period to compute the time remaining to observe the field,
+    are parameters which can be tweaked in code. At present, the metrics are:
+
+    Only tiles which are marked as unqueued and unobserved in the database will
+    be considered.
+
     Note that the function will analyse observability at the given time with
     no interest in configure time etc. - users should therefore pass the time
     when the observation (of length ts.POINTING_TIME) starts.
 
     Parameters
     ----------
-    cursor : psycopg2 cursor
+    cursor : :obj:`psycopg2.connection.cursor`
         For interacting with the database
-    dt : datetime.datetime object
+    dt : :obj:`datetime.datetime`
         Current datetime (should be naive, but in UTC)
-    per_end:
+    per_end : :obj:`datetime.datetime`
         End of the time bracket (e.g. dark time ends) when tiles should
         be considered to. Used to compute field observability.
-    midday_end: datetime.datetime object
-        Midday after the lowz prioritization period finishes,
+    midday_end: :obj:`datetime.datetime`
+        Midday after the priority science period finishes,
         transformed to UTC
-    midday_start: datetime.datetime object, optional
+    midday_start: :obj:`datetime.datetime`
         Midday before the survey begins,
         transformed to UTC. Defaults to None.
-    prioritize_lowz : Boolean, optional
-        Whether or not to prioritize fields with lowz targets by computing
+    prioritize_lowz : :obj:`bool`
+        Whether or not to prioritize fields with hurry-up targets by computing
         the hours_observable for those fields against a set end date, and
-        compute all other fields against a rolling one-year end date.
+        compute all other fields against a rolling end date.
         Defaults to True.
-    resolution: float, optional, representing minutes
+    resolution: :obj:`float`, minutes
         Denotes the resolution of the almanacs being used. Defaults to 15.
+    multipool_workers : :obj:`int`
+        The number of pool workers to use in parallel computations/retrievals
+        from the database. Defaults to :any:`multiprocessing.cpu_count`.
 
     Returns
     -------
-    tile_pk: int or None
-        The primary key of the tile that should be observed. Returns None
+    tile_pk: :obj:`int` or :obj:`None`
+        The primary key of the tile that should be observed. Returns :obj:`None`
         if no tile is available.
+    fields_available, tiles_scores, scores_array, field_periods, fields_by_tile,
+    hours_obs : :any:`numpy` arrays
+        Data used to compute the best tile to observe. Designed to be fed into
+        the :any:`check_tile_choice` function.
     """
     # Get the latest scores_array
     logging.info('Fetching scores array...')
@@ -461,13 +502,18 @@ def select_best_tile(cursor, dt, per_end,
 
     logging.info('Fetching next field periods...')
 
+    logging.debug('-- Finding available fields')
     fields_available = rAS.find_fields_available(
         cursor, dt, datetime_to=per_end,
         field_list=list(scores_array['field_id']),
         resolution=resolution)
     fields_available.sort(order='field_id')
 
-    if multipool_workers == 1:
+    nop_workers = 1  # Set to 1 for single-thread next_observable_period,
+    # set to multipool_workers to utilize threading
+
+    logging.debug('-- Computing field periods')
+    if nop_workers == 1:
         field_periods = {r['field_id']: rAS.next_observable_period(
             cursor, r['field_id'], dt,
             datetime_to=per_end,
@@ -479,7 +525,7 @@ def select_best_tile(cursor, dt, per_end,
     else:
         field_periods_partial = partial(_field_period_reshuffle, dt=dt,
                                         per_end=per_end)
-        pool = multiprocessing.Pool(multipool_workers)
+        pool = multiprocessing.Pool(nop_workers)
         field_periods = pool.map(field_periods_partial,
                                  fields_available['field_id'])
         pool.close()
@@ -500,6 +546,7 @@ def select_best_tile(cursor, dt, per_end,
                   len(fields_available))
     # Further trim fields_available for to account for field observability
     # at the time of observation
+    logging.debug('-- Trimming fields_available to now')
     fields_available = [f for f in fields_available if
                         field_periods[f][0] is not None and
                         field_periods[f][1] is not None and
@@ -513,6 +560,7 @@ def select_best_tile(cursor, dt, per_end,
     # Rank the available fields
     logging.info('Computing field scores')
     start = datetime.datetime.now()
+    logging.debug('-- Forming tile score dictonary')
     tiles_scores_raw = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
                         for
                         row in scores_array if
@@ -554,6 +602,7 @@ def select_best_tile(cursor, dt, per_end,
     fields_to_calculate = list(set(fields_by_tile.values()))
     fields_to_calculate.sort()
 
+    logging.debug('-- Calculating scores')
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
                                unobserved=True, threshold_value=30,
@@ -676,8 +725,8 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs = {fields_to_calculate[i]: hrs[i] for i in
                      range(len(fields_to_calculate))}
 
-    logging.debug('Hours_observable:')
-    logging.debug(hours_obs)
+    # logging.debug('Hours_observable:')
+    # logging.debug(hours_obs)
 
     # Need to replace any points where hours_obs=0 with the almanac resolution;
     # otherwise, 0 hours fields will be forcibly observed, even if their score
@@ -688,8 +737,8 @@ def select_best_tile(cursor, dt, per_end,
 
     tiles_scores = {t: (v[0] * v[1] / hours_obs[fields_by_tile[t]]) for
                     t, v in tiles_scores_raw.items()}
-    logging.debug('Tiles scores: ')
-    logging.debug(tiles_scores)
+    # logging.debug('Tiles scores: ')
+    # logging.debug(tiles_scores)
     end = datetime.datetime.now()
     delta = end - start
     logging.info('Computed tile scores/hours remaining in %d:%2.1f' %
@@ -779,20 +828,24 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
                       scores_array, field_periods, fields_by_tile, hours_obs,
                       abort=False):
     """
-    Do some simple checking of the selection made by select_best_tile
+    Do some simple checking of the selection made by select_best_tile.
+
+    This function uses the data generated by :any:`select_best_tile`, but uses
+    a different algorithm to confirm that the best tile was indeed selected.
+    This function should not be required in production.
 
     Parameters
     ----------
-    cursor : psycopg2 cursor
+    cursor : :obj:`psycopg2.connection.cursor`
         For interacting with the database
-    dt : datetime.datetime object
+    dt : :obj:`datetime.datetime`
         Current datetime (should be naive, but in UTC)
-    tile_to_obs : int
+    tile_to_obs : :obj:`int`
         The PK of the tile that has been selected
     scores_array, field_periods, fields_by_tile, hours_obs : numpy arrays
         Arrays of numpy data. These match those arrays output by
-        select_best_tile
-    abort : Boolean, optional
+        :any:`select_best_tile`.
+    abort : :obj:`bool`, optional
         Boolean value denoting whether to abort the run if a failure is
         detected. If true, diagnostic information will be dumped to the logging
         system, the cursor will commit to the database, and then sys.exit() will
