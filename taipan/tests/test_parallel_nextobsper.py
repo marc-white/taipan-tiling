@@ -117,7 +117,8 @@ if __name__ == '__main__':
         logging.warning('Pass %d...' % i)
         fields_available = random.sample(all_fields, no_of_fields)
         # Do the tests
-        for w in random.shuffle(workers_values):
+        random.shuffle(workers_values)
+        for w in workers_values:
             logging.warning('   %3d workers' % w)
             start = datetime.datetime.now()
 
