@@ -1801,6 +1801,31 @@ def perform_greedy_tiling(candidate_targets, candidate_targets_range,
            (max(ranking_list) > 0.05): 
         # Note: 0.05 is a simple proxy for max > 0
     
+        #FIXME: We really want to select the best N tiles here, where N is as large as
+        #possible, and each tile is more than 6 tile radii apart. e.g. around the
+        #equator, there are 20 such tiles. Each of these N>20 high-ish priority tiles
+        #can then be repicked separately, AND the affected tiles within their affected
+        #radii can be repicked. 
+        #
+        #Even better, we pass to this new routine a subset only of the candidate targets 
+        #and tiles that may fit within this range. Kind-of like a tree algorithm, we cut
+        #the sky down to the relevant part only, and deal with just this part.
+        #
+        #Pseudocode:
+        #
+        #Create an empty list of best_tiles
+        #Loop over at most n_processors:
+        # - Find the best tile that is more than 6 tile radii from all other best tiles.
+        # - pop into a new list all tiles within 2 tile radii of this best tile, and
+        #   all candidate_targets and candidate_targets_range within 3 tile radii of this
+        #   best tile.
+        #Loop in e.g. multi-process environment over all n_best lists of
+        # [best_tile, nearby_tiles, nearby_candidates, nearby_other_stuff]
+        # - Pick the tile and repick all within 2 tile radii
+        # - Add to a local (?) list of assigned_targets and assigned_tiles. This is the 
+        #   bit that needs testing in multiprocessing (does it have to be "local"?)
+        #Loop in the standard environment to put Humpty back together again.
+    
         # Select the best ranked tile and replace
         remaining_priority_targets = select_and_replace_best_tile(tile_list, ranking_list, 
                                             candidate_tiles, candidate_targets, 
