@@ -141,6 +141,9 @@ if run_description == "": run_description = "NA"
 # Begin logging
 logging.basicConfig(filename='funnelweb_generate_tiling.log', level=logging.INFO)
 
+# Initialise the tiler
+fwtiler = FWTiler(**fwts.tiler_input)
+
 #-----------------------------------------------------------------------------------------
 # Target Input, Priorities, Standards, and Guides
 #-----------------------------------------------------------------------------------------
@@ -207,33 +210,10 @@ print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
 #-----------------------------------------------------------------------------------------
 print 'Commencing tiling...'
 start = datetime.datetime.now()
-tiling, completeness, remaining_targets = tl.generate_tiling_funnelweb_mp(
-    candidate_targets, 
-    standard_targets, 
-    guide_targets,
-    mag_ranges_prioritise=fwts.tiler_input["mag_ranges_prioritise"],
-    prioritise_extra=fwts.tiler_input["prioritise_extra"],
-    priority_normal=fwts.tiler_input["priority_normal"],
-    mag_ranges=fwts.tiler_input["mag_ranges"],
-    completeness_target=fwts.tiler_input["completeness_target"],
-    ranking_method=fwts.tiler_input["ranking_method"],
-    tiling_method=fwts.tiler_input["tiling_method"], 
-    randomise_pa=fwts.tiler_input["randomise_pa"], 
-    ra_min=fwts.tiler_input["ra_min"], 
-    ra_max=fwts.tiler_input["ra_max"], 
-    dec_min=fwts.tiler_input["dec_min"], 
-    dec_max=fwts.tiler_input["dec_max"],
-    randomise_SH=fwts.tiler_input["randomise_SH"], 
-    tiling_file=fwts.tiler_input["tiling_file"],
-    tile_unpick_method=fwts.tiler_input["tile_unpick_method"], 
-    sequential_ordering=fwts.tiler_input["sequential_ordering"],
-    combined_weight=fwts.tiler_input["combined_weight"],
-    rank_supplements=fwts.tiler_input["rank_supplements"], 
-    repick_after_complete=fwts.tiler_input["repick_after_complete"], 
-    exp_base=fwts.tiler_input["exp_base"],
-    recompute_difficulty=fwts.tiler_input["recompute_difficulty"], 
-    disqualify_below_min=fwts.tiler_input["disqualify_below_min"], 
-    n_cores=fwts.tiler_input["n_cores"])
+tiling, completeness, remaining_targets = fwtiler.generate_tiling_funnelweb_mp(
+                                            candidate_targets, standard_targets, 
+                                            guide_targets)
+
 end = datetime.datetime.now()
 
 #-----------------------------------------------------------------------------------------

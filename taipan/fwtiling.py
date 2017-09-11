@@ -114,6 +114,8 @@ class FWTiler(object):
     def completeness_target(self, value):
         if value is None: 
             raise Exception('completeness_target may not be blank')
+        elif value <= 0. or value > 1:
+            raise ValueError('completeness_target must be in the range (0, 1]')
         self._completeness_target = value
         
     @property
@@ -142,8 +144,13 @@ class FWTiler(object):
 
     @tiling_method.setter
     def tiling_method(self, value):
+        # Valid tiling methods
+        TILING_METHODS = ['SH',]     # Sloane-Harding
+    
         if value is None: 
             raise Exception('tiling_method may not be blank')
+        elif value not in TILING_METHODS:
+            raise ValueError('tiling_method must be one of %s' % str(TILING_METHODS))
         self._tiling_method = value
         
     @property
@@ -386,16 +393,21 @@ class FWTiler(object):
             raise Exception('n_cores may not be blank')
         self._n_cores = value
     
+    @property
+    def completeness_priority(self):
+        return self.priority_normal + self.prioritise_extra
+    
+    
     # ------------------------------------------------------------------------------------
     # tiling wrapper functions
     # ------------------------------------------------------------------------------------    
-    def gen_pa():
+    def gen_pa(self):
         """FWTiler wrapper for tiling.gen_pa(randomise_pa)
         """
         return tl.gen_pa(self.randomise_pa)
     
         
-    def compute_bounds():
+    def compute_bounds(self):
         """FWTiler wrapper for tiling.compute_bounds(ra_min, ra_max, dec_min, dec_max)
         
         Forces the stored RA/DEC limits to their correct format. Use after FWTiler object
@@ -409,7 +421,7 @@ class FWTiler(object):
         self.dec_max = dec_max        
      
         
-    def is_within_bounds(tile, compute_bounds_forcoords=True):
+    def is_within_bounds(self, tile, compute_bounds_forcoords=True):
         """FWTiler wrapper for tiling.is_within_bounds(tile, ra_min, ra_max, dec_min, 
                                     dec_max, compute_bounds_forcoords=True)
                                     
@@ -431,7 +443,7 @@ class FWTiler(object):
                                    self.dec_max, compute_bounds_forcoords)
     
     
-    def generate_random_tile():
+    def generate_random_tile(self):
         """FWTiler wrapper for tiling.generate_random_tile(ra_min=0.0, ra_max=360.0,
                                     dec_min=-90.0, dec_max=90.0, randomise_pa=False)
         
@@ -444,7 +456,7 @@ class FWTiler(object):
                                        self.dec_max, self.randomise_pa)
     
     
-    def generate_SH_tiling():
+    def generate_SH_tiling(self):
         """FWTiler wrapper for tiling.generate_SH_tiling(tiling_file, randomise_seed=True, 
                                     randomise_pa=False)
         
@@ -457,27 +469,10 @@ class FWTiler(object):
                                      self.randomise_pa)
         
         
-    def tiling_consolidate(tile_list):
-        """FWTiler wrapper for tiling.tiling_consolidate(tile_list)
-        
-        Parameters
-        ----------
-        tile_list : list of TaipanTile objects
-            The list of TaipanTile objects that constitute the tiling.
-
-        Returns
-        -------
-        consolidated_list: list of TaipanTile objects
-            The list of TaipanTile objects representing the consolidation of tile_list. 
-            consolidated_list will NOT preserve the ordering in tile_list.
-        """
-        return tl.tiling_consolidate(tile_list)
-        
-        
     # ------------------------------------------------------------------------------------
     # TaipanTile wrapper functions
     # ------------------------------------------------------------------------------------   
-    def unpick_tile(tile, candidate_targets, standard_targets, guide_targets):
+    def unpick_tile(self, tile, candidate_targets, standard_targets, guide_targets):
         """Wrapper function for TaipanTile.unpick_tile(...) to ensure tiling settings
         are kept as internal as possible (i.e. exposing FWTiler attributes in as few
         places as possible), and to aid in readability when unpicking a tile.
@@ -507,7 +502,7 @@ class FWTiler(object):
                                 assign_sky_first=self.assign_sky_first)
         
         
-    def calculate_tile_score(tile):
+    def calculate_tile_score(self, tile):
         """Wrapper function for TaipanTile.calculate_tile_score(...) to ensure tiling 
         settings are kept as internal as possible (i.e. exposing FWTiler attributes in as
         few places as possible), and to aid in readability when calculating tile scores.
@@ -530,710 +525,553 @@ class FWTiler(object):
     # Attribute handling
     # ------------------------------------------------------------------------------------     
         
-# ----------------------------------------------------------------------------------------
-# FunnelWeb multicore
-# ----------------------------------------------------------------------------------------
-def get_targets_mag_range(candidate_targets, mag_range, priorities,  
-                          mag_range_prioritise=None, last_range=False):
-    """Function to determine the candidate targets for a given magnitude range.
+    # ------------------------------------------------------------------------------------
+    # FunnelWeb multicore
+    # ------------------------------------------------------------------------------------
+    def get_targets_mag_range(self, candidate_targets, mag_range,  
+                              mag_range_prioritise=None, last_range=False):
+        """Function to determine the candidate targets for a given magnitude range.
     
-    When using mag_range_prioritise to prioritise a subsection of the total magnitude bin,
-    if a target is excluded (but would be included in a subsequent bin), it will only be 
-    observed if *low-priority*. This is to allow high priority (likely fainter) targets
-    to be observed with a longer exposure time in the next magnitude bin (assuming bright-
-    faint bin ordering). If the target is high-priority, and outside the priority mag 
-    range, but there are no fainter bins, it will be considered.
+        When using mag_range_prioritise to prioritise a subsection of the total magnitude 
+        bin, if a target is excluded (but would be included in a subsequent bin), it will 
+        only be observed if *low-priority*. This is to allow high priority (likely 
+        fainter) targets to be observed with a longer exposure time in the next magnitude 
+        bin (assuming bright-faint bin ordering). If the target is high-priority, and  
+        outside the priority mag range, but there are no fainter bins, it will be 
+        considered.
     
-    Parameters
-    ----------
-    candidate_targets: list of :class:`TaipanTarget`
-        The entire list of candidate targets to consider.
+        Parameters
+        ----------
+        candidate_targets: list of :class:`TaipanTarget`
+            The entire list of candidate targets to consider.
         
-    mag_range: list of floats
-        Upper and lower bounds of the magnitude bin under consideration. Of form [L, U].
+        mag_range: list of floats
+            Upper and lower bounds of the magnitude bin under consideration. 
+            Of form [L, U].
     
-    mag_range_prioritise: list of floats, optional
-        Upper and lower bounds of the priority magnitude range within the magnitude bin
-        under consideration. If used, of form [L, U], else defaults to None. 
+        mag_range_prioritise: list of floats, optional
+            Upper and lower bounds of the priority magnitude range within the mag bin
+            under consideration. If used, of form [L, U], else defaults to None. 
     
-    priorities: list of ints
-        The priorities for evaluating high- and low-priority targets. Of form: 
-        [priority_normal, prioritise_extra].
-    
-    last_range: boolean
-        Indicates whether the magnitude range is the last bin under consideration, and
-        thus whether high priority targets should be considered.
+        last_range: boolean
+            Indicates whether the magnitude range is the last bin under consideration, and
+            thus whether high priority targets should be considered.
         
-    Returns
-    -------
-    candidate_targets_range: list of :class:`TaipanTarget`
-        The candidate targets that satisfy magnitude range and priority requirements.
-    """ 
-    #Find the candidates in the correct magnitude range. If we are not in the faintest
-    #magnitude range, then we have to ignore high priority targets for now, as we'd
-    #rather them be observed with a long exposure time
-    if mag_range_prioritise:
-        if not last_range:
-            candidate_targets_range = [t for t in candidate_targets 
-                if ( (mag_range_prioritise[1] <= t.mag < mag_range[1]) and #faint
-                (t.priority <= priorities[0]) ) or
-                ( (mag_range[0] <= t.mag < mag_range_prioritise[1]) )] #bright
+        Returns
+        -------
+        candidate_targets_range: list of :class:`TaipanTarget`
+            The candidate targets that satisfy magnitude range and priority requirements.
+        """ 
+        #Find the candidates in the correct magnitude range. If we are not in the faintest
+        #magnitude range, then we have to ignore high priority targets for now, as we'd
+        #rather them be observed with a long exposure time
+        if mag_range_prioritise:
+            if not last_range:
+                candidate_targets_range = [t for t in candidate_targets 
+                    if ( (mag_range_prioritise[1] <= t.mag < mag_range[1]) and #faint
+                    (t.priority <= self.priority_normal) ) or
+                    ( (mag_range[0] <= t.mag < mag_range_prioritise[1]) )] #bright
             
-            # Increase the priority for targets in the priority magnitude range
-            for t in candidate_targets_range:
-                if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
-                    t.priority >= priorities[0]):
-                    t.priority += priorities[1]
+                # Increase the priority for targets in the priority magnitude range
+                for t in candidate_targets_range:
+                    if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
+                        t.priority >= self.priority_normal):
+                        t.priority += self.prioritise_extra
         
-        # In faintest bin, consider all targets
-        else:
-            candidate_targets_range = [t for t in candidate_targets
-                if (mag_range[0] <= t.mag < mag_range[1])]
-            for t in candidate_targets_range:
-                if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
-                    t.priority == priorities[0]):
-                    t.priority += priorities[1] 
+            # In faintest bin, consider all targets
+            else:
+                candidate_targets_range = [t for t in candidate_targets
+                    if (mag_range[0] <= t.mag < mag_range[1])]
+                for t in candidate_targets_range:
+                    if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
+                        t.priority == self.priority_normal):
+                        t.priority += self.prioritise_extra
                     
-        return candidate_targets_range
+            return candidate_targets_range
 
-def get_standards_mag_range(standard_targets, mag_range):
-    """Function to select standard stars from within a given magnitude bin.
+    def get_standards_mag_range(self, standard_targets, mag_range):
+        """Function to select standard stars from within a given magnitude bin.
     
-    Parameters
-    ----------
-    standard_targets: list of :class:`TaipanTarget`
-        List of all available standard stars.
+        Parameters
+        ----------
+        standard_targets: list of :class:`TaipanTarget`
+            List of all available standard stars.
     
-    mag_range: list of floats
-        Upper and lower bounds of the magnitude bin under consideration. Of form [L, U].
+        mag_range: list of floats
+            Upper and lower bounds of the magnitude bin under consideration. 
+            Of form [L, U].
         
-    Returns
-    -------
-    standard_targets_range: list of :class:`TaipanTarget`
-        The standard targets that satisfy the magnitude range requirement.
-    """
-    standard_targets_range = [t for t in standard_targets 
-            if mag_range[0] <= t.mag < mag_range[1]]
+        Returns
+        -------
+        standard_targets_range: list of :class:`TaipanTarget`
+            The standard targets that satisfy the magnitude range requirement.
+        """
+        standard_targets_range = [t for t in standard_targets 
+                                  if mag_range[0] <= t.mag < mag_range[1]]
             
-    return standard_targets_range
+        return standard_targets_range
 
 
-def get_guides_mag_range(guide_targets, candidate_targets_range):
-    """Function to select guide stars from within a given magnitude bin.
+    def get_guides_mag_range(self, guide_targets, candidate_targets_range):
+        """Function to select guide stars from within a given magnitude bin.
     
-    At present the only criteria for being considered a guide is to *not* be a candidate
-    target for the range.
+        At present the only criteria for being considered a guide is to *not* be a 
+        candidate target for the range.
     
-    TODO: Consider magnitude of guide stars.
+        TODO: Consider magnitude of guide stars.
     
-    Parameters
-    ----------
-    guide_targets: list of :class:`TaipanTarget`
-        List of all available guide stars.
+        Parameters
+        ----------
+        guide_targets: list of :class:`TaipanTarget`
+            List of all available guide stars.
     
-    candidate_targets_range: list of :class:`TaipanTarget`
-        The candidate targets that satisfy magnitude range and priority requirements.
+        candidate_targets_range: list of :class:`TaipanTarget`
+            The candidate targets that satisfy magnitude range and priority requirements.
         
-    Returns
-    -------
-    non_candidate_guide_targets: list of :class:`TaipanTarget`
-        The guide targets that requirements.
-    """
-    # Find the guides that are not candidate targets only. These have to be copied, 
-    # because the same target will be a guide for one field and not a guide for 
-    # another field.
-    non_candidate_guide_targets = []
-    for potential_guide in guide_targets:
-        if potential_guide not in candidate_targets_range:
-            aguide = copy.copy(potential_guide)
-            aguide.guide=True
-            #WARNING: We have to set the standard and science flags as well, as this error
-            #checking isn't done in core.py
-            aguide.standard=False
-            aguide.science=False
-            non_candidate_guide_targets.append(aguide)
+        Returns
+        -------
+        non_candidate_guide_targets: list of :class:`TaipanTarget`
+            The guide targets that requirements.
+        """
+        # Find the guides that are not candidate targets only. These have to be copied, 
+        # because the same target will be a guide for one field and not a guide for 
+        # another field.
+        non_candidate_guide_targets = []
+        for potential_guide in guide_targets:
+            if potential_guide not in candidate_targets_range:
+                aguide = copy.copy(potential_guide)
+                aguide.guide = True
+                #WARNING: We have to set the standard and science flags as well, as this 
+                # error checking isn't done in core.py
+                aguide.standard = False
+                aguide.science = False
+                non_candidate_guide_targets.append(aguide)
             
-    return non_candidate_guide_targets
+        return non_candidate_guide_targets
  
  
-def calc_priority_targets(candidate_targets, completeness_priority):
-    """Calculates the number of priority targets given the candidate targets and the 
-    completeness priority.
+    def calc_priority_targets(self, candidate_targets):
+        """Calculates the number of priority targets given the candidate targets and the 
+        completeness priority.
     
-    Parameters
-    ----------
-    candidate_targets: list of :class:`TaipanTarget`
-        The list of candidate targets to be evaluated based on priority.
+        Parameters
+        ----------
+        candidate_targets: list of :class:`TaipanTarget`
+            The list of candidate targets to be evaluated based on priority.
     
-    completeness_priority: int
-        The target priority level to evaluate completion at.
+        completeness_priority: int
+            The target priority level to evaluate completion at.
         
-    Returns
-    -------
-    n_priority_targets: int
-        The number of targets considered a priority for the given completeness_priority.
-    """
-    # The number of priority targets is the number of targets above completeness_priority.
-    # This includes some targets that are also standards.
-    n_priority_targets = 0
-    for target in candidate_targets:
-        if target.priority >= completeness_priority:
-            n_priority_targets += 1
-    if n_priority_targets == 0:
-        raise ValueError('Require some priority targets in each mag range!')
+        Returns
+        -------
+        n_priority_targets: int
+            Number of targets considered a priority for the given completeness_priority.
+        """
+        # The number of priority targets is the number of targets above 
+        # completeness_priority. This includes some targets that are also standards.
+        n_priority_targets = 0
+        for target in candidate_targets:
+            if target.priority >= self.completeness_priority:
+                n_priority_targets += 1
+        if n_priority_targets == 0:
+            raise ValueError('Require some priority targets in each mag range!')
         
-    return n_priority_targets
+        return n_priority_targets
 
 
-def select_and_replace_best_tile(tile_list, ranking_list, candidate_tiles, 
-                                 candidate_targets, candidate_targets_range, 
-                                 completeness_priority, recompute_difficulty, 
-                                 randomise_pa, remaining_priority_targets):
-    """Function to select the highest ranked tile for the final tiling, and re-generated
-    a replacement. 
+    def select_and_replace_best_tile(self, tile_list, ranking_list, candidate_tiles, 
+                                     candidate_targets, candidate_targets_range, 
+                                     remaining_priority_targets):
+        """Function to select the highest ranked tile for the final tiling, and 
+        re-generated a replacement. 
     
-    No return values as only candidate_tiles, candidate_targets, and
-    candidate_targets_range are modified, but all are lists so changes will be reflected
-    out of scope.
+        No return values as only candidate_tiles, candidate_targets, and
+        candidate_targets_range are modified, but all are lists so changes will be 
+        reflected out of scope.
     
-    Parameters
-    ----------
+        Parameters
+        ----------
     
     
-    """
-    # Find the highest-ranked tile in the candidates_list, and remove it
-    tile_i = np.argmax(ranking_list)
-    tile_list.append(candidate_tiles.pop(tile_i))
-    best_ranking = ranking_list.pop(tile_i)
-    logging.info('Tile selected!')
+        """
+        # Find the highest-ranked tile in the candidates_list, and remove it
+        tile_i = np.argmax(ranking_list)
+        tile_list.append(candidate_tiles.pop(tile_i))
+        best_ranking = ranking_list.pop(tile_i)
+        logging.info('Tile selected!')
                 
-    # Record the ra and dec of the candidate for tile re-creation
-    best_ra = tile_list[-1].ra
-    best_dec = tile_list[-1].dec
+        # Record the ra and dec of the candidate for tile re-creation
+        best_ra = tile_list[-1].ra
+        best_dec = tile_list[-1].dec
 
-    # Strip the now-assigned targets out of the candidate_targets list,
-    # then recalculate difficulties for affected remaning targets
-    logging.info('Re-computing target list...')
-    assigned_targets = tile_list[-1].get_assigned_targets_science()
+        # Strip the now-assigned targets out of the candidate_targets list,
+        # then recalculate difficulties for affected remaning targets
+        logging.info('Re-computing target list...')
+        assigned_targets = tile_list[-1].get_assigned_targets_science()
 
-    init_targets_len = len(candidate_targets_range)
-    reobserved_standards = []
+        init_targets_len = len(candidate_targets_range)
+        reobserved_standards = []
     
-    for target in assigned_targets:
-        # Note: when candidate_targets contains stars with higher than normal 
-        # *initial* priorities, it is possible for a star to be overlooked for
-        # consideration as a science target (observations being preferred in a 
-        # fainter magnitude bin for "high-priority" targets), but still 
-        # considered for selection as a standard target. As such is important
-        # to use candidate_targets_range, rather than simply candidate_targets 
-        # when dealing with assigned targets.
-        if target in candidate_targets_range:
-            candidate_targets.pop(candidate_targets.index(target))
-            candidate_targets_range.pop(candidate_targets_range.index(target))
+        for target in assigned_targets:
+            # Note: when candidate_targets contains stars with higher than normal 
+            # *initial* priorities, it is possible for a star to be overlooked for
+            # consideration as a science target (observations being preferred in a 
+            # fainter magnitude bin for "high-priority" targets), but still 
+            # considered for selection as a standard target. As such is important
+            # to use candidate_targets_range, rather than simply candidate_targets 
+            # when dealing with assigned targets.
+            if target in candidate_targets_range:
+                candidate_targets.pop(candidate_targets.index(target))
+                candidate_targets_range.pop(candidate_targets_range.index(target))
 
-            #Count the priority targets we've just assigned in the same way
-            #as they were originally counted
-            if target.priority >= completeness_priority:
-                remaining_priority_targets -= 1
+                #Count the priority targets we've just assigned in the same way
+                #as they were originally counted
+                if target.priority >= self.completeness_priority:
+                    remaining_priority_targets -= 1
             
-            #Change priorities back to normal for targets in our priority magnitude
-            #range
-            target.priority = target.priority_original
-        elif target.standard:
-            reobserved_standards.append(target)
-            logging.info('Re-allocating standard ' + str(target.idn) + 
-                         ' that is also a science target.')
-        else:
-            logging.warning('### WARNING: Assigned a target that is neither a ' + 
-                            'candidate target nor a standard!')
+                #Change priorities back to normal for targets in our priority magnitude
+                #range
+                target.priority = target.priority_original
+            elif target.standard:
+                reobserved_standards.append(target)
+                logging.info('Re-allocating standard ' + str(target.idn) + 
+                             ' that is also a science target.')
+            else:
+                logging.warning('### WARNING: Assigned a target that is neither a ' + 
+                                'candidate target nor a standard!')
 
-    if len(set(assigned_targets)) != len(assigned_targets):
-        logging.warning('### WARNING: target duplication detected')
-    if len(candidate_targets_range) != (init_targets_len - len(assigned_targets) 
-                                        + len(reobserved_standards)):
-        logging.warning('### WARNING: Discrepancy found in target list reduction')
-        logging.warning('Best tile had %d targets; only %d removed from list' %
-                        (len(assigned_targets),
-                         init_targets_len - len(candidate_targets)))
-    if recompute_difficulty:
-        logging.info('Re-computing target difficulties...')
-        tp.compute_target_difficulties(tp.targets_in_range(
-            best_ra, best_dec, candidate_targets_range,
-            tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_DIAMETER))
+        if len(set(assigned_targets)) != len(assigned_targets):
+            logging.warning('### WARNING: target duplication detected')
+        if len(candidate_targets_range) != (init_targets_len - len(assigned_targets) 
+                                            + len(reobserved_standards)):
+            logging.warning('### WARNING: Discrepancy found in target list reduction')
+            logging.warning('Best tile had %d targets; only %d removed from list' %
+                            (len(assigned_targets),
+                             init_targets_len - len(candidate_targets)))
+        if self.recompute_difficulty:
+            logging.info('Re-computing target difficulties...')
+            tp.compute_target_difficulties(tp.targets_in_range(
+                best_ra, best_dec, candidate_targets_range,
+                tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_DIAMETER))
 
-    # Replace the removed tile in candidate_tiles
-    candidate_tiles.append(tp.TaipanTile(best_ra, best_dec, pa=gen_pa(randomise_pa)))
+        # Replace the removed tile in candidate_tiles
+        candidate_tiles.append(tp.TaipanTile(best_ra, best_dec, pa=self.gen_pa()))
     
-    logging.info('Assigned tile at %3.1f, %2.1f' % (best_ra, best_dec))
-    logging.info('Tile has ranking score %3.1f' % (best_ranking, ))
+        logging.info('Assigned tile at %3.1f, %2.1f' % (best_ra, best_dec))
+        logging.info('Tile has ranking score %3.1f' % (best_ranking, ))
     
-    return remaining_priority_targets
+        return remaining_priority_targets
 
 
-def repick_within_radius(tile_list, candidate_tiles, candidate_targets_range, 
-                         standard_targets_range, guide_targets_range, 
-                         tile_unpick_settings, n_radii=2):
-    """Function to repick neighbouring tiles after selecting a tile for the final tiling
-    to account for target duplication between tiles.
+    def repick_within_radius(self, tile_list, candidate_tiles, candidate_targets_range, 
+                             standard_targets_range, guide_targets_range, n_radii=2):
+        """Function to repick neighbouring tiles after selecting a tile for the final 
+        tiling to account for target duplication between tiles.
     
-    Parameters
-    ----------
-    """
-    # Repick any tiles within n_radii*TILE_RADIUS of it, and then add to the ranking_list
-    logging.info('Re-picking affected tiles...')
+        Parameters
+        ----------
+        """
+        # Repick any tiles within n_radii*TILE_RADIUS, and then add to the ranking_list
+        logging.info('Re-picking affected tiles...')
     
-    assigned_targets = tile_list[-1].get_assigned_targets_science()
+        assigned_targets = tile_list[-1].get_assigned_targets_science()
 
-    # This is  a big n_tiles x n_assigned operation - lets make it faster by 
-    # considering only the nearby candidate tiles (within 2 * TILE_RADIUS)
-    nearby_candidate_tiles = tp.targets_in_range(tile_list[-1].ra, tile_list[-1].dec, 
-                                                 candidate_tiles, n_radii*tp.TILE_RADIUS)         
-    affected_tiles = list({atile for atile in nearby_candidate_tiles 
-                          for t in assigned_targets \
-                          if t in atile.get_assigned_targets_science()})
+        # This is  a big n_tiles x n_assigned operation - lets make it faster by 
+        # considering only the nearby candidate tiles (within 2 * TILE_RADIUS)
+        nearby_candidate_tiles = tp.targets_in_range(tile_list[-1].ra, tile_list[-1].dec, 
+                                                candidate_tiles, n_radii*tp.TILE_RADIUS)         
+        affected_tiles = list({atile for atile in nearby_candidate_tiles 
+                              for t in assigned_targets \
+                              if t in atile.get_assigned_targets_science()})
    
-    # This won't cause the new tile to be re-picked, so manually add that
-    affected_tiles.append(candidate_tiles[-1])
+        # This won't cause the new tile to be re-picked, so manually add that
+        affected_tiles.append(candidate_tiles[-1])
     
-    for tile_i, tile in enumerate(affected_tiles):
-        burn = tile.unpick_tile(candidate_targets_range, standard_targets_range, 
-                                guide_targets_range, **tile_unpick_settings)
+        for tile_i, tile in enumerate(affected_tiles):
+            burn = self.unpick_tile(tile, candidate_targets_range, standard_targets_range, 
+                                    guide_targets_range)
                                 
-        logging.info('Completed %d / %d' % (tile_i, len(affected_tiles)))
+            logging.info('Completed %d / %d' % (tile_i, len(affected_tiles)))
 
 
 
 
-def perform_greedy_tiling(candidate_targets, candidate_targets_range,  
-                          standard_targets_range, guide_targets_range, candidate_tiles,   
-                          ranking_method, disqualify_below_min_range, exp_base, 
-                          mag_range, completeness_target, completeness_priority, 
-                          recompute_difficulty, randomise_pa, tile_unpick_settings):
-    """Function to perform the greedy tiling algorithm given targets, standards, guides,
-    and a selection of tiles.
+    def perform_greedy_tiling(self, candidate_targets, candidate_targets_range,  
+                              standard_targets_range, guide_targets_range, 
+                              candidate_tiles, mag_range):
+        """Function to perform the greedy tiling algorithm given targets, standards, guides,
+        and a selection of tiles.
     
-    Parameters
-    ----------
+        Parameters
+        ----------
     
-    Returns
-    -------
+        Returns
+        -------
     
-    """
-    # Create initial tile unpicks
-    # Note that we are *not* updating candidate_targets during this process,
-    # as overlap is allowed - instead, we will need to manually update
-    # candidate_tiles once we pick the highest-ranked tile
-    # Likewise, we don't want the target difficulties to change
-    # Therefore, we'll assign the output of the function to a dummy variable                   
-    if recompute_difficulty:
-        logging.info("Computing difficulties...")
-        tp.compute_target_difficulties(candidate_targets_range)
+        """
+        # Create initial tile unpicks
+        # Note that we are *not* updating candidate_targets during this process,
+        # as overlap is allowed - instead, we will need to manually update
+        # candidate_tiles once we pick the highest-ranked tile
+        # Likewise, we don't want the target difficulties to change
+        # Therefore, we'll assign the output of the function to a dummy variable                   
+        if self.recompute_difficulty:
+            logging.info("Computing difficulties...")
+            tp.compute_target_difficulties(candidate_targets_range)
     
-    print "Tiling mag range %s; # Targets=%i" % (mag_range, len(candidate_targets_range)),
+        print "Tiling mag range %s; # Targets=%i" % (mag_range, 
+                                                     len(candidate_targets_range)),
     
-    logging.info('Creating initial tile unpicks...')
-    for tile_i, tile in enumerate(candidate_tiles):   
-        burn = tile.unpick_tile(candidate_targets_range, standard_targets_range, 
-                                guide_targets_range, **tile_unpick_settings)
-        logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
+        logging.info('Creating initial tile unpicks...')
     
-    # Compute initial rankings for all of the tiles
-    ranking_list = [tile.calculate_tile_score(method=ranking_method,
-                    disqualify_below_min=disqualify_below_min_range, 
-                    combined_weight=tile_unpick_settings["combined_weight"], 
-                    exp_base=exp_base) for tile in candidate_tiles]
+        for tile_i, tile in enumerate(candidate_tiles):   
+            self.unpick_tile(tile, candidate_targets_range, standard_targets_range, 
+                             guide_targets_range)
+            logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
+    
+        # Compute initial rankings for all of the tiles
+        ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
                     
-    # Calculate priority targets
-    n_priority_targets = calc_priority_targets(candidate_targets_range, 
-                                               completeness_priority)
-    remaining_priority_targets = n_priority_targets
+        # Calculate priority targets
+        n_priority_targets = self.calc_priority_targets(candidate_targets_range)
+        
+        remaining_priority_targets = n_priority_targets
 
-    # While we are below our completeness criteria AND the highest-ranked tile is not
-    # empty, perform the greedy algorithm
-    logging.info('Starting greedy/Funnelweb tiling allocation...')        
-    tile_list = []
-    tile_i = 0
-    while ((float(n_priority_targets - remaining_priority_targets) 
-           / float(n_priority_targets)) < completeness_target) and \
-           (max(ranking_list) > 0.05): 
-        # Note: 0.05 is a simple proxy for max > 0
+        # While we are below our completeness criteria AND the highest-ranked tile is not
+        # empty, perform the greedy algorithm
+        logging.info('Starting greedy/Funnelweb tiling allocation...')        
+        tile_list = []
+        tile_i = 0
+        while ((float(n_priority_targets - remaining_priority_targets) 
+               / float(n_priority_targets)) < self.completeness_target) and \
+               (max(ranking_list) > 0.05): 
+            # Note: 0.05 is a simple proxy for max > 0
     
-        #FIXME: We really want to select the best N tiles here, where N is as large as
-        #possible, and each tile is more than 6 tile radii apart. e.g. around the
-        #equator, there are 20 such tiles. Each of these N>20 high-ish priority tiles
-        #can then be repicked separately, AND the affected tiles within their affected
-        #radii can be repicked. 
-        #
-        #Even better, we pass to this new routine a subset only of the candidate targets 
-        #and tiles that may fit within this range. Kind-of like a tree algorithm, we cut
-        #the sky down to the relevant part only, and deal with just this part.
-        #
-        #Pseudocode:
-        #
-        #Create an empty list of best_tiles
-        #Loop over at most n_processors:
-        # - Find the best tile that is more than 6 tile radii from all other best tiles.
-        # - pop into a new list all tiles within 2 tile radii of this best tile, and
-        #   all candidate_targets and candidate_targets_range within 3 tile radii of this
-        #   best tile.
-        #Loop in e.g. multi-process environment over all n_best lists of
-        # [best_tile, nearby_tiles, nearby_candidates, nearby_other_stuff]
-        # - Pick the tile and repick all within 2 tile radii
-        # - Add to a local (?) list of assigned_targets and assigned_tiles. This is the 
-        #   bit that needs testing in multiprocessing (does it have to be "local"?)
-        #Loop in the standard environment to put Humpty back together again.
+            #FIXME: We really want to select the best N tiles here, where N is as large as
+            #possible, and each tile is more than 6 tile radii apart. e.g. around the
+            #equator, there are 20 such tiles. Each of these N>20 high-ish priority tiles
+            #can then be repicked separately, AND the affected tiles within their affected
+            #radii can be repicked. 
+            #
+            #Even better, we pass to this new routine a subset only of the candidate targets 
+            #and tiles that may fit within this range. Kind-of like a tree algorithm, we cut
+            #the sky down to the relevant part only, and deal with just this part.
+            #
+            #Pseudocode:
+            #
+            #Create an empty list of best_tiles
+            #Loop over at most n_processors:
+            # - Find the best tile that is more than 6 tile radii from all other best tiles.
+            # - pop into a new list all tiles within 2 tile radii of this best tile, and
+            #   all candidate_targets and candidate_targets_range within 3 tile radii of this
+            #   best tile.
+            #Loop in e.g. multi-process environment over all n_best lists of
+            # [best_tile, nearby_tiles, nearby_candidates, nearby_other_stuff]
+            # - Pick the tile and repick all within 2 tile radii
+            # - Add to a local (?) list of assigned_targets and assigned_tiles. This is the 
+            #   bit that needs testing in multiprocessing (does it have to be "local"?)
+            #Loop in the standard environment to put Humpty back together again.
     
-        # Select the best ranked tile and replace
-        remaining_priority_targets = select_and_replace_best_tile(tile_list, ranking_list, 
-                                            candidate_tiles, candidate_targets, 
-                                            candidate_targets_range, 
-                                            completeness_priority, recompute_difficulty, 
-                                            randomise_pa, remaining_priority_targets)
+            # Select the best ranked tile and replace
+            remaining_priority_targets = self.select_and_replace_best_tile(tile_list, 
+                                                ranking_list, candidate_tiles,
+                                                candidate_targets, 
+                                                candidate_targets_range, 
+                                                remaining_priority_targets)
     
-        # Add the magnitude range information
-        tile_list[-1].mag_min = mag_range[0]
-        tile_list[-1].mag_max = mag_range[1]
+            # Add the magnitude range information
+            tile_list[-1].mag_min = mag_range[0]
+            tile_list[-1].mag_max = mag_range[1]
         
-        # Repick all tiles within a given radius of the selected tile
-        repick_within_radius(tile_list, candidate_tiles, candidate_targets_range, 
-                             standard_targets_range, guide_targets_range, 
-                             tile_unpick_settings, n_radii=2)
+            # Repick all tiles within a given radius of the selected tile
+            self.repick_within_radius(tile_list, candidate_tiles, candidate_targets_range, 
+                                 standard_targets_range, guide_targets_range, n_radii=2)
         
-        # Recalculate the ranking list
-        ranking_list = [tile.calculate_tile_score(method=ranking_method,
-                disqualify_below_min=disqualify_below_min_range, 
-                combined_weight=tile_unpick_settings["combined_weight"],
-                exp_base=exp_base) for tile in candidate_tiles]
+            # Recalculate the ranking list
+            ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
 
-        # Logging
-        logging.info('%d targets, %d standards, %d guides' %
-                     (tile_list[-1].count_assigned_targets_science(),
-                      tile_list[-1].count_assigned_targets_standard(),
-                      tile_list[-1].count_assigned_targets_guide(), ))
-        logging.info('Now assigned %d tiles' % (len(tile_list), ))
-        logging.info('Priority completeness achieved: {0:1.4f}'.format(
-                        (float(n_priority_targets - remaining_priority_targets) \
-                        / float(n_priority_targets))) )
-        logging.info('Remaining priority targets: {0:d} / {1:d}'.format(
-                     remaining_priority_targets, n_priority_targets))
-        logging.info('Remaining guides & standards (this mag range): %d, %d' %
-                     (len(guide_targets_range), len(standard_targets_range)))
+            # Logging
+            logging.info('%d targets, %d standards, %d guides' %
+                         (tile_list[-1].count_assigned_targets_science(),
+                          tile_list[-1].count_assigned_targets_standard(),
+                          tile_list[-1].count_assigned_targets_guide(), ))
+            logging.info('Now assigned %d tiles' % (len(tile_list), ))
+            logging.info('Priority completeness achieved: {0:1.4f}'.format(
+                            (float(n_priority_targets - remaining_priority_targets) \
+                            / float(n_priority_targets))) )
+            logging.info('Remaining priority targets: {0:d} / {1:d}'.format(
+                         remaining_priority_targets, n_priority_targets))
+            logging.info('Remaining guides & standards (this mag range): %d, %d' %
+                         (len(guide_targets_range), len(standard_targets_range)))
         
-        # If the max of the ranking_list is now 0, try switching off  the disqualify flag
-        if max(ranking_list) < 0.05 and disqualify_below_min_range:
-            logging.info('Detected no remaining legal tiles - relaxing requirements')
-            disqualify_below_min_range = False
-            ranking_list = [tile.calculate_tile_score(
-                            method=ranking_method, 
-                            combined_weight=tile_unpick_settings["combined_weight"],
-                            exp_base=exp_base, 
-                            disqualify_below_min=disqualify_below_min_range) 
-                            for tile in candidate_tiles]
+            # If the max of the ranking_list is now 0, try switching off  the disqualify flag
+            if max(ranking_list) < 0.05 and self.disqualify_below_min:
+                logging.info('Detected no remaining legal tiles - relaxing requirements')
+                self.disqualify_below_min = False
+                ranking_list = [self.calculate_tile_score(tile) 
+                                for tile in candidate_tiles]
                             
-    return candidate_targets, candidate_targets_range, tile_list
+        return candidate_targets, candidate_targets_range, tile_list
 
 
-def greedy_tile_mag_range(candidate_targets, standard_targets, guide_targets, 
-                          candidate_tiles, ranking_method, disqualify_below_min_range, 
-                          exp_base, mag_ranges, completeness_target, 
-                          completeness_priority, recompute_difficulty, randomise_pa, 
-                          tile_unpick_settings, mag_ranges_prioritise, range_ix, 
-                          priority_normal, prioritise_extra):
-    """Function to perform a greedy sky tiling for a given magnitude range.
+    def greedy_tile_mag_range(self, candidate_targets, standard_targets, guide_targets, 
+                              candidate_tiles, range_ix):
+        """Function to perform a greedy sky tiling for a given magnitude range.
     
-    Single parameter output in the form of a list enables for parallel computation of 
-    differing magnitude ranges using the joblib library.
+        Parameters
+        ----------
     
-    TODO: Clean up input list and dependencies, current form is minimally working version
-    for initial parallel implementation.
+        Returns
+        -------
     
-    Parameters
-    ----------
+        """
+        # Initialise the tile list for this magnitude range
+        tile_list = []
     
-    Returns
-    -------
+        mag_range = self.mag_ranges[range_ix]
     
-    """
-    # Initialise the tile list
-    tile_list = []
+        # Perform check to see if using priority magnitude ranges
+        try:
+            mag_range_prioritise = self.mag_ranges_prioritise[range_ix]
+        except:
+            mag_range_prioritise = None
     
-    mag_range = mag_ranges[range_ix]
+        # Check to see if this is the final magnitude range to be considered
+        last_range = not (range_ix < (len(self.mag_ranges) - 1))  
     
-    # Perform check to see if using priority magnitude ranges
-    try:
-        mag_range_prioritise = mag_ranges_prioritise[range_ix]
-    except:
-        mag_range_prioritise = None
+        # Determine targets, standards, and guides                                                   
+        candidate_targets_range = self.get_targets_mag_range(candidate_targets, mag_range, 
+                                                             mag_range_prioritise, 
+                                                             last_range)  
     
-    # Check to see if this is the final magnitude range to be considered
-    last_range = not (range_ix < (len(mag_ranges) - 1))  
+        standard_targets_range = self.get_standards_mag_range(standard_targets, mag_range)
     
-    # Determine targets, standards, and guides                                                   
-    candidate_targets_range = get_targets_mag_range(candidate_targets, mag_range, 
-                                                    [priority_normal,
-                                                    prioritise_extra],
-                                                    mag_range_prioritise, last_range)  
+        non_candidate_guide_targets = self.get_guides_mag_range(guide_targets, 
+                                                                candidate_targets_range)
     
-    standard_targets_range = get_standards_mag_range(standard_targets, mag_range)
+        logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0], mag_range[1]))
+        logging.info("Mag range to prioritize: {0:5.1f} {1:5.1f}".format(
+                 mag_range_prioritise[0],mag_range_prioritise[1]))
+        logging.info("Number of targets in this range: {0:d}".format(
+                 len(candidate_targets_range)))
     
-    non_candidate_guide_targets = get_guides_mag_range(guide_targets, 
-                                                       candidate_targets_range)
-    
-    logging.info("Mag range: {0:5.1f} {1:5.1f}".format(mag_range[0], mag_range[1]))
-    logging.info("Mag range to prioritize: {0:5.1f} {1:5.1f}".format(
-             mag_range_prioritise[0],mag_range_prioritise[1]))
-    logging.info("Number of targets in this range: {0:d}".format(
-             len(candidate_targets_range)))
-    
-    # Generate tiling for the magnitude range
-    candidate_targets, candidate_targets_range, tile_list = perform_greedy_tiling(
-            candidate_targets, candidate_targets_range, standard_targets_range, 
-            non_candidate_guide_targets, candidate_tiles, ranking_method, 
-            disqualify_below_min_range, exp_base, mag_range, completeness_target, 
-            completeness_priority, recompute_difficulty, randomise_pa, 
-            tile_unpick_settings)
+        # Generate tiling for the magnitude range
+        candidate_targets, candidate_targets_range, tile_list = \
+            self.perform_greedy_tiling(
+                candidate_targets, candidate_targets_range, standard_targets_range, 
+                non_candidate_guide_targets, candidate_tiles, mag_range)
       
-    # Now return the priorities to as they were for the remaining targets.
-    for target in candidate_targets_range:
-        target.priority = target.priority_original
+        # Now return the priorities to as they were for the remaining targets.
+        for target in candidate_targets_range:
+            target.priority = target.priority_original
     
-    # Consolidate the tiling
-    tile_list = tiling_consolidate(tile_list)
+        # Consolidate the tiling
+        tile_list = tl.tiling_consolidate(tile_list)
 
-    print "......Done"
+        print "......Done"
       
-    logging.info('For mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
-        mag_range_prioritise[1]))
-    logging.info('Total Tiles so far = {0:d}'.format(len(tile_list))) 
+        logging.info('Mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
+                    mag_range_prioritise[1]))
+        logging.info('Total Tiles so far = {0:d}'.format(len(tile_list))) 
     
-    return [candidate_targets, candidate_targets_range, tile_list]
+        return candidate_targets, candidate_targets_range, tile_list
     
     
 
-def generate_tiling_funnelweb_mp(candidate_targets, standard_targets,
-                                 guide_targets, completeness_target = 1.0,
-                                 ranking_method='priority-expsum',
-                                 disqualify_below_min=True, tiling_method='SH', 
-                                 randomise_pa=True, randomise_SH=True, 
-                                 tiling_file='ipack.3.8192.txt', ra_min=0.0, ra_max=360.0, 
-                                 dec_min=-90.0, dec_max=90.0,
-                                 mag_ranges_prioritise=[[5,7],[7,8],[9,10],[11,12]],
-                                 prioritise_extra=2, priority_normal=2,
-                                 mag_ranges=[[5,8],[7,10],[9,12],[11,14]],
-                                 tiling_set_size=1000,
-                                 tile_unpick_method='combined_weighted',
-                                 combined_weight=4.0, sequential_ordering=(2, 1), 
-                                 rank_supplements=False, repick_after_complete=True, 
-                                 exp_base=3.0, recompute_difficulty=True, n_cores=1):
-    """
-    Generate a tiling based on the greedy algorithm operating on a set of magnitude 
-    ranges sequentially. Within each magnitude range, a complete set of tiles are 
-    selected that enables completeness higher than the minimum priority only.
+    def generate_tiling_funnelweb_mp(self, candidate_targets, standard_targets, 
+                                     guide_targets):
+        """
+        Generate a tiling based on the greedy algorithm operating on a set of magnitude 
+        ranges sequentially. Within each magnitude range, a complete set of tiles are 
+        selected that enables completeness higher than the minimum priority only.
 
-    For each magnitude range, the greedy algorithm works as follows:
+        For each magnitude range, the greedy algorithm works as follows:
     
-    - Generate a set of tiles covering the area of interest.
-    - Unpick each tile (meaning allocate fibers), allowing targets to be duplicated '
-      between tiles.
-    - Select the 'best' tile from this set, and add it to the resultant
-      tiling.
-    - Replace the removed tile in the list (i.e. as you probably haven't yet observed
-      all targets in that part of the sky), then re-unpick the tiles in the set which are
-      affected by the removal of the tile - i.e. the tile just replaced and 
-      neighbouring tiles.
-    - Repeat until no useful tiles remain, or the completeness target is
-      reached.
-    - Then go on to the next magnitude range until there are no magnitude ranges left.
+        - Generate a set of tiles covering the area of interest.
+        - Unpick each tile (meaning allocate fibers), allowing targets to be duplicated '
+          between tiles.
+        - Select the 'best' tile from this set, and add it to the resultant
+          tiling.
+        - Replace the removed tile in the list (i.e. as you probably haven't yet observed
+          all targets in that part of the sky), then re-unpick the tiles in the set which 
+          are affected by the removal of the tile - i.e. the tile just replaced and 
+          neighbouring tiles.
+        - Repeat until no useful tiles remain, or the completeness target is
+          reached.
+        - Then go on to the next magnitude range until there are no magnitude ranges left.
 
 
-    Parameters
-    ----------
-    candidate_targets, standard_targets, guide_targets : 
-        The lists of science,
-        standard and guide targets to consider, respectively. Should be lists
-        of TaipanTarget objects.
+        Parameters
+        ----------
+        candidate_targets, standard_targets, guide_targets : 
+            The lists of science,
+            standard and guide targets to consider, respectively. Should be lists
+            of TaipanTarget objects.
         
-    completeness_target : 
-        A float in the range (0, 1] denoting the science
-        target completeness to stop at. Defaults to 1.0 (full completeness).
+        Returns
+        -------
+        tile_list : 
+            The list of tiles making up the tiling.
         
-    ranking_method : 
-        The scheme to use for ranking the tiles. See the
-        documentation for TaipanTile.calculate_tile_score for details.
+        final_completeness : 
+            The target completeness achieved.
         
-    tiling_method : 
-        The method by which to generate a tiling set. Currently,
-        only 'SH' (Sloane-Harding tiling centres) are available.
-        
-    randomise_pa : 
-        Optional Boolean, denoting whether to randomise the pa of
-        seed tiles or not. Defaults to True.
-        
-    randomise_SH : 
-        Optional Boolean, denoting whether or not to randomise the
-        RA of the 'seed' of the SH tiling. Defaults to True.
-        
-    tiling_file : 
-        The SH tiling file to use for generating tiling centres.
-        Defaults to 'ipack.3.8192.txt'.
-        
-    ra_min, ra_max, dec_min, dec_max : 
-        The RA and Dec bounds of the region to
-        be considered, in decimal degrees. To have an RA range spanning across 
-        0 deg RA, either use a negative value for ra_min, or give an ra_min >
-        ra_max.
-        
-    mag_ranges :    
-        The magnitude ranges for each set of tiles.
-        
-    mag_ranges_prioritise :
-        The magnitude ranges to add extra priority to within each set
-        of tiles.
-        
-    prioritise_extra :
-        The additional priority to add within each of the mag_range_prioritise
+        candidate_targets : 
+            Any targets from candidate_targets that do not
+            appear in the final tiling_list (i.e. were not assigned to a successful
+            tile).
+        """
+        # Initialise list to hold all tiling results
+        tile_lists = []
+
+        # Push the coordinate limits into standard format
+        self.compute_bounds()
+
+        # Generate the SH tiling to cover the region of interest
+        candidate_tiles = self.generate_SH_tiling()
+        candidate_tiles = [tile for tile in candidate_tiles 
+                           if self.is_within_bounds(tile)]
+
+        candidate_targets_master = candidate_targets[:]
     
-    priority_normal :
-        The standard priority level. Completeness is assessed at this priority level
-        for stars in the priority magnitude range.
-                
-    tiling_set_size : 
-        Not relevant at the current time.
+        # Initialise some of our counter variables
+        no_submitted_targets = len(candidate_targets_master)
         
-    tile_unpick_method : 
-        The scheme to be used for unpicking tiles. Defaults to
-        'sequential'. See the documentation for TaipanTile.unpick_tile for 
-        details.
-        
-    combined_weight, sequential_ordering : 
-        Additional arguments to be used in
-        the tile unpicking process. See the documentation for 
-        TaipanTile.unpick_tile for details.
-        
-    rank_supplements : 
-        Optional Boolean value, denoting whether to attempt to
-        assign guides/standards in priority order. Defaults to False.
-        
-    repick_after_complete : 
-        Boolean value, denoting whether to repick each tile
-        after unpicking. Defaults to True.
-        
-    recompute_difficulty : 
-        Boolean value, denoting whether to recompute target
-        difficulties after a tile is moved to the results list. For funnelWeb,
-        it also means recompute for each mag range. Defaults to
-        True.
-        
-    exp_base : float, optional
-        For priority-expsum, this is the base for the exponent (default 3.0)
-
-    Returns
-    -------
-    tile_list : 
-        The list of tiles making up the tiling.
-        
-    final_completeness : 
-        The target completeness achieved.
-        
-    candidate_targets : 
-        Any targets from candidate_targets that do not
-        appear in the final tiling_list (i.e. were not assigned to a successful
-        tile).
-    """
+        if no_submitted_targets == 0:
+            raise ValueError('Attempting to generate a tiling with no targets!')
     
-    completeness_priority = priority_normal + prioritise_extra
+        # Generate a greedy style tiling for each magnitude range 
+        for range_ix in xrange(len(self.mag_ranges)):
+            candidate_targets, candidate_targets_range, tile_list =  \
+                self.greedy_tile_mag_range(candidate_targets, standard_targets, 
+                                           guide_targets, candidate_tiles, range_ix)
+                                 
+            tile_lists.append(tile_list)                     
     
-    tile_lists = []
+        # Concatenate tiling lists from each range
+        tile_list = []
+        for mag_range_tiling in tile_lists:
+            tile_list.extend(mag_range_tiling)
 
-    # Input checking
-    TILING_METHODS = ['SH',]     # Sloane-Harding
-
-    if tiling_method not in TILING_METHODS:
-        raise ValueError('tiling_method must be one of %s' % str(TILING_METHODS))
-
-    tiling_set_size = int(tiling_set_size)
-    if tiling_set_size <= 0:
-        raise ValueError('tiling_set_size must be > 0')
-
-    if completeness_target <= 0. or completeness_target > 1:
-        raise ValueError('completeness_target must be in the range (0, 1]')
+        # Return the tiling, the completeness factor and the remaining targets
+        final_completeness = float(no_submitted_targets 
+            - len(candidate_targets)) / float(no_submitted_targets)
     
-    # Dictionary of tiling settings
-    # TODO: Pass this in separately, rather than defining here
-    tile_unpick_settings = {"overwrite_existing":True, 
-                            "check_tile_radius":True, 
-                            "recompute_difficulty":False, 
-                            "method":tile_unpick_method,
-                            "combined_weight":combined_weight,
-                            "sequential_ordering":sequential_ordering,
-                            "rank_supplements":rank_supplements, 
-                            "repick_after_complete":repick_after_complete,
-                            "consider_removed_targets":False, 
-                            "allow_standard_targets":True}
-    
-    # Push the coordinate limits into standard format
-    ra_min, ra_max, dec_min, dec_max = compute_bounds(ra_min, ra_max, dec_min, dec_max)
-
-    # Generate the SH tiling to cover the region of interest
-    candidate_tiles = generate_SH_tiling(tiling_file, randomise_seed=randomise_SH, 
-                                         randomise_pa=randomise_pa)
-    candidate_tiles = [t for t in candidate_tiles
-        if is_within_bounds(t, ra_min, ra_max, dec_min, dec_max)]
-
-    candidate_targets_master = candidate_targets[:]
-    #candidate_targets = mp.Manager().list(candidate_targets_master)
-    
-    # Initialise some of our counter variables
-    no_submitted_targets = len(candidate_targets_master)
-    if no_submitted_targets == 0:
-        raise ValueError('Attempting to generate a tiling with no targets!')
-    
-    # Generate a greedy style tiling for each magnitude range    
-    results = Parallel(n_jobs=n_cores, backend="multiprocessing")(
-                delayed(greedy_tile_mag_range)(candidate_targets[:], standard_targets,
-                                               guide_targets, 
-                                               candidate_tiles, ranking_method, 
-                                               disqualify_below_min, 
-                                               exp_base, mag_ranges, 
-                                               completeness_target, 
-                                               completeness_priority, 
-                                               recompute_difficulty, randomise_pa, 
-                                               tile_unpick_settings, 
-                                               mag_ranges_prioritise, range_ix,
-                                               priority_normal, prioritise_extra)
-                                        for range_ix, mag_range in enumerate(mag_ranges))  
+        # Perform a global re-pick if not done during tiling
+        if not self.repick_after_complete:
+            start = time.time()
+            print "Performing global repick...",
         
-    # Join everything back together, where results are of form:
-    # [candidate_targets, candidate_targets_range, tile_list]
-    # TODO: Combine separate versions of candidate_targets after each magnitude range 
-    # returns, or create multiprocessing safe version
-    for range_ix in xrange(len(mag_ranges)):
-        tile_lists.append(results[range_ix][2])
-
-    # Concatenate tiling lists from each range
-    tile_list = []
-    for mag_range_tiling in tile_lists:
-        tile_list.extend(mag_range_tiling)
-
-    # Return the tiling, the completeness factor and the remaining targets
-    final_completeness = float(no_submitted_targets 
-        - len(candidate_targets)) / float(no_submitted_targets)
-    
-    # Perform a global re-pick if not done during tiling
-    if not repick_after_complete:
-        start = time.time()
-        print "Performing global repick...",
-        
-        for t in tile_list:
-            t.repick_tile()
+            for tile in tile_list:
+                tile.repick_tile()
             
-        finish = time.time()
-        delta = finish - start
-        print ("done in %d:%02.1f") % (delta/60, delta % 60.)
+            finish = time.time()
+            delta = finish - start
+            print ("done in %d:%02.1f") % (delta/60, delta % 60.)
     
-    print "Tiling complete! \n"
+        print "Tiling complete! \n"
     
-    return tile_list, final_completeness, candidate_targets 
+        return tile_list, final_completeness, candidate_targets 
 
 
 # ----------------------------------------------------------------------------------------
