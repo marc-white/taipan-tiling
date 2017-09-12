@@ -145,6 +145,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
                                         weather_loss*100.)
     while curr_date <= date_end:
         if curr_date == date_start:
+            logging.warning('TILE CHANGEOVER')
             # logging.warning('ABORTING at tile changeover')
             # sys.exit()
             # Modify taipan.core.BUGPOS_MM to add in another 150
@@ -263,7 +264,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    logging.info('Executing fullsurvey.py as file')
+    logging.info('Executing fullsurvey_baseline_resume.py as file')
     logging.info('*** THIS IS AN INSTANT-FEEDBACK SIMULATION')
 
     # Get a cursor
