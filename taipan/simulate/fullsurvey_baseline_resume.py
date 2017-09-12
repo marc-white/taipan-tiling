@@ -181,7 +181,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
             # Complete re-compute of target types, priorities and difficulties
             update_science_targets(cursor, target_list=None,
                                    do_d=True,
-                                   prisci=False)
+                                   prisci=curr_date < prior_lowz_end)
             # Switch the field statuses
             # mCS.execute(cursor, remove_inactive_tiles=True)
             # mScD.execute(cursor)t
