@@ -145,7 +145,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
                                         weather_loss*100.)
     while curr_date <= date_end:
         if curr_date == date_start:
-            logging.warning('TILE CHANGEOVER')
+            logging.warning('FIBRE CHANGEOVER')
             # logging.warning('ABORTING at tile changeover')
             # sys.exit()
             # Modify taipan.core.BUGPOS_MM to add in another 150
@@ -182,7 +182,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
             update_science_targets(cursor, target_list=None,
                                    do_d=True,
                                    prisci=
-                                   (curr_date - sim_start) > prior_lowz_end)
+                                   (curr_date - sim_start) < prior_lowz_end)
 
             # Switch the field statuses
             # mCS.execute(cursor, remove_inactive_tiles=True)
