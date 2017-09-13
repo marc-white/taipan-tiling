@@ -247,7 +247,7 @@ date_time = time.strftime("%y%d%m_%H%M_")
 # same format for every run (i.e. the keys are in the order added)
 run_settings = OrderedDict([("run_id", date_time[:-1]),
                             ("description", run_description),
-                            ("mins_to_complete", time_to_complete),
+                            ("mins_to_complete", time_to_complete/60.),
                             ("num_targets", len(all_targets)),
                             ("num_tiles", len(tiling)),
                             ("avg_targets_per_tile", np.average(targets_per_tile)),
