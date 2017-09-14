@@ -933,7 +933,7 @@ class FWTiler(object):
             # ----------------------------------------------------------------------------
             
             # Single core
-            if self.n_cores == 1:
+            if self.n_cores == 0:
                 # Find best tile
                 best_tile = self.get_best_distant_tile(tile_list, candidate_tiles,
                                                            ranking_list)
@@ -987,7 +987,7 @@ class FWTiler(object):
                                                                  tile_list[-1].dec, 
                                                                  candidate_tiles, 
                                                                  2*tp.TILE_RADIUS) 
-                
+                   
                     nearby_candidate_targets = tp.targets_in_range(tile_list[-1].ra, 
                                                                 tile_list[-1].dec, 
                                                                 candidate_targets_range, 
@@ -999,9 +999,29 @@ class FWTiler(object):
                                                                 3*tp.TILE_RADIUS) 
                     nearby_candidate_guides = tp.targets_in_range(tile_list[-1].ra, 
                                                                   tile_list[-1].dec, 
-                                                                  standard_targets_range, 
+                                                                  guide_targets_range, 
                                                                   3*tp.TILE_RADIUS) 
-                                                              
+                    
+                    # Remove elements to be passed to the subprocesses
+                    candidate_tiles = [tile for tile in candidate_tiles 
+                                       if tile not in nearby_candidate_tiles]
+                                       
+                    candidate_targets = [tile for tile in candidate_targets 
+                                         if tile not in nearby_candidate_targets]
+                    
+                    candidate_targets_range = [tile for tile in candidate_targets_range
+                                               if tile not in nearby_candidate_targets]                     
+                                         
+                    standard_targets_range = [tile for tile in standard_targets_range 
+                                              if tile not in nearby_candidate_standards]
+                                           
+                    guide_targets_range = [tile for tile in guide_targets_range 
+                                           if tile not in nearby_candidate_guides]                     
+                    
+                    # Recalculate the ranking list
+                    ranking_list = [self.calculate_tile_score(tile) 
+                                    for tile in candidate_tiles] 
+                                                             
                     # Add an entry to the dictionary
                     best_tiles[nth_best_tile] = (nearby_candidate_tiles, 
                                                  nearby_candidate_targets,
@@ -1009,17 +1029,24 @@ class FWTiler(object):
                                                  nearby_candidate_guides)
              
                 # Dictionary is constructed, now perform parallel repick
-                Parallel(n_jobs=self.n_cores, backend="multiprocessing")(
-                     delayed(repick_within_radius)(tile, 
-                                                   best_tiles[tile][0],
-                                                   best_tiles[tile][1],
-                                                   best_tiles[tile][2],
-                                                   best_tiles[tile][3],
-                                                   self.unpick_settings)
-                                             for tile in best_tiles.keys())  
+                results = Parallel(n_jobs=self.n_cores, backend="multiprocessing")(
+                             delayed(repick_within_radius)(tile, 
+                                                           best_tiles[tile][0],
+                                                           best_tiles[tile][1],
+                                                           best_tiles[tile][2],
+                                                           best_tiles[tile][3],
+                                                           self.unpick_settings)
+                                                     for tile in best_tiles.keys())  
             
                 # Done, now put everything back together
-            
+                # Format of results: [tiles, targets, standards, guides]
+                for result in results:
+                    candidate_tiles = candidate_tiles + result[0]
+                    candidate_targets = candidate_targets + result[1]
+                    candidate_targets_range = candidate_targets_range + result[1]
+                    standard_targets_range = standard_targets_range + result[2]
+                    guide_targets_range = guide_targets_range + result[3]
+                
         
             # Recalculate the ranking list
             ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
@@ -1251,7 +1278,7 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
         """                    
         logging.info('Completed %d / %d' % (tile_i, len(affected_tiles)))
         
-     #return
+    return [candidate_tiles, candidate_targets, candidate_standards, candidate_guides]
 
 
 
