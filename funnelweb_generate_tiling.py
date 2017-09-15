@@ -131,7 +131,7 @@ tp.GUIDES_PER_TILE_MIN = fwts.script_settings["GUIDES_PER_TILE_MIN"]
 # Save a copy of the settings file for future reference
 # The file will be appropriately timestamped on completion of the tiling
 settings_file = "funnelweb_tiling_settings.py"
-temp_settings_file = "results/temp_" + time.strftime("%y%d%m_%H%M_") + settings_file
+temp_settings_file = "results/temp_" + time.strftime("%y%m%d_%H%M_") + settings_file
 copyfile(settings_file, temp_settings_file)
 
 # Prompt user for the description or motivation of the run

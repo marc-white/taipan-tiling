@@ -109,7 +109,7 @@ def plot_tiling(tiling, run_settings):
                lw=.75, colors='k', linestyles='dotted', label='95% completion')
     ax2.legend(loc='lower right', title='Time to %3.1f comp.: %dm:%2.1fs' % (
                run_settings["completeness_target"] * 100., 
-               int(np.floor(run_settings["mins_to_complete"]/60.)), 
+               int(np.floor(run_settings["mins_to_complete"])), 
                run_settings["mins_to_complete"] % 60.))
     ax2.set_title('Completeness progression')
     ax2.set_xlabel('No. of tiles')

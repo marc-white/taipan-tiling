@@ -712,7 +712,14 @@ class FWTiler(object):
     #@profile
     def get_best_distant_tile(self, tile_list, candidate_tiles, ranking_list, 
                               best_tiles=None, n_radii=6):
-        """
+        """Todo: check to avoid indexing errors.
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        best_tile: TaipanTile object or None
         """
         if best_tiles and len(best_tiles) > 0:
             # While loop setup: sort indices of ranking list, initialise bool check/count
@@ -745,6 +752,10 @@ class FWTiler(object):
                     # possible for us to reach the completion target without using the 
                     # best available remaining targets.
                     nth_max -= 1
+                    
+                    # We have no exhausted ranking list and cannot find a suitable tile
+                    if np.abs(nth_max) > len(ranking_list_i_sorted):
+                        return None 
         
         # Either we are just selecting the first best tile, or will only be selecting one
         else:
@@ -819,6 +830,7 @@ class FWTiler(object):
                 #Change priorities back to normal for targets in our priority magnitude
                 #range
                 target.priority = target.priority_original
+                
             elif target.standard:
                 reobserved_standards.append(target)
                 logging.info('Re-allocating standard ' + str(target.idn) + 
@@ -958,16 +970,25 @@ class FWTiler(object):
             else:
                 # Dictionary of form:
                 # {TaipanTile:([Tiles],[Targets],[Standards],[Guides]),}
-                # Where a highly ranked tile is paired with lists of the neighbouring 
-                # affected tiles, targets, standards, and guides
                 best_tiles = {}
             
+                # This loop builds up the dictionary consisting of the best tile and its
+                # neighbouring tiles/targets/standards/guides until it has length equal to
+                # the # of cores available. Once built, each entry in the dictionary is
+                # sent off to a different process to have the neighbourhood repicked.
+                # TODO: Have contingency if for some reason we cannot select enough tiles
                 for process_i in xrange(0, self.n_cores):
                     # Find best tile that is >=6 tiles away from other best tiles
+                    # If best_tiles.keys() is empty, the best tile will be returned
                     nth_best_tile = self.get_best_distant_tile(tile_list, candidate_tiles,
                                                                ranking_list,
                                                                best_tiles.keys(), 
                                                                n_radii=6)
+                    
+                    # We were unsuccessful in finding tiles up to n_cores, proceed with
+                    # what we have and break out of the for loop
+                    if not nth_best_tile:
+                        break
                 
                     # Add the magnitude range information
                     nth_best_tile.mag_min = mag_range[0]
@@ -997,6 +1018,7 @@ class FWTiler(object):
                                                                 tile_list[-1].dec, 
                                                                 standard_targets_range, 
                                                                 3*tp.TILE_RADIUS) 
+                                                                
                     nearby_candidate_guides = tp.targets_in_range(tile_list[-1].ra, 
                                                                   tile_list[-1].dec, 
                                                                   guide_targets_range, 
@@ -1017,16 +1039,20 @@ class FWTiler(object):
                                            
                     guide_targets_range = [tile for tile in guide_targets_range 
                                            if tile not in nearby_candidate_guides]                     
-                    
-                    # Recalculate the ranking list
-                    ranking_list = [self.calculate_tile_score(tile) 
-                                    for tile in candidate_tiles] 
                                                              
-                    # Add an entry to the dictionary
+                    # Add an entry to the dictionary to be sent to the subprocess
                     best_tiles[nth_best_tile] = (nearby_candidate_tiles, 
                                                  nearby_candidate_targets,
                                                  nearby_candidate_standards,
                                                  nearby_candidate_guides)
+             
+                    # Recalculate the ranking list to account for the now missing items
+                    ranking_list = [self.calculate_tile_score(tile) 
+                                    for tile in candidate_tiles] 
+                    
+                    # If max of the ranking_list is now 0, abort filling up to n_cores
+                    if max(ranking_list) < 0.05 and self.disqualify_below_min:
+                        break
              
                 # Dictionary is constructed, now perform parallel repick
                 results = Parallel(n_jobs=self.n_cores, backend="multiprocessing")(
@@ -1071,6 +1097,9 @@ class FWTiler(object):
                 self.disqualify_below_min = False
                 ranking_list = [self.calculate_tile_score(tile) 
                                 for tile in candidate_tiles]
+        
+        # Reset disqualify_below_min
+        self.disqualify_below_min = True 
                             
         return candidate_targets, candidate_targets_range, tile_list
 
