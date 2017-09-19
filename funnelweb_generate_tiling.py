@@ -208,7 +208,7 @@ print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
 #-----------------------------------------------------------------------------------------
 # Generate Tiling
 #-----------------------------------------------------------------------------------------
-print 'Commencing tiling...'
+print 'Commencing tiling with %i core/s...' % (fwts.tiler_input["n_cores"])
 start = datetime.datetime.now()
 tiling, completeness, remaining_targets = fwtiler.generate_tiling_funnelweb_mp(
                                             candidate_targets, standard_targets, 

@@ -28,6 +28,8 @@ from joblib import Parallel, delayed
 import multiprocessing as mp
 import functools
 from matplotlib.cbook import flatten
+import pdb
+from collections import Counter
 
 class FWTiler(object):
     """FunnelWeb Tiler object to encapsulate tiling settings, wrap tiling functions, and
@@ -880,21 +882,26 @@ class FWTiler(object):
         # as overlap is allowed - instead, we will need to manually update
         # candidate_tiles once we pick the highest-ranked tile
         # Likewise, we don't want the target difficulties to change
-        # Therefore, we'll assign the output of the function to a dummy variable                   
+        # Therefore, we'll assign the output of the function to a dummy variable            
         if self.recompute_difficulty:
             logging.info("Computing difficulties...")
             tp.compute_target_difficulties(candidate_targets_range)
     
         print "Tiling mag range %s; # Targets=%i" % (mag_range, 
-                                                     len(candidate_targets_range)),
-    
+                                                     len(candidate_targets_range))
+        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+          
         logging.info('Creating initial tile unpicks...')
-    
+        
+        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+        
         for tile_i, tile in enumerate(candidate_tiles):   
             self.unpick_tile(tile, candidate_targets_range, standard_targets_range, 
                              guide_targets_range)
             logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
-    
+        
+        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+        
         # Compute initial rankings for all of the tiles
         ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
                     
@@ -953,7 +960,11 @@ class FWTiler(object):
                 # Add the magnitude range information
                 best_tile.mag_min = mag_range[0]
                 best_tile.mag_max = mag_range[1]
-            
+                
+                #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+                
+                #print Counter([tile.mag_min for tile in candidate_tiles])
+                
                 # Replace the best tile and remove its assigned targets from further
                 # consideration
                 remaining_priority_targets = self.replace_best_tile(best_tile, 
@@ -988,11 +999,15 @@ class FWTiler(object):
                     # We were unsuccessful in finding tiles up to n_cores, proceed with
                     # what we have and break out of the for loop
                     if not nth_best_tile:
+                        logging.info("nth_best_tile is None, aborting filling to n_cores")
                         break
                 
                     # Add the magnitude range information
                     nth_best_tile.mag_min = mag_range[0]
-                    nth_best_tile.mag_max = mag_range[1]
+                    nth_best_tile.mag_max = mag_range[1] 
+                    
+                    #print [tile in candidate_targets for tile in tile_list]
+                    #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
                 
                     # Replace the best tile and remove its assigned targets from further
                     # consideration
@@ -1004,27 +1019,47 @@ class FWTiler(object):
                 
                     # Create lists of all neighbouring affected tiles, and all candidate
                     # science, standard, and guide targets
-                    nearby_candidate_tiles = tp.targets_in_range(tile_list[-1].ra, 
-                                                                 tile_list[-1].dec, 
+                    nearby_candidate_tiles = tp.targets_in_range(nth_best_tile.ra, 
+                                                                 nth_best_tile.dec, 
                                                                  candidate_tiles, 
                                                                  2*tp.TILE_RADIUS) 
                    
-                    nearby_candidate_targets = tp.targets_in_range(tile_list[-1].ra, 
-                                                                tile_list[-1].dec, 
+                    nearby_candidate_targets = tp.targets_in_range(nth_best_tile.ra, 
+                                                                nth_best_tile.dec, 
                                                                 candidate_targets_range, 
                                                                 3*tp.TILE_RADIUS) 
                 
-                    nearby_candidate_standards = tp.targets_in_range(tile_list[-1].ra, 
-                                                                tile_list[-1].dec, 
+                    nearby_candidate_standards = tp.targets_in_range(nth_best_tile.ra, 
+                                                                nth_best_tile.dec, 
                                                                 standard_targets_range, 
                                                                 3*tp.TILE_RADIUS) 
                                                                 
-                    nearby_candidate_guides = tp.targets_in_range(tile_list[-1].ra, 
-                                                                  tile_list[-1].dec, 
+                    nearby_candidate_guides = tp.targets_in_range(nth_best_tile.ra, 
+                                                                  nth_best_tile.dec, 
                                                                   guide_targets_range, 
                                                                   3*tp.TILE_RADIUS) 
                     
                     # Remove elements to be passed to the subprocesses
+                    for candidate_i in xrange(len(nearby_candidate_tiles)):
+                        if nearby_candidate_tiles[candidate_i] in candidate_tiles:
+                            candidate_tiles.remove(nearby_candidate_tiles[candidate_i]) 
+                            
+                    for candidate_i in xrange(len(nearby_candidate_targets)):
+                        if nearby_candidate_targets[candidate_i] in candidate_targets:
+                            candidate_targets.remove(nearby_candidate_targets[candidate_i])  
+
+                    for candidate_i in xrange(len(nearby_candidate_targets)):
+                        if nearby_candidate_targets[candidate_i] in candidate_targets_range:
+                            candidate_targets_range.remove(nearby_candidate_targets[candidate_i]) 
+                            
+                    for candidate_i in xrange(len(nearby_candidate_standards)):
+                        if nearby_candidate_standards[candidate_i] in standard_targets_range:
+                            standard_targets_range.remove(nearby_candidate_standards[candidate_i])                              
+
+                    for candidate_i in xrange(len(nearby_candidate_guides)):
+                        if nearby_candidate_guides[candidate_i] in guide_targets_range:
+                            guide_targets_range.remove(nearby_candidate_guides[candidate_i])      
+                    """
                     candidate_tiles = [tile for tile in candidate_tiles 
                                        if tile not in nearby_candidate_tiles]
                                        
@@ -1039,12 +1074,12 @@ class FWTiler(object):
                                            
                     guide_targets_range = [tile for tile in guide_targets_range 
                                            if tile not in nearby_candidate_guides]                     
-                                                             
+                    """                                         
                     # Add an entry to the dictionary to be sent to the subprocess
-                    best_tiles[nth_best_tile] = (nearby_candidate_tiles, 
-                                                 nearby_candidate_targets,
-                                                 nearby_candidate_standards,
-                                                 nearby_candidate_guides)
+                    best_tiles[nth_best_tile] = (nearby_candidate_tiles[:], 
+                                                 nearby_candidate_targets[:],
+                                                 nearby_candidate_standards[:],
+                                                 nearby_candidate_guides[:])
              
                     # Recalculate the ranking list to account for the now missing items
                     ranking_list = [self.calculate_tile_score(tile) 
@@ -1052,10 +1087,12 @@ class FWTiler(object):
                     
                     # If max of the ranking_list is now 0, abort filling up to n_cores
                     if max(ranking_list) < 0.05 and self.disqualify_below_min:
+                        logging.info("max(ranking_list) < 0.05, abort filling to n_cores")
                         break
              
                 # Dictionary is constructed, now perform parallel repick
-                results = Parallel(n_jobs=self.n_cores, backend="multiprocessing")(
+                n_processes = len(best_tiles.keys())
+                results = Parallel(n_jobs=n_processes, backend="multiprocessing")(
                              delayed(repick_within_radius)(tile, 
                                                            best_tiles[tile][0],
                                                            best_tiles[tile][1],
@@ -1067,11 +1104,12 @@ class FWTiler(object):
                 # Done, now put everything back together
                 # Format of results: [tiles, targets, standards, guides]
                 for result in results:
-                    candidate_tiles = candidate_tiles + result[0]
-                    candidate_targets = candidate_targets + result[1]
-                    candidate_targets_range = candidate_targets_range + result[1]
-                    standard_targets_range = standard_targets_range + result[2]
-                    guide_targets_range = guide_targets_range + result[3]
+                    #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+                    candidate_tiles.extend(result[0])
+                    candidate_targets.extend(result[1])
+                    candidate_targets_range.extend(result[1])
+                    standard_targets_range.extend(result[2])
+                    guide_targets_range.extend(result[3])
                 
         
             # Recalculate the ranking list
@@ -1100,7 +1138,10 @@ class FWTiler(object):
         
         # Reset disqualify_below_min
         self.disqualify_below_min = True 
-                            
+        
+        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+        #print "mag_mins in tile_list", Counter([tile.mag_min for tile in tile_list]), "for mag_min", mag_range[0]
+        
         return candidate_targets, candidate_targets_range, tile_list
 
     
@@ -1145,13 +1186,16 @@ class FWTiler(object):
                  mag_range_prioritise[0],mag_range_prioritise[1]))
         logging.info("Number of targets in this range: {0:d}".format(
                  len(candidate_targets_range)))
-    
+        
         # Generate tiling for the magnitude range
         candidate_targets, candidate_targets_range, tile_list = \
             self.perform_greedy_tiling(
                 candidate_targets, candidate_targets_range, standard_targets_range, 
                 non_candidate_guide_targets, candidate_tiles, mag_range)
-      
+        
+        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
+        #print "mag_mins in tile_list", Counter([tile.mag_min for tile in tile_list]), "for mag_min", mag_range[0]
+        
         # Now return the priorities to as they were for the remaining targets.
         for target in candidate_targets_range:
             target.priority = target.priority_original
@@ -1159,7 +1203,7 @@ class FWTiler(object):
         # Consolidate the tiling
         tile_list = tl.tiling_consolidate(tile_list)
 
-        print "......Done"
+        print "......Done with %i tiles" % (len(tile_list))
       
         logging.info('Mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
                     mag_range_prioritise[1]))
@@ -1230,20 +1274,34 @@ class FWTiler(object):
         
         if no_submitted_targets == 0:
             raise ValueError('Attempting to generate a tiling with no targets!')
-    
+        
+        print Counter([tile.mag_min for tile in candidate_tiles])
+        
         # Generate a greedy style tiling for each magnitude range 
         for range_ix in xrange(len(self.mag_ranges)):
             candidate_targets, candidate_targets_range, tile_list =  \
                 self.greedy_tile_mag_range(candidate_targets, standard_targets, 
                                            guide_targets, candidate_tiles, range_ix)
-                                 
-            tile_lists.append(tile_list)                     
-    
+            
+            tile_lists.append(tile_list)
+            #print "----- [%i, %i] -----" % (self.mag_ranges[range_ix][0], self.mag_ranges[range_ix][1]) 
+            #for mrange in tile_lists:
+                #print Counter([tile.mag_min for tile in candidate_tiles])
+                #print Counter([tile.mag_min for tile in mrange]), len(mrange) 
+                #print [tile.count_assigned_targets_science() for tile in mrange]                    
+                
+                           
+        
+        #print "--------------------------------\n Greedy Tiling Done \n"
+        
         # Concatenate tiling lists from each range
         tile_list = []
         for mag_range_tiling in tile_lists:
+            #print Counter([tile.mag_min for tile in mag_range_tiling])
             tile_list.extend(mag_range_tiling)
-
+        
+        #print Counter([tile.mag_min for tile in tile_list])
+        
         # Return the tiling, the completeness factor and the remaining targets
         final_completeness = float(no_submitted_targets 
             - len(candidate_targets)) / float(no_submitted_targets)
@@ -1261,6 +1319,8 @@ class FWTiler(object):
             print ("done in %d:%02.1f") % (delta/60, delta % 60.)
     
         print "Tiling complete! \n"
+    
+        print Counter([tile.mag_min for tile in tile_list])
     
         return tile_list, final_completeness, candidate_targets 
 
