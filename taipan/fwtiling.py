@@ -888,7 +888,7 @@ class FWTiler(object):
             tp.compute_target_difficulties(candidate_targets_range)
     
         print "Tiling mag range %s; # Targets=%i" % (mag_range, 
-                                                     len(candidate_targets_range))
+                                                     len(candidate_targets_range)),
         #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
           
         logging.info('Creating initial tile unpicks...')
@@ -1275,7 +1275,7 @@ class FWTiler(object):
         if no_submitted_targets == 0:
             raise ValueError('Attempting to generate a tiling with no targets!')
         
-        print Counter([tile.mag_min for tile in candidate_tiles])
+        #print Counter([tile.mag_min for tile in candidate_tiles])
         
         # Generate a greedy style tiling for each magnitude range 
         for range_ix in xrange(len(self.mag_ranges)):
@@ -1320,7 +1320,7 @@ class FWTiler(object):
     
         print "Tiling complete! \n"
     
-        print Counter([tile.mag_min for tile in tile_list])
+        #print Counter([tile.mag_min for tile in tile_list])
     
         return tile_list, final_completeness, candidate_targets 
 

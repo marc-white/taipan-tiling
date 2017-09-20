@@ -237,6 +237,10 @@ def generate_SH_tiling(tiling_file, randomise_seed=True, randomise_pa=False):
             for c in tile_cents]
         # print tile_cents[0]
     # print len(tile_cents)
+    else:
+        # % 360 needed in default case to prevent RA values of 360, which raise exceptions
+        # in the TaipanTile constructor/RA setter when not employing random_seed=True 
+        tile_cents = [((c[0] + 180.) % 360. - 180., c[1]) for c in tile_cents] 
 
     tile_list = [tp.TaipanTile(c[0] + 180., c[1], pa=gen_pa(randomise_pa))
         for c in tile_cents]

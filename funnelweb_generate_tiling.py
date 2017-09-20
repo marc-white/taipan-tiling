@@ -228,9 +228,11 @@ guides_per_tile = [t.count_assigned_targets_guide() for t in tiling]
 
 print 'TILING STATS'
 print '------------'
-print 'Greedy FW tiling complete in %d:%2.1f' % (int(np.floor(time_to_complete/60.)),
-    time_to_complete % 60.)
+print 'FW tiling complete using %i core/s in %d:%2.1f' % (fwts.tiler_input["n_cores"],
+        int(np.floor(time_to_complete/60.)), time_to_complete % 60.)
 print '%d targets required %d tiles' % (len(all_targets), len(tiling), )
+print 'Tiling completeness = %4.4f, %i targets remaining' % (completeness, 
+        len(remaining_targets))
 print 'Average %3.1f targets per tile' % np.average(targets_per_tile)
 print '(min %d, max %d, median %d, std %2.1f)' % (min(targets_per_tile),
     max(targets_per_tile), np.median(targets_per_tile), 
