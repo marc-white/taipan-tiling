@@ -145,58 +145,59 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
                                         weather_loss*100.)
     while curr_date <= date_end:
         if curr_date == date_start:
-            logging.warning('FIBRE CHANGEOVER')
-            # logging.warning('ABORTING at tile changeover')
-            # sys.exit()
-            # Modify taipan.core.BUGPOS_MM to add in another 150
-            # science fibres
-            # We do this by adding a new fibre in between each pair of
-            # consecutive science fibres
-            # tp.FIBRES_NORMAL.sort()
-            # last_fibre = np.max(tp.BUGPOS_MM.keys())
-            # for i in range(len(tp.FIBRES_NORMAL)):
-            #     pos_avg = (
-            #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][0],
-            #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][0]]),
-            #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][1],
-            #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][1]]),
-            #     )
-            #     tp.BUGPOS_MM[last_fibre + i + 1] = pos_avg
-            #     tp.BUGPOS_ARCSEC[last_fibre + i + 1] = (
-            #         pos_avg[0] * tp.ARCSEC_PER_MM,
-            #         pos_avg[1] * tp.ARCSEC_PER_MM,
-            #     )
-            #     tp.BUGPOS_OFFSET[last_fibre + i + 1] = (
-            #         math.sqrt(pos_avg[0]**2 + pos_avg[1]**2),
-            #         math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
-            #     )
-            #     tp.FIBRES_NORMAL.append(last_fibre + i + 1)
-            # tp.TARGET_PER_TILE = 270
-            # tp.FIBRES_PER_TILE = 309
-            # tp.INSTALLED_FIBRES = 309
-            tp._alter_fibres(no_fibres=300)
-            # Lose 30 days to the upgrade
-            curr_date += datetime.timedelta(days=30.)
-            # Need to now do:
-            # Complete re-compute of target types, priorities and difficulties
-            update_science_targets(cursor, target_list=None,
-                                   do_d=True,
-                                   prisci=
-                                   (curr_date - sim_start) < prior_lowz_end)
-
-            # Switch the field statuses
-            # mCS.execute(cursor, remove_inactive_tiles=True)
-            # mScD.execute(cursor)t
-            # Complete re-tile of all fields
-            fields_to_retile = [t.field_id for t in rCexec(cursor)]
-            retile_fields(cursor, fields_to_retile, tiles_per_field=1,
-                          tiling_time=ts.utc_local_dt(datetime.datetime.combine(
-                              curr_date,
-                              datetime.time(12,0,0)
-                          )),
-                          disqualify_below_min=False,
-                          multicores=7
-                          )
+            pass
+            # logging.warning('FIBRE CHANGEOVER')
+            # # logging.warning('ABORTING at tile changeover')
+            # # sys.exit()
+            # # Modify taipan.core.BUGPOS_MM to add in another 150
+            # # science fibres
+            # # We do this by adding a new fibre in between each pair of
+            # # consecutive science fibres
+            # # tp.FIBRES_NORMAL.sort()
+            # # last_fibre = np.max(tp.BUGPOS_MM.keys())
+            # # for i in range(len(tp.FIBRES_NORMAL)):
+            # #     pos_avg = (
+            # #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][0],
+            # #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][0]]),
+            # #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][1],
+            # #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][1]]),
+            # #     )
+            # #     tp.BUGPOS_MM[last_fibre + i + 1] = pos_avg
+            # #     tp.BUGPOS_ARCSEC[last_fibre + i + 1] = (
+            # #         pos_avg[0] * tp.ARCSEC_PER_MM,
+            # #         pos_avg[1] * tp.ARCSEC_PER_MM,
+            # #     )
+            # #     tp.BUGPOS_OFFSET[last_fibre + i + 1] = (
+            # #         math.sqrt(pos_avg[0]**2 + pos_avg[1]**2),
+            # #         math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
+            # #     )
+            # #     tp.FIBRES_NORMAL.append(last_fibre + i + 1)
+            # # tp.TARGET_PER_TILE = 270
+            # # tp.FIBRES_PER_TILE = 309
+            # # tp.INSTALLED_FIBRES = 309
+            # tp._alter_fibres(no_fibres=300)
+            # # Lose 30 days to the upgrade
+            # curr_date += datetime.timedelta(days=30.)
+            # # Need to now do:
+            # # Complete re-compute of target types, priorities and difficulties
+            # update_science_targets(cursor, target_list=None,
+            #                        do_d=True,
+            #                        prisci=
+            #                        (curr_date - sim_start) < prior_lowz_end)
+            #
+            # # Switch the field statuses
+            # # mCS.execute(cursor, remove_inactive_tiles=True)
+            # # mScD.execute(cursor)t
+            # # Complete re-tile of all fields
+            # fields_to_retile = [t.field_id for t in rCexec(cursor)]
+            # retile_fields(cursor, fields_to_retile, tiles_per_field=1,
+            #               tiling_time=ts.utc_local_dt(datetime.datetime.combine(
+            #                   curr_date,
+            #                   datetime.time(12,0,0)
+            #               )),
+            #               disqualify_below_min=False,
+            #               multicores=7
+            #               )
         if weather_fails[curr_date] > weather_fail_thresh:
             tfs.sim_do_night(cursor, curr_date, date_start, date_end,
                              almanac_dict=almanacs, dark_almanac=dark_almanac,
@@ -228,7 +229,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2019, 5, 1)
+    sim_start = datetime.date(2020, 5, 21)
     sim_end = datetime.date(2022, 7, 1)
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.date(2022, 7, 1) - sim_start
