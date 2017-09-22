@@ -57,6 +57,8 @@ from simulate import test_redshift_success
 
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
+USE_NEW_FIELDS_AVAIL = True
+
 # HELPER FUNCITONS
 
 
@@ -518,47 +520,57 @@ def select_best_tile(cursor, dt, per_end,
     # set to multipool_workers to utilize threading
 
     logging.info('-- Computing field periods')
-    if nop_workers == 1:
-        field_periods = {r['field_id']: rAS.next_observable_period(
-            cursor, r['field_id'], dt,
-            datetime_to=per_end,
-        ) for
-            r in
-            # scores_array
-            fields_available
-        }
-    else:
-        field_periods_partial = partial(_field_period_reshuffle, dt=dt,
-                                        per_end=per_end)
-        pool = multiprocessing.Pool(nop_workers)
-        field_periods = pool.map(field_periods_partial,
-                                 fields_available['field_id'])
-        pool.close()
-        pool.join()
-        field_periods = {fields_available['field_id'][i]: field_periods[i] for i
-                         in range(len(field_periods))}
 
-    # logging.debug('Next observing period for each field:')
-    # logging.debug(field_periods)
-    # logging.info('Next available field will rise at %s' %
-    #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
-    #                    field_periods.itervalues() if
-    #                    v[0] is not None]),)
-    #              )
-    fields_available = [f for f, v in field_periods.iteritems() if
-                        v[0] is not None and v[0] < per_end]
-    logging.debug('%d fields available at some point tonight' %
-                  len(fields_available))
-    # Further trim fields_available for to account for field observability
-    # at the time of observation
-    logging.info('-- Trimming fields_available to now')
-    fields_available = [f for f in fields_available if
-                        field_periods[f][0] is not None and
-                        field_periods[f][1] is not None and
-                        field_periods[f][0] < dt and
-                        field_periods[f][1] > dt + datetime.timedelta(
-                            seconds=ts.OBS_TIME)
-                        ]
+
+    if USE_NEW_FIELDS_AVAIL:
+        fields_available = rAS.get_fields_available_pointing(
+            cursor, dt, minimum_airmass=2.0,
+            resolution=resolution,
+            pointing_time=ts.POINTING_TIME,
+        )
+        field_periods = None
+    else:
+        if nop_workers == 1:
+            field_periods = {r['field_id']: rAS.next_observable_period(
+                cursor, r['field_id'], dt,
+                datetime_to=per_end,
+            ) for
+                r in
+                # scores_array
+                fields_available
+            }
+        else:
+            field_periods_partial = partial(_field_period_reshuffle, dt=dt,
+                                            per_end=per_end)
+            pool = multiprocessing.Pool(nop_workers)
+            field_periods = pool.map(field_periods_partial,
+                                     fields_available['field_id'])
+            pool.close()
+            pool.join()
+            field_periods = {fields_available['field_id'][i]: field_periods[i] for i
+                             in range(len(field_periods))}
+
+        # logging.debug('Next observing period for each field:')
+        # logging.debug(field_periods)
+        # logging.info('Next available field will rise at %s' %
+        #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
+        #                    field_periods.itervalues() if
+        #                    v[0] is not None]),)
+        #              )
+        fields_available = [f for f, v in field_periods.iteritems() if
+                            v[0] is not None and v[0] < per_end]
+        logging.debug('%d fields available at some point tonight' %
+                      len(fields_available))
+        # Further trim fields_available for to account for field observability
+        # at the time of observation
+        logging.info('-- Trimming fields_available to now')
+        fields_available = [f for f in fields_available if
+                            field_periods[f][0] is not None and
+                            field_periods[f][1] is not None and
+                            field_periods[f][0] < dt and
+                            field_periods[f][1] > dt + datetime.timedelta(
+                                seconds=ts.OBS_TIME)
+                            ]
     logging.info('Currently %d fields available for observation' %
                  len(fields_available))
 
@@ -1141,26 +1153,33 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
-                local_utc_now = min([v[0] for f, v in
-                                     field_periods.items()
-                                     if v[0] is not None and
-                                     v[0] > local_utc_now])
+                if USE_NEW_FIELDS_AVAIL:
+                    local_utc_now = rAS.next_time_available(
+                        cursor, dt,
+                        end_dt=dark_end, minimum_airmass=2.0,
+                        resolution=resolution,
+                    )
+                else:
+                    local_utc_now = min([v[0] for f, v in
+                                         field_periods.items()
+                                         if v[0] is not None and
+                                         v[0] > local_utc_now])
                 if local_utc_now is None:
                     logging.info('There appears to be no valid observing time '
                                  'remaining out to the end_date')
                     return
 
-                logging.info('No fields up - advancing time to %s' %
-                             local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
-                # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
-                #     ephem_time_now, ts.EPHEM_DT_STRFMT))
-                continue
-            else:
-                _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
-                                      fields_available, tiles_scores,
-                                      scores_array, field_periods,
-                                      fields_by_tile, hours_obs,
-                                      abort=False)
+                    logging.info('No fields up - advancing time to %s' %
+                                 local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
+                    # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
+                    #     ephem_time_now, ts.EPHEM_DT_STRFMT))
+                    continue
+            # else:
+            #     _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
+            #                           fields_available, tiles_scores,
+            #                           scores_array, field_periods,
+            #                           fields_by_tile, hours_obs,
+            #                           abort=False)
 
             # 'Observe' the field
             logging.info('Observing tile %d (score: %.1f), field %d at '
