@@ -1155,9 +1155,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # to the first time when any field becomes available
                 if USE_NEW_FIELDS_AVAIL:
                     local_utc_now = rAS.next_time_available(
-                        cursor, dt,
+                        cursor, local_utc_now,
                         end_dt=dark_end, minimum_airmass=2.0,
-                        resolution=resolution,
+                        resolution=15.,
                     )
                 else:
                     local_utc_now = min([v[0] for f, v in
@@ -1169,11 +1169,11 @@ def sim_do_night(cursor, date, date_start, date_end,
                                  'remaining out to the end_date')
                     return
 
-                    logging.info('No fields up - advancing time to %s' %
-                                 local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
-                    # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
-                    #     ephem_time_now, ts.EPHEM_DT_STRFMT))
-                    continue
+                logging.info('No fields up - advancing time to %s' %
+                             local_utc_now.strftime('%Y-%m-%d %H:%M:%S'))
+                # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
+                #     ephem_time_now, ts.EPHEM_DT_STRFMT))
+                continue
             # else:
             #     _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
             #                           fields_available, tiles_scores,
