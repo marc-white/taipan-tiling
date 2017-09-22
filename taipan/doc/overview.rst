@@ -147,17 +147,49 @@ placing the sky fibres.
 Simulation
 ==========
 
+The contents of :any:`taipan.simulate` are designed to fulfil two goals:
+
+- Provide datasets to validate the performance of the Taipan scheduling
+  algorithm(s);
+- Prototype and test code that will eventually be adapted for
+  :ref:`live operations <live-operations>`.
+
+General outline
+---------------
+
+At its simplest, the ``execute`` function within each :any:`taipan.simulate`
+simulation module (modules named or starting with ``fullsurvey``) runs the
+:any:`taipan.simulate.fullsurvey.sim_do_night` function in a loop between a
+specified start and end date. The exact arguments provided to
+:any:`sim_do_night <taipan.simulate.fullsurvey.sim_do_night>` for each night
+depends on the logic built into the individual simulation.
+
+Different simulations may also have special events that occur during the
+simulation run (for example, a switch over to observing with a full
+300-fibre configuration, and an associated loss of time while the fibre
+change is implemeted). Refer to the documentation of the modules within
+:any:`taipan.simulate` for more details.
+
+.. _live-operations:
+
 Live Operations
 ===============
 
 Live operations have yet to be implemented. However, this should be a fairly
 straightforward re-packaging of the :ref:`simulation` code,
 to be triggered
-by the :any:`Jeeves` virtual observer at the appropriate times. The imagined
-workflow is as follows:
+by the :any:`Jeeves` virtual observer at the appropriate times.
+
+.. _nightly-plan:
+
+Nightly observing plan
+----------------------
+
+The initial imagined workflow is as follows:
 
 1. During day time, the code will plan (using
-   :any:`taipan.simulate.fullsurvey.sim_do_night`) observations for the upcoming
+   :any:`taipan.simulate.fullsurvey.sim_do_night`, with the appropriate
+   parameters,) observations for the upcoming
    evening.
    With the ``instant_dq`` option disabled (and fake data quality analysis
    disabled as well), the remaining tiles will be set as ``queued`` in the
@@ -174,17 +206,79 @@ workflow is as follows:
    system will be processing incoming data, and writing the results
    (success/failure) of observations back to the managing database.
 5. Once data reduction is complete, all fields affected by the night's
-   observations will be re-tiled, removing the existing prepared tiles for those
+   observations will be re-tiled, removing any existing prepared but unobserved
+   tiles for those
    fields. This has the effect of folding-in the results from the night's
    observations.
 
 At this point, the sequence returns to step 1.
 
 Under this scheme, the tiling/scheduling code has no work to do overnight.
-It is considered wise to allow the scheduler to run during the day, allowing
+It is considered wise to allow the scheduler to run during the day in
+the first instance, allowing
 human operators to confirm it is operating correctly before observations begin.
+
+In the event of a failure during the night (e.g. telescope problem, inclement
+weather etc.), :any:`Jeeves` should attempt to pick up the observing program
+at the time when the failure resolves. Tiles scheduled for the lost period of
+time will not be observed.
+
+Live scheduling
+---------------
+
 A later goal of the survey is to implement live re-scheduling. The scheme for
 this would be as follows:
+
+1. At any point during the night, :any:`Jeeves` may request a tile from the
+   scheduler.
+2. The scheduler will run :any:`taipan.simulate.fullsurvey.select_best_tile`
+   for the
+   current time, and return that tile to :any:`Jeeves` for observation. This
+   tile will be set to 'queued' within the database.
+3. After handing off the tile for observation, a call to
+   :any:`taipan.simulate.utils.tiling.retile_fields` will be made automatically
+   to regenerate
+   tiles for the region affected by the current observation.
+4. Steps 1 to 3 will repeat throughout the night until :any:`Jeeves` requests
+   no further Taipan observations.
+5. Throughout the night and into the morning, the :any:`TLDR` data reduction
+   system will be processing incoming data, and writing the results
+   (success/failure) of observations back to the managing database. If this
+   occurs during the night, success/failure feedback will be incorporated into
+   the dynamic re-tiling of affected regions of the sky (with a delay
+   time corresponding to how long it takes :any:`TLDR` to process an
+   observation).
+6. During the day, a full re-tile of all regions observed/affected during the
+   night will take place once :any:`TLDR` has finished analyzing the
+   data from the previous night.
+
+There are a few extra failure modes that need to be considered under this
+scheduling schema compared to having :ref:`a nightly plan <nightly-plan>`.
+
+Failure between observations
+    This is easily managed - :any:`Jeeves` just won't request a new tile!
+Failure after tile has been requested
+    :any:`Jeeves` will notify the tiling system that the tile has been pulled
+    out of the system, but not observed, and send it back. The scheduler
+    will then:
+
+    - Wait for any running re-tiling in that area to complete;
+    - Reset the missed tile's status to 'unqueued'
+    - Re-tile any affected tiles (which effectively re-introduces the missed
+      targets to the target pool)
+Failure during observation
+    The exact action to take in this case probably depends on the type of the
+    failure:
+
+    - Failures that will extend for a period of time (e.g. inclement
+      weather or telescope failure setting in halfway through an observation)
+      can be sent back to the scheduling syste, as if it were a failure after
+      the tile has been requested.
+    - Brief failures should simply be treated as poor-quality science
+      observations, and folded back into the re-tiling of further tiles
+      as per the standard operating sequence.
+
+
 
 .. rubric:: Footnotes
 

@@ -1,5 +1,10 @@
 # Simulate a full tiling of the Taipan galaxy survey
 
+
+"""
+This module was the initial simulation to be set up.
+"""
+
 import sys
 import logging
 import taipan.tiling as tl
@@ -939,10 +944,20 @@ def sim_do_night(cursor, date, date_start, date_end,
                  commit=True, kill_time=None,
                  prisci_end=None):
     """
-    Do a simulated 'night' of observations. This involves:
-    - Determine the tiles to do tonighttar
-    - 'Observe' them
-    - Update the DB appropriately
+    Do a simulated 'night' of observations.
+
+    This involves:
+
+    - Determine the first block of available time for observing (currently
+      hardcoded to be 'dark' time), and advance time to then.
+    - During the block of available time, until the end of the block is reached:
+
+      - Determine the tiles to do next;
+      - 'Observe' it;
+      - Update the DB appropriately;
+      - Advance time by :any:`taipan.scheduling.POINTING_TIME` and repeat.
+
+    - Repeat the procedure until the end of the night is reached.
 
     Parameters
     ----------
@@ -1299,28 +1314,35 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             instant_dq=False, seed=None, kill_time=None,
             prior_lowz_end=None, weather_loss=0.4):
     """
-    Execute the simulation
+    Execute the simulation.
+
+    .. warning::
+        This function encapsulates the initial simulation scheme considered.
+        It should now be considered redundant, and other simulation packages
+        (e.g. :any:`fullsurvey_baseline`) should be run instead.
+
+    Tiling outputs are written to the database (to simulate the action of
+    the virtual observer). Anything generated and written out to file will end
+    up in output_loc (although currently nothing is).
+
     Parameters
     ----------
-    cursor:
+    cursor: :obj:`psycopg2.connection.cursor`
         psycopg2 cursor for communicating with the database.
-    output_loc:
+    output_loc: :obj:`str`
         String providing the path for placing the output plotting images.
         Defaults to '.' (ie. the present working directory). Directory must
         already exist.
-    date_start:
+    date_start: :obj:`datetime.date`
         The start date of the simulated observing period. Should be a
         datetime.date instance.
-    date_end:
+    date_end: :obj:`datetime.date`
         The final day of the simulated observing period. Should be a
         datetime.date instance.
-    output_loc:
-        Optional; location for storing any command-line returns from the
-        simulation. Defaults to '.' (i.e. present working directory).
-    prep_db:
+    prep_db: :obj:`bool`
         Boolean value, denoting whether or not to invoke the sim_prepare_db
         function before beginning the simulation. Defaults to True.
-    instant_dq:
+    instant_dq: :obj:`bool`
         Optional Boolean value, denoting whether to immediately apply
         simulated data quality checks at the tile selection phase (effectively,
         assume instantaneous data processing; True) or not, which requires
@@ -1332,13 +1354,11 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         simulator operations. This is useful for making comparisons between
         different simulator runs. Defaults to None, such that no seed is
         applied.
-        .. warning:: Supplying a seed will not work if the Python environment
-                     variable ``PYTHONHASHSEED`` has been set.
-    prior_lowz_end : datetime.timedelta object, optional
+    prior_lowz_end : :obj:`datetime.timedelta`, optional
         Denotes for how long after the start of the survey that lowz targets
         should be prioritized. Defaults to None, and which point lowz fields
         will always be prioritized (if prioritize_lowz=True).
-    weather_loss: float, in the range [0, 1)
+    weather_loss: :obj:`float`, in the range :math:`[0, 1)`
         Percentage of nights lost to weather every calendar year. The nights
         to be lost will be computed at the start of each calendar year, to
         ensure exactly 40% of nights are lost per calendar year (or part
@@ -1346,9 +1366,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
     Returns
     -------
-    Nil. Tiling outputs are written to the database (to simulate the action of
-    the virtual observer). Anything generated and written out to file will end
-    up in output_loc (although currently nothing is).
+    :obj:`None`
     """
 
     # Seed the random number generator

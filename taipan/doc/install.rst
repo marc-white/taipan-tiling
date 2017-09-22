@@ -16,7 +16,10 @@ Database Setup
 ``taipan`` and ``TaipanDB`` require a back-end PostgreSQL database in order to
 function. ``TaipanDB`` will setup database tables and relationships for you.
 However, you need to have stood up a PSQL database yourself in the first
-instance, and make sure it's accessible to ``TaipanDB``. To prepare your
+instance, and make sure it's accessible to ``TaipanDB``. Instructions for this
+can be found in the documentation for ``TaipanDB``.
+
+To prepare your
 system to use ``TaipanDB``:
 
 #. Make sure PostgreSQL is installed on your system. If not, it can be
@@ -28,4 +31,4 @@ system to use ``TaipanDB``:
    Be sure to note the host address (normally ``localhost`` if on your own
    machine), database name, associated user name, and password (if
    any).
-#. Reconfigure
+#.
