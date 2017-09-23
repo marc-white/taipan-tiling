@@ -40,7 +40,7 @@ if __name__ == '__main__':
         filemode='w'
     )
     logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)
+    logger.setLevel(logging.DEBUG)
     console = logging.StreamHandler()
     console.setLevel(logging.WARNING)
     logging.warning('TESTING OPTIONS FOR select_best_tile')
