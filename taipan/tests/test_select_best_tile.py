@@ -57,9 +57,12 @@ if __name__ == '__main__':
                False: [],
                }
 
-    init_dt = datetime.datetime(2020, 5, 1, 14, 0)
+    init_dt = datetime.datetime(2020, 5, 15, 14, 0)
 
     dark_start, dark_end = rAS.next_night_period(cursor, init_dt, field_id=1)
+    logging.warning("Dark start/end times: %s to %s" %
+                    (dark_start.strftime('%Y-%m-%d %H:%M:%S'),
+                     dark_end.strftime('%Y-%m-%d %H:%M:%S')))
     test_dt = dark_start + datetime.timedelta(minutes=15.)
 
     for b in new_schema:
