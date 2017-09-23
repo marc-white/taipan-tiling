@@ -3,7 +3,7 @@
 
 import taipan.simulate.fullsurvey as tfs
 
-from src.scripts import get_connection
+from src.scripts.connection import get_connection
 import src.resources.v0_0_1.readout.readAlmanacStats as rAS
 
 import datetime
