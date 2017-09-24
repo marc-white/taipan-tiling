@@ -72,11 +72,13 @@ if __name__ == '__main__':
             start = datetime.datetime.now()
             _ = tfs.select_best_tile(cursor, test_dt, dark_end,
                                      midday_end=datetime.datetime(2022, 1, 1, 0,
-                                                                  0))
+                                                                  0),
+                                     midday_start=datetime.datetime(
+                                         2017, 11, 1, 0, 0
+                                     ))
             end = datetime.datetime.now()
             delta = end - start
             results[b].append(delta.total_seconds())
-
 
     logging.warning('RESULTS (%d passes)' % 5)
     logging.warning('Boolean denotes if new scheme being used')
@@ -84,5 +86,5 @@ if __name__ == '__main__':
     logging.warning(str(results))
     for k, r in results.items():
         logging.warning('%5s: %5.1f +/- %4.1f' % (str(k),
-                                                  np.average(r), np.std(r), ))
+                                                  np.average(r), np.std(r),))
     logging.warning('-------')
