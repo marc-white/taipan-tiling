@@ -521,13 +521,13 @@ def select_best_tile(cursor, dt, per_end,
 
     logging.info('-- Computing field periods')
 
-
     if USE_NEW_FIELDS_AVAIL:
         fields_available = rAS.get_fields_available_pointing(
             cursor, dt, minimum_airmass=2.0,
             resolution=resolution,
             pointing_time=ts.POINTING_TIME,
         )
+        fields_available = fields_available['field_id']
         field_periods = None
     else:
         if nop_workers == 1:
