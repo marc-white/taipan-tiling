@@ -834,6 +834,9 @@ in the 150-fibre configuration.
 
 This is copied from :any:`FIBRES_NORMAL` at module load."""
 
+FIBRES_ACTIVE = FIBRES_NORMAL + FIBRES_GUIDE
+FIBRES_ACTIVE.sort()
+
 if len(FIBRES_NORMAL) + len(FIBRES_GUIDE) != INSTALLED_FIBRES:
     raise Exception('The number of fibre positions defined'
                     '(%d guides, %d normal) does'
@@ -977,6 +980,7 @@ def _alter_fibres(no_fibres=150):
                          'to be 150 or 300')
 
     global FIBRES_NORMAL
+    global FIBRES_ACTIVE
     global BUGPOS_MM
     global BUGPOS_ARCSEC
     global BUGPOS_OFFSET
@@ -992,6 +996,9 @@ def _alter_fibres(no_fibres=150):
                          f not in FIBRES_GUIDE]
     else:
         FIBRES_NORMAL = FIBRES_NORMAL_150[:]
+        
+    FIBRES_ACTIVE = FIBRES_NORMAL + FIBRES_GUIDE
+    FIBRES_ACTIVE.sort()
 
     # Re-compute relevant constants
     INSTALLED_FIBRES = len(FIBRES_NORMAL) + len(FIBRES_GUIDE)
