@@ -131,12 +131,18 @@ tp.GUIDES_PER_TILE_MIN = fwts.script_settings["GUIDES_PER_TILE_MIN"]
 # Save a copy of the settings file for future reference
 # The file will be appropriately timestamped on completion of the tiling
 settings_file = "funnelweb_tiling_settings.py"
-temp_settings_file = "results/temp_" + time.strftime("%y%m%d_%H%M_") + settings_file
+temp_settings_file = "results/temp_" + time.strftime("%y%d%m_%H%M_%S_") + settings_file
 copyfile(settings_file, temp_settings_file)
 
 # Prompt user for the description or motivation of the run
 run_description = raw_input("Description/motivation for tiling run: ")
-if run_description == "": run_description = "NA"
+
+# No description given, assign one based on on-sky area and number of cores
+if run_description == "": 
+    ra_range = fwts.tiler_input["ra_max"] - fwts.tiler_input["ra_min"]
+    dec_range = fwts.tiler_input["dec_max"] - fwts.tiler_input["dec_min"]
+    run_description = "%ix%i, n_cores=%i" % (ra_range, dec_range, 
+                                             fwts.tiler_input["n_cores"])
 
 # Begin logging
 logging.basicConfig(filename='funnelweb_generate_tiling.log', level=logging.INFO)
@@ -197,6 +203,12 @@ except NameError:
 candidate_targets = all_targets[:]
 random.shuffle(candidate_targets)
 
+#print "Targets per mag range: ",
+#print len(fwtiler.get_targets_mag_range(candidate_targets, [5,8], [5,7], False)),
+#print len(fwtiler.get_targets_mag_range(candidate_targets, [7,10], [7,9], False)),
+#print len(fwtiler.get_targets_mag_range(candidate_targets, [9,12], [9,11], False)),
+#print len(fwtiler.get_targets_mag_range(candidate_targets, [11,14], [11,12], True))
+
 #Make sure that standards and guides are drawn from candidate_targets, not our master
 #all_targets list.
 standard_targets = [t for t in candidate_targets if t.standard==True]
@@ -237,12 +249,14 @@ print 'Average %3.1f targets per tile' % np.average(targets_per_tile)
 print '(min %d, max %d, median %d, std %2.1f)' % (min(targets_per_tile),
     max(targets_per_tile), np.median(targets_per_tile), 
     np.std(targets_per_tile))
+print "%i total targets, %i unique targets, %i duplicate targets" % \
+    fwtl.count_unique_science_targets(tiling)
     
 #-----------------------------------------------------------------------------------------
 # Saving Tiling Outputs
 #-----------------------------------------------------------------------------------------
 # Use time stamp as run ID
-date_time = time.strftime("%y%d%m_%H%M_")
+date_time = time.strftime("%y%d%m_%H%M_%S_")
 
 # Document the settings and results of the tiling run
 # Dictionary used to easily load results/settings of past runs, OrderedDict so txt has 
