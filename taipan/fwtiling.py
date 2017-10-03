@@ -1360,8 +1360,6 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     ----------
     """
     # Repick any tiles within n_radii*TILE_RADIUS, and then add to the ranking_list
-    logging.info('Re-picking affected tiles...')
-
     assigned_targets = best_tile.get_assigned_targets_science()
 
     # This is  a big n_tiles x n_assigned operation - lets make it faster by 
@@ -1390,7 +1388,6 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
             print "Warning: num_science = %i, num_standard = %i, num_guide = %i" % (
                 num_science, num_standard, num_guide)
         """                    
-        logging.info('Completed %d / %d' % (tile_i, len(affected_tiles)))
         
     return [candidate_tiles, candidate_targets, candidate_standards, candidate_guides]
 
