@@ -636,7 +636,8 @@ class FWTiler(object):
         Returns
         -------
         standard_targets_range: list of :class:`TaipanTarget`
-            The standard targets that satisfy the magnitude range requirement.
+            Subset of candidate_targets consisting of only the targets that satisfy the 
+            current magnitude range and priority requirements
         """
         standard_targets_range = [t for t in standard_targets 
                                   if mag_range[0] <= t.mag < mag_range[1]]
@@ -658,7 +659,8 @@ class FWTiler(object):
             List of all available guide stars.
     
         candidate_targets_range: list of :class:`TaipanTarget`
-            The candidate targets that satisfy magnitude range and priority requirements.
+            Subset of candidate_targets consisting of only the targets that satisfy the 
+            current magnitude range and priority requirements
         
         Returns
         -------
@@ -751,9 +753,9 @@ class FWTiler(object):
                     # Note: as long as we are never using an unreasonable number of 
                     # processors (e.g. equal to a significant fraction of the total 
                     # number of tiles on the sky) we should never reach the end of the 
-                    # ranking list for and thus do not need checks against it. It is however
-                    # possible for us to reach the completion target without using the 
-                    # best available remaining targets.
+                    # ranking list for and thus do not need checks against it. It is 
+                    # however possible for us to reach the completion target without using
+                    # the best available remaining targets.
                     nth_max -= 1
                     
                     # We have no exhausted ranking list and cannot find a suitable tile
@@ -777,21 +779,27 @@ class FWTiler(object):
     def replace_best_tile(self, best_tile, candidate_tiles, candidate_targets, 
                           candidate_targets_range, remaining_priority_targets):
         """Function to select the highest ranked tile for the final tiling, and 
-        re-generated a replacement. 
+        re-generate a replacement. 
     
-        No return values as only candidate_tiles, candidate_targets, and
-        candidate_targets_range are modified, but all are lists so changes will be 
-        reflected out of scope.
+        Any science targets allocated to this tile are then removed from consideration
+        for future tiles, and any neighbouring tiles with now allocated targets are
+        repicked (reassigned).
     
         Parameters
         ----------
-        best_tile:
+        best_tile: object of :class: `TaipanTile`
+            The highest ranked tile to be replaced and have its allocated targets removed
+            from further consideration.
         
-        candidate_tiles:
+        candidate_tiles: list of :class: `TaipanTile`
+            The list of filled candidate tiles covering the section of sky observed.
         
-        candidate_targets:
+        candidate_targets: list of :class:`TaipanTarget`
+            The entire list of candidate targets to consider.
         
-        candidate_targets_range:
+        candidate_targets_range: list of :class:`TaipanTarget`
+            Subset of candidate_targets consisting of only the targets that satisfy the 
+            current magnitude range and priority requirements
         
         remaining_priority_targets: int
             The number of priority targets remaining to be allocated.
@@ -799,24 +807,21 @@ class FWTiler(object):
         Returns
         -------
         remaining_priority_targets: int
-    
+            The number of priority targets remaining after allocating those targets 
+            assigned to best_tile.
         """
         # Record the ra and dec of the candidate for tile re-creation
         best_ra = best_tile.ra
         best_dec = best_tile.dec
 
-        # Strip the now-assigned targets out of the candidate_targets list,
+        # Strip the now-assigned targets out of the candidate_targets and 
+        # candidate_targets_range lists, thus removing them from further consideration,
         # then recalculate difficulties for affected remaning targets
         logging.info('Re-computing target list...')
         assigned_targets = best_tile.get_assigned_targets_science()
 
         init_targets_len = len(candidate_targets_range)
         reobserved_standards = []
-        
-        num_assigned = len(assigned_targets)
-        num_candidate_range = len(candidate_targets_range)
-        #print "%4i assigned targets, %6i candidate_targets_range" % (num_assigned,
-                                                                     #num_candidate_range),
         
         for target in assigned_targets:
             # Note: when candidate_targets contains stars with higher than normal 
@@ -826,34 +831,40 @@ class FWTiler(object):
             # considered for selection as a standard target. As such is important
             # to use candidate_targets_range, rather than simply candidate_targets 
             # when dealing with assigned targets.
+            
+            target_in_candidate_range = False
+            
             for candidate_i, candidate in enumerate(candidate_targets_range):
                 # Check equality of targets
                 if is_same_taipan_object(target, candidate):
                     popped = candidate_targets_range.pop(candidate_i)
                     candidate_targets.pop(candidate_targets.index(popped))
-                    
-                    #candidate_targets_range.pop(candidate_targets_range.index(target))
 
-                    #Count the priority targets we've just assigned in the same way
-                    #as they were originally counted
+                    # Count the priority targets we've just assigned in the same way
+                    # as they were originally counted
                     if target.priority >= self.completeness_priority:
                         remaining_priority_targets -= 1
             
-                    #Change priorities back to normal for targets in our priority magnitude
-                    #range
+                    # Change priorities back to normal for targets in our priority 
+                    # magnitude range
                     target.priority = target.priority_original
                     popped.priority = popped.priority_original
-                
-                elif target.standard:
-                    reobserved_standards.append(target)
-                    logging.info('Re-allocating standard ' + str(target.idn) + 
-                                 ' that is also a science target.')
-                else:
-                    logging.warning('### WARNING: Assigned a target that is neither a ' + 
-                                    'candidate target nor a standard!')
-        
-        print "%3i assigned targets remaining" % (num_assigned - (num_candidate_range - len(candidate_targets_range)))
-        
+                    
+                    # We know the target is in the range (and have already removed it from
+                    # further consideration), no point continuing this loop
+                    target_in_candidate_range = True
+                    break                
+            
+            if target_in_candidate_range:
+                pass    
+            elif target.standard:
+                reobserved_standards.append(target)
+                logging.info('Re-allocating standard ' + str(target.idn) + 
+                             ' that is also a science target.')
+            else:
+                logging.warning('### WARNING: Assigned a target that is neither a ' + 
+                                'candidate target nor a standard!')
+         
         if len(set(assigned_targets)) != len(assigned_targets):
             logging.warning('### WARNING: target duplication detected')
         if len(candidate_targets_range) != (init_targets_len - len(assigned_targets) 
@@ -882,13 +893,54 @@ class FWTiler(object):
                               candidate_tiles, mag_range):
         """Function to perform the greedy tiling algorithm given targets, standards, 
         guides, and a selection of tiles.
+        
+        Depending on the value FWTiler.n_cores, this function will either employ a non-
+        multiprocessing, or multiprocessing variant of the greedy tiling algorithm. The
+        algorithm is described as follows:
+            A) While not at the completeness target, and there are still valid tiles:
+                1) Do the following up to the number of available cores:
+                    - Select the Nth best tile, separated by more than 6 tile radii on-
+                      sky from any/all other best tiles, and add to final tiling. 
+                    - Replace the best tile and update the remaining number of priority
+                      targets.
+                    - Collate all affected tiles within a 2 tile radii of the best tile,
+                      as well as those targets within 3 tile radii (popped into
+                      separate listd as to only consider relevant targets). 
+                2) Repick the affected tiles in a parallel environment, one process for 
+                   each best tile and set of associated tiles/targets.
+                3) Now back in the standard environment, reassemble the separate lists 
+                   passed to each sub-process, and update the master candidate lists 
+                   accordingly.
+            B) Tiling complete, return the resulting set of tiles.                   
     
         Parameters
         ----------
+        candidate_targets: list of :class:`TaipanTarget`
+            The entire list of candidate targets to consider.
+        
+        candidate_targets_range: list of :class:`TaipanTarget`
+            Subset of candidate_targets consisting of only the targets that satisfy the 
+            current magnitude range and priority requirements
+        
+        guide_targets_range: list of :class:`TaipanTarget`
+            Subset of guide_targets consisting of only the guide targets that are within 
+            the current magnitude range. 
+    
+        standard_targets_range: list of :class:`TaipanTarget`
+            Subset of standard_targets consisting of only the standard targets that are 
+            within the current magnitude range. 
+            
+        candidate_tiles: list of :class: `TaipanTile`
+            The list of filled candidate tiles covering the section of sky observed.
+            
+        mag_range: [min_mag, max_mag]
+            List of the bounds of the current magnitude range.
     
         Returns
         -------
-    
+        tile_list: list of :class: `TaipanTile`
+            The set of tiles meeting the completeness requirement for the provided set of
+            targets.
         """
         # Create initial tile unpicks
         # Note that we are *not* updating candidate_targets during this process,
@@ -902,18 +954,13 @@ class FWTiler(object):
     
         print "Tiling mag range %s; # Targets=%i" % (mag_range, 
                                                      len(candidate_targets_range))
-        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
-          
+ 
         logging.info('Creating initial tile unpicks...')
-        
-        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
         
         for tile_i, tile in enumerate(candidate_tiles):   
             self.unpick_tile(tile, candidate_targets_range, standard_targets_range, 
                              guide_targets_range)
             logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
-        
-        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
         
         # Compute initial rankings for all of the tiles
         ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
@@ -928,42 +975,11 @@ class FWTiler(object):
         logging.info('Starting greedy/Funnelweb tiling allocation...')        
         tile_list = []
         tile_i = 0
+        
+        # Note: 0.05 is a simple proxy for max > 0
         while ((float(n_priority_targets - remaining_priority_targets) 
                / float(n_priority_targets)) < self.completeness_target) and \
                (max(ranking_list) > 0.05): 
-            # Note: 0.05 is a simple proxy for max > 0
-    
-            # ----------------------------------------------------------------------------
-            # Logic for Parallel Tile Repicking:
-            # We really want to select the best N tiles here, where N is as large as
-            # possible, and each tile is more than 6 tile radii apart. e.g. around the
-            # equator, there are 20 such tiles. Each of these N>20 high-ish priority tiles
-            # can then be repicked separately, AND the affected tiles within their 
-            # affected radii can be repicked. 
-            #
-            # Even better, we pass to this new routine a subset only of the candidate  
-            # targets and tiles that may fit within this range. Kind-of like a tree 
-            # algorithm, we cut the sky down to the relevant part only, and deal with just
-            # this part.
-            #
-            # Pseudocode:
-            #
-            # Create an empty list of best_tiles
-            # Loop over at most n_processors:
-            #  - Find the best tile that is more than 6 tile radii from all other best 
-            #    tiles.
-            #  - pop into a new list all tiles within 2 tile radii of this best tile, and
-            #    all candidate_targets and candidate_targets_range within 3 tile radii of 
-            #    this best tile.
-            # Loop in e.g. multi-process environment over all n_best lists of
-            # [best_tile, nearby_tiles, nearby_candidates, nearby_other_stuff]
-            #  - Pick the tile and repick all within 2 tile radii
-            #  - Add to a local (?) list of assigned_targets and assigned_tiles. This is  
-            #    the bit that needs testing in multiprocessing (does it have to be 
-            #    "local"?)
-            # Loop in the standard environment to put Humpty back together again.
-            # ----------------------------------------------------------------------------
-            
             # Single core
             if self.n_cores == 0:
                 # Find best tile
@@ -974,9 +990,6 @@ class FWTiler(object):
                 best_tile.mag_min = mag_range[0]
                 best_tile.mag_max = mag_range[1]
                 
-                #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
-                #print Counter([tile.mag_min for tile in candidate_tiles])
-                
                 # Replace the best tile and remove its assigned targets from further
                 # consideration
                 remaining_priority_targets = self.replace_best_tile(best_tile, 
@@ -986,16 +999,27 @@ class FWTiler(object):
                                                             remaining_priority_targets)
                                                             
                 # ------------------------------------------------------------------------
-                nearby_candidate_targets = tp.targets_in_range(best_tile.ra, best_tile.dec, 
-                                            candidate_targets_range, 3*tp.TILE_RADIUS)
+                # Best tile print/logging code
+                # ------------------------------------------------------------------------
+                nearby_candidate_targets = tp.targets_in_range(best_tile.ra, 
+                                                               best_tile.dec, 
+                                                               candidate_targets_range, 
+                                                               3*tp.TILE_RADIUS)
+                nearby_priority = self.calc_priority_targets(nearby_candidate_targets)
+                nearby_candidate = len(nearby_candidate_targets)
                 
-                cc = float(n_priority_targets-remaining_priority_targets)/float(n_priority_targets)
-                print "%4i / %4i (%4i) --> %5.2f %%" % (remaining_priority_targets, 
-                                                     n_priority_targets, 
-                                                     len(candidate_targets_range),
-                                                     100*cc),
-                print "%4i nearby priority," % self.calc_priority_targets(nearby_candidate_targets),
-                print "process #%i, RA=%5.2f, DEC=%6.2f" % (0, best_tile.ra, best_tile.dec),
+                # Calculate the current completeness (cc)
+                cc = (float(n_priority_targets - remaining_priority_targets)
+                      / float(n_priority_targets))
+                      
+                # Print a line summarising the current progress      
+                print "%4i / %4i priority" % (remaining_priority_targets, 
+                                                           n_priority_targets),                                          
+                print "(%4i candidates) --> %5.2f %%" % (len(candidate_targets_range),
+                                                         100*cc),
+                print "%4i nearby priority," % nearby_priority,
+                print "%4i nearby candidates," % nearby_candidate,
+                print "process #0, RA=%5.2f, DEC=%6.2f" % (best_tile.ra, best_tile.dec)
                 # ------------------------------------------------------------------------
                 
                 # Repick all tiles within a given radius of the selected tile
@@ -1031,9 +1055,6 @@ class FWTiler(object):
                     nth_best_tile.mag_min = mag_range[0]
                     nth_best_tile.mag_max = mag_range[1] 
                     
-                    #print [tile in candidate_targets for tile in tile_list]
-                    #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
-                
                     # Replace the best tile and remove its assigned targets from further
                     # consideration
                     remaining_priority_targets = self.replace_best_tile(nth_best_tile, 
@@ -1041,6 +1062,8 @@ class FWTiler(object):
                                                             candidate_targets, 
                                                             candidate_targets_range, 
                                                             remaining_priority_targets)
+                    
+                    num_candidate_targets_range = len(candidate_targets_range)
                     
                     # Create lists of all neighbouring affected tiles, and all candidate
                     # science, standard, and guide targets
@@ -1053,8 +1076,6 @@ class FWTiler(object):
                                                                 nth_best_tile.dec, 
                                                                 candidate_targets_range, 
                                                                 3*tp.TILE_RADIUS) 
-                    
-                    num_nearby_candidate_targets = len(nearby_candidate_targets)
                     
                     nearby_candidate_standards = tp.targets_in_range(nth_best_tile.ra, 
                                                                 nth_best_tile.dec, 
@@ -1086,16 +1107,25 @@ class FWTiler(object):
                     for candidate_i in xrange(len(nearby_candidate_guides)):
                         if nearby_candidate_guides[candidate_i] in guide_targets_range:
                             guide_targets_range.remove(nearby_candidate_guides[candidate_i])      
-
+                    
                     # --------------------------------------------------------------------
-                    cc = float(n_priority_targets-remaining_priority_targets)/float(n_priority_targets)
-                    print "%4i / %4i (%4i) --> %5.2f %%" % (remaining_priority_targets, 
-                                                         n_priority_targets, 
-                                                         len(candidate_targets_range),
-                                                         100*cc),
-                    print "%4i nearby priority," % self.calc_priority_targets(nearby_candidate_targets),
-                    print "%4i nearby candidate," % num_nearby_candidate_targets,
-                    print "process #%i, RA=%5.2f, DEC=%6.2f" % (process_i, nth_best_tile.ra, nth_best_tile.dec)
+                    # Best tile print/logging code
+                    # --------------------------------------------------------------------
+                    nearby_priority = self.calc_priority_targets(nearby_candidate_targets)
+                    nearby_candidate = len(nearby_candidate_targets)
+                    
+                    # Calculate the current completeness (cc)
+                    cc = (float(n_priority_targets - remaining_priority_targets)
+                          / float(n_priority_targets))
+                    print "%4i / %4i priority" % (remaining_priority_targets, 
+                                                           n_priority_targets),                                          
+                    print "(%4i candidates) --> %5.2f %%" % (num_candidate_targets_range,
+                                                             100*cc),
+                    print "%4i nearby priority," % nearby_priority,
+                    print "%4i nearby candidates," % nearby_candidate,
+                    print "process #%i, RA=%5.2f, DEC=%6.2f" % (process_i, 
+                                                                nth_best_tile.ra, 
+                                                                nth_best_tile.dec)
                     # --------------------------------------------------------------------
                                                              
                     # Add an entry to the dictionary to be sent to the subprocess
@@ -1127,10 +1157,8 @@ class FWTiler(object):
                 # Done, now put everything back together
                 # Format of results: [tiles, targets, standards, guides]
                 for result in results:
-                    #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
                     candidate_tiles.extend(result[0])
                     candidate_targets.extend(result[1])
-                    #print "%4i returned candidates" % len(result[1])
                     candidate_targets_range.extend(result[1])
                     standard_targets_range.extend(result[2])
                     guide_targets_range.extend(result[3])
@@ -1163,9 +1191,6 @@ class FWTiler(object):
         # Reset disqualify_below_min
         self.disqualify_below_min = True 
         
-        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
-        #print "mag_mins in tile_list", Counter([tile.mag_min for tile in tile_list]), "for mag_min", mag_range[0]
-        
         return tile_list
 
     
@@ -1176,10 +1201,26 @@ class FWTiler(object):
     
         Parameters
         ----------
+        candidate_targets: list of :class:`TaipanTarget`
+            The entire list of candidate targets to consider.
+        
+        standard_targets: list of :class:`TaipanTarget`
+            The entire list of standard targets to consider.
+        
+        guide_targets: list of :class:`TaipanTarget`
+            The entire list of guide targets to consider. 
     
+        candidate_tiles: list of :class: `TaipanTile`
+            The list of filled candidate tiles covering the section of sky observed.
+            
+        range_ix: int
+            The index of the magnitude range to tile.
+            
         Returns
         -------
-    
+        tile_list: list of :class: `TaipanTile`
+            The set of tiles meeting the completeness requirement for the provided set of
+            targets.
         """
         # Initialise the tile list for this magnitude range
         tile_list = []
@@ -1217,9 +1258,6 @@ class FWTiler(object):
                                                non_candidate_guide_targets, 
                                                candidate_tiles, mag_range)
         
-        #print "mag_mins in candidate_tiles", Counter([tile.mag_min for tile in candidate_tiles]), "for mag_min", mag_range[0]
-        #print "mag_mins in tile_list", Counter([tile.mag_min for tile in tile_list]), "for mag_min", mag_range[0]
-        
         # Now return the priorities to as they were for the remaining targets.
         for target in candidate_targets_range:
             target.priority = target.priority_original
@@ -1227,7 +1265,7 @@ class FWTiler(object):
         # Consolidate the tiling
         tile_list = tl.tiling_consolidate(tile_list)
 
-        print "......Done with %i tiles" % (len(tile_list))
+        print "Mag range complete with %i tiles \n" % (len(tile_list))
       
         logging.info('Mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
                     mag_range_prioritise[1]))
@@ -1259,26 +1297,29 @@ class FWTiler(object):
           reached.
         - Then go on to the next magnitude range until there are no magnitude ranges left.
 
-
         Parameters
         ----------
-        candidate_targets, standard_targets, guide_targets : 
-            The lists of science,
-            standard and guide targets to consider, respectively. Should be lists
-            of TaipanTarget objects.
+        candidate_targets: list of :class:`TaipanTarget`
+            The entire list of candidate targets to consider.
+        
+        standard_targets: list of :class:`TaipanTarget`
+            The entire list of standard targets to consider.
+        
+        guide_targets: list of :class:`TaipanTarget`
+            The entire list of guide targets to consider. 
         
         Returns
         -------
-        tile_list : 
-            The list of tiles making up the tiling.
+        tile_list: list of :class: `TaipanTile`
+            The set of tiles meeting the completeness requirement for the provided set of
+            targets.
         
-        final_completeness : 
+        final_completeness: float
             The target completeness achieved.
         
-        candidate_targets : 
-            Any targets from candidate_targets that do not
-            appear in the final tiling_list (i.e. were not assigned to a successful
-            tile).
+        candidate_targets: list of :class:`TaipanTarget`
+            Any targets from candidate_targets that do not appear in the final tiling_list 
+            (i.e. were not assigned to a successful tile).
         """
         # Initialise list to hold all tiling results
         tile_lists = []
@@ -1306,23 +1347,11 @@ class FWTiler(object):
                                                     range_ix)
             
             tile_lists.append(tile_list)
-            #print "----- [%i, %i] -----" % (self.mag_ranges[range_ix][0], self.mag_ranges[range_ix][1]) 
-            #for mrange in tile_lists:
-                #print Counter([tile.mag_min for tile in candidate_tiles])
-                #print Counter([tile.mag_min for tile in mrange]), len(mrange) 
-                #print [tile.count_assigned_targets_science() for tile in mrange]                    
-                
-                           
-        
-        #print "--------------------------------\n Greedy Tiling Done \n"
         
         # Concatenate tiling lists from each range
         tile_list = []
         for mag_range_tiling in tile_lists:
-            #print Counter([tile.mag_min for tile in mag_range_tiling])
             tile_list.extend(mag_range_tiling)
-        
-        #print Counter([tile.mag_min for tile in tile_list])
         
         # Return the tiling, the completeness factor and the remaining targets
         final_completeness = float(no_submitted_targets 
@@ -1342,8 +1371,6 @@ class FWTiler(object):
     
         print "Tiling complete! \n"
     
-        #print Counter([tile.mag_min for tile in tile_list])
-    
         return tile_list, final_completeness, candidate_targets 
 
 # ----------------------------------------------------------------------------------------
@@ -1358,43 +1385,82 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
 
     Parameters
     ----------
+    best_tile: TaipanTile
+        The best (highest-ranked distant) tile selected as part of the greedy tiling 
+        algorithm.
+    
+    candidate_tiles: list of :class: `TaipanTile`
+        The list of *nearby* filled candidate tiles covering the section of sky observed.   
+         
+    candidate_targets: list of :class:`TaipanTarget`
+        The list of *nearby* candidate targets to consider for repicking.
+    
+    standard_targets: list of :class:`TaipanTarget`
+        The list *nearby* standard targets to consider for repicking.
+    
+    guide_targets: list of :class:`TaipanTarget`
+        The list of *nearby* guide targets to consider for repicking.
+        
+    unpick_settings: Dict
+        Dictionary to store the tile unpick settings of the FWTiler object when passing to
+        this function. The multiprocessing environment that this function is used in 
+        prevents the use of instance methods, and the dictionary is a convenient wrapper
+        to avoid the unnecessary exposure of parameters. Consists of:
+        
+            overwrite_existing, check_tile_radius, recompute_difficulty, 
+            tile_unpick_method, combined_weight, sequential_ordering,rank_supplements,
+            repick_after_complete, consider_removed_targets, allow_standard_targets, and
+            assign_sky_first
+    
+    n_radii: int
+        The radius out to which neighbouring tiles should be repicked.
+        
+    Returns
+    -------
+    results: list of lists
+        List consisting of candidate_tiles, candidate_targets, candidate_standards, and 
+        candidate_guides. These must be returned, as in a multiprocessing environment the 
+        references to the original Taipan objects will have been lost.
+        
     """
-    # Repick any tiles within n_radii*TILE_RADIUS, and then add to the ranking_list
+    # Repick any tiles within n_radii*TILE_RADIUS
     assigned_targets = best_tile.get_assigned_targets_science()
 
-    # This is  a big n_tiles x n_assigned operation - lets make it faster by 
-    # considering only the nearby candidate tiles (within n_radii * TILE_RADIUS)
     nearby_candidate_tiles = tp.targets_in_range(best_tile.ra, best_tile.dec, 
-                                            candidate_tiles, n_radii*tp.TILE_RADIUS)         
+                                            candidate_tiles, n_radii*tp.TILE_RADIUS) 
+                                                    
     affected_tiles = list({atile for atile in nearby_candidate_tiles 
                           for t1 in assigned_targets \
                           for t2 in atile.get_assigned_targets_science() \
                           if is_same_taipan_object(t1, t2)})
-    
-    #print len(affected_tiles)
     
     # This won't cause the new tile to be re-picked, so manually add that
     affected_tiles.append(candidate_tiles[-1])
 
     for tile_i, tile in enumerate(affected_tiles):
         burn = tile.unpick_tile(candidate_targets, candidate_standards, candidate_guides,
-                                **unpick_settings)
-        """
-        num_science = best_tile.count_assigned_targets_science()
-        num_standard = best_tile.count_assigned_targets_standard()
-        num_guide = best_tile.count_assigned_targets_guide()
-        
-        if num_science == 0 or num_standard ==0 or num_guide ==0:
-            print "Warning: num_science = %i, num_standard = %i, num_guide = %i" % (
-                num_science, num_standard, num_guide)
-        """                    
+                                **unpick_settings)                    
         
     return [candidate_tiles, candidate_targets, candidate_standards, candidate_guides]
 
-
+# ----------------------------------------------------------------------------------------
+# Helper functions
+# ----------------------------------------------------------------------------------------
 def is_same_taipan_object(obj_1, obj_2):
     """Function to check the equivalence of two TaipanPoint derived objects. Stand-in for
     the currently not implemented object level equivalence tests.
+    
+    Parameters
+    ----------
+    obj_1: TaipanPoint derived object
+        The first Taipan object to compare.
+    obj_2: TaipanPoint derived object
+        The second Taipan object ot compare
+        
+    Returns
+    -------
+    equivalent: boolean
+        Boolean value indicating whether the two objects are in fact the same.
     """
     equivalent = False
     
@@ -1410,35 +1476,41 @@ def is_same_taipan_object(obj_1, obj_2):
 
 
 def count_unique_science_targets(tiling):
-    """
+    """Function to run at the conclusion of the tiling run to detect any duplication in 
+    the assigned targets (duplication likely caused by unintended consequences of running
+    tiling in parallel. This function does not consider reused standards duplicates.
+    
+    Parameters
+    ----------
+    tiling: list of TaipanTile objects
+        A list of TaipanTiles (e.g. the results of a tiling run)
+        
+    Returns
+    -------
+    unique: int
+        The total number of *unique* targets observed within the tile set.
+    total: int
+        The total number of targets observed within the tile set.
+    duplicates: int
+        The total number of *duplicate* targets observed within the tile set.                
     """
     uniques = 0
     duplicates = 0
     
     all_targets = []
     
+    # Look for duplicates by assuming RA and DEC will be unique
     for tile in tiling:
         for target in tile.get_assigned_targets_science(include_science_standards=False):
-            all_targets.append(str(target.ra) + "-" + str(target.dec))
+            all_targets.append(str(target.ra) + "-" + str(target.dec))           
     
-    
-    """    
-    for tar_1 in all_targets:
-        instances = 0
-        for tar_2 in all_targets:
-            if (tar_1.ra == tar_2.ra) and (tar_1.dec == tar_2.dec):
-                instances += 1
-        
-        if instances == 1:
-            uniques += 1           
-        if instances > 1:
-            duplicates += instances
-    """            
-    
+    # Using a set in this fashion is quicker than a for loop
     unique = len(set(all_targets))
     total = len(all_targets)
+    duplicates = total-unique
     
-    return unique, total, total-unique
+    return unique, total, duplicates
+    
 # ----------------------------------------------------------------------------------------
 # Legacy Tiling Code
 # ----------------------------------------------------------------------------------------

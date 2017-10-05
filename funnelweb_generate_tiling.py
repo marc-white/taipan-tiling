@@ -130,8 +130,9 @@ tp.GUIDES_PER_TILE_MIN = fwts.script_settings["GUIDES_PER_TILE_MIN"]
 
 # Save a copy of the settings file for future reference
 # The file will be appropriately timestamped on completion of the tiling
+temp_timestamp = time.strftime("%y%d%m_%H%M_%S_")
 settings_file = "funnelweb_tiling_settings.py"
-temp_settings_file = "results/temp_" + time.strftime("%y%d%m_%H%M_%S_") + settings_file
+temp_settings_file = "results/temp_" + temp_timestamp + settings_file
 copyfile(settings_file, temp_settings_file)
 
 # Prompt user for the description or motivation of the run
@@ -144,8 +145,11 @@ if run_description == "":
     run_description = "%ix%i, n_cores=%i" % (ra_range, dec_range, 
                                              fwts.tiler_input["n_cores"])
 
-# Begin logging
-logging.basicConfig(filename='funnelweb_generate_tiling.log', level=logging.INFO)
+# Begin logging, ensuring that we create a new log file handler unique to this run
+log_file = "funnelweb_generate_tiling.log"
+temp_log_file = "results/temp_" + temp_timestamp + log_file
+log_file_handler = logging.FileHandler(temp_log_file, "a")
+logging.getLogger().handlers = [log_file_handler]
 
 # Initialise the tiler
 fwtiler = FWTiler(**fwts.tiler_input)
@@ -202,12 +206,6 @@ except NameError:
 # Make a copy of all_targets list for use in assigning fibres
 candidate_targets = all_targets[:]
 random.shuffle(candidate_targets)
-
-#print "Targets per mag range: ",
-#print len(fwtiler.get_targets_mag_range(candidate_targets, [5,8], [5,7], False)),
-#print len(fwtiler.get_targets_mag_range(candidate_targets, [7,10], [7,9], False)),
-#print len(fwtiler.get_targets_mag_range(candidate_targets, [9,12], [9,11], False)),
-#print len(fwtiler.get_targets_mag_range(candidate_targets, [11,14], [11,12], True))
 
 #Make sure that standards and guides are drawn from candidate_targets, not our master
 #all_targets list.
@@ -289,9 +287,12 @@ output = open(name, "wb")
 cPickle.dump( (tiling, remaining_targets, run_settings), output, -1)
 output.close()
 
-# Timestamp the copy of the settings file from earlier
+# Timestamp the copy of the settings and log files from earlier
 final_settings_file = "results/" + date_time + settings_file
 os.rename(temp_settings_file, final_settings_file)
+
+final_log_file = "results/" + date_time + log_file
+os.rename(temp_log_file, final_log_file)
 
 print "Output files saved as results/%s*" % date_time
                 
