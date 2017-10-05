@@ -715,16 +715,34 @@ class FWTiler(object):
     # ------------------------------------------------------------------------------------
     #@profile
     def get_best_distant_tile(self, tile_list, candidate_tiles, ranking_list, 
-                              best_tiles=None, n_radii=6, 
-                              must_have_priority_targets=False):
-        """Todo: check to avoid indexing errors.
+                              best_tiles=None, n_radii=6):
+        """Selects the highest ranked tile from tile_list that is considered distant from
+        all tiles in best_tiles.
+        
+        Todo: check to avoid indexing errors.
         
         Parameters
         ----------
+        tile_list: list of :class: `TaipanTile`
+            The list of selected/best TaipanTiles.
         
+        candidate_tiles: list of :class: `TaipanTile`
+            The list of filled candidate tiles covering the section of sky observed.
+        
+        ranking_list: list of floats
+            List of tile scores corresponding to candidate_tiles.
+            
+        best_tiles: list of :class: `TaipanTile`
+            Already selected list of best tiles that any new tile must be considered
+            distant from.
+            
+        n_radii: int
+            The minimum separation between any selected tile and those in best_tiles.    
+            
         Returns
         -------
         best_tile: TaipanTile object or None
+            Either the highest ranked distant tile, or None if there are none to be found.
         """
         if best_tiles and len(best_tiles) > 0:
             # While loop setup: sort indices of ranking list, initialise bool check/count
