@@ -186,22 +186,13 @@ except NameError:
     #        t.guide=True
     end = datetime.datetime.now()
     delta = end - start
-    print ('Imported & generated %d targets'
-        ' in %d:%02.1f') % (
-        len(all_targets),
-        delta.total_seconds()/60, 
-        delta.total_seconds() % 60.)
+    print ("Imported & generated %d targets in %d:%02.1f") % (len(all_targets),
+                                                              delta.total_seconds()/60, 
+                                                              delta.total_seconds() % 60.)
     
     # No need to double-up for standard/guide targets as these are drawn from all_targets
     print 'Calculating target US positions...'
     burn = [t.compute_usposn() for t in all_targets]
-
-# tp.compute_target_difficulties(all_targets, ncpu=4)
-# sys.exit()
-
-# Ensure the objects are re type-cast as new instances of TaipanTarget (not needed?)
-#for t in all_targets:
-#    t.__class__ = tp.TaipanTarget
 
 # Make a copy of all_targets list for use in assigning fibres
 candidate_targets = all_targets[:]

@@ -903,7 +903,99 @@ class FWTiler(object):
         logging.info('Assigned tile at %3.1f, %2.1f' % (best_ra, best_dec))
     
         return remaining_priority_targets
+    
 
+
+    def pop_tile_neighbourhood(ra, dec, candidate_tiles, candidate_targets,  
+                               candidate_targets_range, standard_targets_range, 
+                               guide_targets_range, n_tile_radii=2, n_target_radii=3):
+        """Pop all tiles, targets, standards, and guides from the RA and DEC neighbourhood
+        into new lists (in the process removing them from the master lists). The master 
+        lists will be updated by reference.        
+    
+        Parameters
+        ----------
+        ra: float
+            The RA coordinate at the centre of the neighbourhood.
+        
+        dec: float
+            The DEC coordinate at the centre of the neighbourhood.
+    
+        candidate_tiles: list of :class: `TaipanTile`
+            The list of filled candidate tiles covering the section of sky observed.
+                
+        candidate_targets: list of :class:`TaipanTarget`
+            The entire list of candidate targets to consider.
+        
+        candidate_targets_range: list of :class:`TaipanTarget`
+            Subset of candidate_targets consisting of only the targets that satisfy the 
+            current magnitude range and priority requirements
+            
+        standard_targets_range: list of :class:`TaipanTarget`
+            Subset of standard_targets consisting of only the standard targets that are 
+            within the current magnitude range.         
+            
+        guide_targets_range: list of :class:`TaipanTarget`
+            Subset of guide_targets consisting of only the guide targets that are within 
+            the current magnitude range. 
+    
+        n_tile_radii: float
+            The number of tile radii out to consider for the neighbourhood.
+            
+        n_target_radii: float
+            The number of target radii out to consider for the neighbourhood.           
+    
+        Returns
+        -------
+        nearby_tiles: list of :class: `TaipanTile`
+            The list of neighbouring tiles.
+        
+        nearby_targets: list of :class:`TaipanTarget`
+            The list of nearby targets.
+            
+        nearby_standards: list of :class:`TaipanTarget`
+            The list of nearby standards.        
+            
+        nearby_guides: list of :class:`TaipanTarget`
+            The list of nearby guides.
+        """    
+        # Create lists of all neighbouring tiles, and candidate science/standard/guides
+        nearby_tiles = tp.targets_in_range(ra, dec, candidate_tiles, 
+                                           n_tile_radii*tp.TILE_RADIUS) 
+   
+        nearby_targets = tp.targets_in_range(ra, dec, candidate_targets_range, 
+                                             n_target_radii*tp.TILE_RADIUS) 
+    
+        nearby_standards = tp.targets_in_range(ra, dec, standard_targets_range, 
+                                               n_target_radii*tp.TILE_RADIUS) 
+                                                
+        nearby_guides = tp.targets_in_range(ra, dec, guide_targets_range, 
+                                            n_target_radii*tp.TILE_RADIUS) 
+    
+        # Remove nearby elements from the master lists
+        for candidate_i in xrange(len(nearby_tiles)):
+            if nearby_tiles[candidate_i] in candidate_tiles:
+                candidate_tiles.remove(nearby_tiles[candidate_i]) 
+            
+        for candidate_i in xrange(len(nearby_targets)):
+            if nearby_targets[candidate_i] in candidate_targets:
+                candidate_targets.remove(nearby_targets[candidate_i])  
+
+        for candidate_i in xrange(len(nearby_targets)):
+            if nearby_targets[candidate_i] in candidate_targets_range:
+                candidate_targets_range.remove(nearby_targets[candidate_i]) 
+            
+        for candidate_i in xrange(len(nearby_standards)):
+            if nearby_standards[candidate_i] in standard_targets_range:
+                standard_targets_range.remove(nearby_standards[candidate_i])                              
+
+        for candidate_i in xrange(len(nearby_guides)):
+            if nearby_guides[candidate_i] in guide_targets_range:
+                guide_targets_range.remove(nearby_guides[candidate_i]) 
+    
+        # All done, return lists of nearby tiles/targets/standards/guides
+        return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
+    
 
     #@profile
     def perform_greedy_tiling(self, candidate_targets, candidate_targets_range,  
@@ -939,14 +1031,14 @@ class FWTiler(object):
         candidate_targets_range: list of :class:`TaipanTarget`
             Subset of candidate_targets consisting of only the targets that satisfy the 
             current magnitude range and priority requirements
-        
-        guide_targets_range: list of :class:`TaipanTarget`
-            Subset of guide_targets consisting of only the guide targets that are within 
-            the current magnitude range. 
     
         standard_targets_range: list of :class:`TaipanTarget`
             Subset of standard_targets consisting of only the standard targets that are 
             within the current magnitude range. 
+        
+        guide_targets_range: list of :class:`TaipanTarget`
+            Subset of guide_targets consisting of only the guide targets that are within 
+            the current magnitude range. 
             
         candidate_tiles: list of :class: `TaipanTile`
             The list of filled candidate tiles covering the section of sky observed.
