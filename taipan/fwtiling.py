@@ -743,6 +743,9 @@ class FWTiler(object):
         -------
         best_tile: TaipanTile object or None
             Either the highest ranked distant tile, or None if there are none to be found.
+            
+        best_rank: float
+            Ranking of the selected best tile.
         """
         if best_tiles and len(best_tiles) > 0:
             # While loop setup: sort indices of ranking list, initialise bool check/count
@@ -778,7 +781,7 @@ class FWTiler(object):
                     
                     # We have no exhausted ranking list and cannot find a suitable tile
                     if np.abs(nth_max) > len(ranking_list_i_sorted):
-                        return None 
+                        return None, None
         
         # Either we are just selecting the first best tile, or will only be selecting one
         else:
@@ -787,11 +790,12 @@ class FWTiler(object):
         
         # We now have the index of the best tile --> select it    
         best_tile = candidate_tiles.pop(best_tile_i) 
+        best_rank = ranking_list[best_tile_i]
         tile_list.append(best_tile) 
         best_ranking = ranking_list.pop(best_tile_i)
         logging.info('Best tile has ranking score %3.1f' % (best_ranking, ))
         
-        return best_tile
+        return best_tile, best_rank
     
     #@profile
     def replace_best_tile(self, best_tile, candidate_tiles, candidate_targets, 
@@ -996,11 +1000,27 @@ class FWTiler(object):
         # All done, return lists of nearby tiles/targets/standards/guides
         return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
     
+    
+    def greedy_tile_sc():
+        """
+        """
+        pass
+        
+    def greedy_tile_mc():
+        """
+        """
+        pass
+        
+    def log_tiling_progress():
+        """
+        """
+        pass
+
 
     #@profile
-    def perform_greedy_tiling(self, candidate_targets, candidate_targets_range,  
-                              standard_targets_range, guide_targets_range, 
-                              candidate_tiles, mag_range):
+    def greedy_tile_sky(self, candidate_targets, candidate_targets_range,  
+                        standard_targets_range, guide_targets_range, candidate_tiles, 
+                        mag_range):
         """Function to perform the greedy tiling algorithm given targets, standards, 
         guides, and a selection of tiles.
         
@@ -1066,11 +1086,31 @@ class FWTiler(object):
                                                      len(candidate_targets_range))
  
         logging.info('Creating initial tile unpicks...')
+        print "Performing initial global tile unpicks...",
+        start = time.time()
         
-        for tile_i, tile in enumerate(candidate_tiles):   
+        for tile_i, tile in enumerate(candidate_tiles):  
+            # Create the initial unpick of every tile, making sure to only pass it those
+            # targets that it can actually tile
+            
+            self.unpick_tile(tile, 
+                             tp.targets_in_range(tile.ra, tile.dec, 
+                                                 candidate_targets_range, 
+                                                 1*tp.TILE_RADIUS), 
+                             tp.targets_in_range(tile.ra, tile.dec, 
+                                                 standard_targets_range, 
+                                                 1*tp.TILE_RADIUS), 
+                             tp.targets_in_range(tile.ra, tile.dec, guide_targets_range, 
+                                                 1*tp.TILE_RADIUS)) 
+            """                            
             self.unpick_tile(tile, candidate_targets_range, standard_targets_range, 
                              guide_targets_range)
+            """
             logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
+        
+        finish = time.time()
+        delta = finish - start
+        print ("done in %d:%02.1f") % (delta/60, delta % 60.)
         
         # Compute initial rankings for all of the tiles
         ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
@@ -1092,9 +1132,15 @@ class FWTiler(object):
                (max(ranking_list) > 0.05): 
             # Single core
             if self.n_cores == 0:
+                """
+                greedy_tile_sc(candidate_tiles, ranking_list, candidate_targets,
+                               candidate_targets_range, standard_targets_range, 
+                               guide_targets_range, n_priority_targets)
+                """
                 # Find best tile
-                best_tile = self.get_best_distant_tile(tile_list, candidate_tiles,
-                                                           ranking_list)
+                best_tile, best_rank = self.get_best_distant_tile(tile_list, 
+                                                                  candidate_tiles,
+                                                                  ranking_list)
             
                 # Add the magnitude range information
                 best_tile.mag_min = mag_range[0]
@@ -1125,11 +1171,13 @@ class FWTiler(object):
                 # Print a line summarising the current progress      
                 print "%4i / %4i priority" % (remaining_priority_targets, 
                                                            n_priority_targets),                                          
-                print "(%4i candidates) --> %5.2f %%" % (len(candidate_targets_range),
+                print "(%5i candidates) --> %5.2f%%;" % (len(candidate_targets_range),
                                                          100*cc),
-                print "%4i nearby priority," % nearby_priority,
-                print "%4i nearby candidates," % nearby_candidate,
-                print "process #0, RA=%5.2f, DEC=%6.2f" % (best_tile.ra, best_tile.dec)
+                print "nearby: %4i priority," % nearby_priority,
+                print "%4i candidate;" % nearby_candidate,
+                print "PID #0, RA=%5.2f, DEC=%6.2f," % (best_tile.ra, best_tile.dec),
+                print "rank = %4i %s" % (best_rank, 
+                                         "T" if self.disqualify_below_min else "F")
                 # ------------------------------------------------------------------------
                 
                 # Repick all tiles within a given radius of the selected tile
@@ -1141,6 +1189,8 @@ class FWTiler(object):
                 # Dictionary of form:
                 # {TaipanTile:([Tiles],[Targets],[Standards],[Guides]),}
                 best_tiles = {}
+                
+                num_candidate_targets_range = len(candidate_targets_range)
             
                 # This loop builds up the dictionary consisting of the best tile and its
                 # neighbouring tiles/targets/standards/guides until it has length equal to
@@ -1150,10 +1200,11 @@ class FWTiler(object):
                 for process_i in xrange(0, self.n_cores):
                     # Find best tile that is >=6 tiles away from other best tiles
                     # If best_tiles.keys() is empty, the best tile will be returned
-                    nth_best_tile = self.get_best_distant_tile(tile_list, candidate_tiles,
-                                                               ranking_list,
-                                                               best_tiles.keys(), 
-                                                               n_radii=6)
+                    nth_best_tile, best_rank = self.get_best_distant_tile(tile_list, 
+                                                                      candidate_tiles,
+                                                                      ranking_list,
+                                                                      best_tiles.keys(), 
+                                                                      n_radii=6)
                     
                     # We were unsuccessful in finding tiles up to n_cores, proceed with
                     # what we have and break out of the for loop
@@ -1172,8 +1223,6 @@ class FWTiler(object):
                                                             candidate_targets, 
                                                             candidate_targets_range, 
                                                             remaining_priority_targets)
-                    
-                    num_candidate_targets_range = len(candidate_targets_range)
                     
                     # Create lists of all neighbouring affected tiles, and all candidate
                     # science, standard, and guide targets
@@ -1229,13 +1278,15 @@ class FWTiler(object):
                           / float(n_priority_targets))
                     print "%4i / %4i priority" % (remaining_priority_targets, 
                                                            n_priority_targets),                                          
-                    print "(%4i candidates) --> %5.2f %%" % (num_candidate_targets_range,
-                                                             100*cc),
-                    print "%4i nearby priority," % nearby_priority,
-                    print "%4i nearby candidates," % nearby_candidate,
-                    print "process #%i, RA=%5.2f, DEC=%6.2f" % (process_i, 
-                                                                nth_best_tile.ra, 
-                                                                nth_best_tile.dec)
+                    print "(%5i candidates) --> %5.2f%%;" % (num_candidate_targets_range,
+                                                            100*cc),
+                    print "nearby: %4i priority," % nearby_priority,
+                    print "%4i candidate;" % nearby_candidate,
+                    print "PID #%i, RA=%5.2f, DEC=%6.2f," % (process_i, nth_best_tile.ra, 
+                                                             nth_best_tile.dec),
+                    print "rank = %4i %s" % (best_rank, 
+                                             "T" if self.disqualify_below_min else "F")
+                            
                     # --------------------------------------------------------------------
                                                              
                     # Add an entry to the dictionary to be sent to the subprocess
@@ -1301,6 +1352,11 @@ class FWTiler(object):
         # Reset disqualify_below_min
         self.disqualify_below_min = True 
         
+        cc = (float(n_priority_targets - remaining_priority_targets)
+                          / float(n_priority_targets))
+        print "Mag range complete with %i tiles, %5.2f %% complete \n" % (len(tile_list),
+                                                                          100*cc)
+        
         return tile_list
 
     
@@ -1363,19 +1419,17 @@ class FWTiler(object):
                  len(candidate_targets_range)))
         
         # Generate tiling for the magnitude range
-        tile_list = self.perform_greedy_tiling(candidate_targets, candidate_targets_range, 
-                                               standard_targets_range, 
-                                               non_candidate_guide_targets, 
-                                               candidate_tiles, mag_range)
-        
+        tile_list = self.greedy_tile_sky(candidate_targets, candidate_targets_range, 
+                                         standard_targets_range, 
+                                         non_candidate_guide_targets, 
+                                         candidate_tiles, mag_range)
+
         # Now return the priorities to as they were for the remaining targets.
         for target in candidate_targets_range:
             target.priority = target.priority_original
     
         # Consolidate the tiling
         tile_list = tl.tiling_consolidate(tile_list)
-
-        print "Mag range complete with %i tiles \n" % (len(tile_list))
       
         logging.info('Mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
                     mag_range_prioritise[1]))
@@ -1385,8 +1439,7 @@ class FWTiler(object):
     
     
     #@profile
-    def generate_tiling_funnelweb_mp(self, candidate_targets, standard_targets, 
-                                     guide_targets):
+    def generate_tiling(self, candidate_targets, standard_targets, guide_targets):
         """
         Generate a tiling based on the greedy algorithm operating on a set of magnitude 
         ranges sequentially. Within each magnitude range, a complete set of tiles are 
@@ -1548,9 +1601,21 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     affected_tiles.append(candidate_tiles[-1])
 
     for tile_i, tile in enumerate(affected_tiles):
+        # Repick the affected tiles, but making sure to only supply the targets that 
+        # actually fall within the tile boundaries
+        
+        burn = tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
+                                                    1*tp.TILE_RADIUS), 
+                                tp.targets_in_range(tile.ra, tile.dec, 
+                                                    candidate_standards, 
+                                                    1*tp.TILE_RADIUS), 
+                                tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
+                                                    1*tp.TILE_RADIUS),
+                                **unpick_settings)
+        """
         burn = tile.unpick_tile(candidate_targets, candidate_standards, candidate_guides,
                                 **unpick_settings)                    
-        
+        """
     return [candidate_tiles, candidate_targets, candidate_standards, candidate_guides]
 
 # ----------------------------------------------------------------------------------------
