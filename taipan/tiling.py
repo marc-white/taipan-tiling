@@ -20,7 +20,6 @@ import copy
 # import line_profiler
 from threading import Thread, Lock
 from joblib import Parallel, delayed
-import multiprocessing as mp
 import functools
 from matplotlib.cbook import flatten
 #XXX

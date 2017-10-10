@@ -1061,7 +1061,8 @@ class FWTiler(object):
                                guide_targets_range, n_tile_radii=2, n_target_radii=3):
         """Pop all tiles, targets, standards, and guides from the RA and DEC neighbourhood
         into new lists (in the process removing them from the master lists). The master 
-        lists will be updated by reference.        
+        lists will be updated by reference. This function is required (presently) for the
+        multiprocessing code as Taipan object equivalence is not done at the object level.        
     
         Parameters
         ----------
@@ -1123,25 +1124,18 @@ class FWTiler(object):
                                             n_target_radii*tp.TILE_RADIUS) 
     
         # Remove nearby elements from the master lists
-        for candidate_i in xrange(len(nearby_tiles)):
-            if nearby_tiles[candidate_i] in candidate_tiles:
-                candidate_tiles.remove(nearby_tiles[candidate_i]) 
+        for tile in nearby_tiles:
+            candidate_tiles.remove(tile) 
             
-        for candidate_i in xrange(len(nearby_targets)):
-            if nearby_targets[candidate_i] in candidate_targets:
-                candidate_targets.remove(nearby_targets[candidate_i])  
-
-        for candidate_i in xrange(len(nearby_targets)):
-            if nearby_targets[candidate_i] in candidate_targets_range:
-                candidate_targets_range.remove(nearby_targets[candidate_i]) 
+        for target in nearby_targets:
+            candidate_targets.remove(target)  
+            candidate_targets_range.remove(target) 
             
-        for candidate_i in xrange(len(nearby_standards)):
-            if nearby_standards[candidate_i] in standard_targets_range:
-                standard_targets_range.remove(nearby_standards[candidate_i])                              
+        for standard in nearby_standards:
+            standard_targets_range.remove(standard)                              
 
-        for candidate_i in xrange(len(nearby_guides)):
-            if nearby_guides[candidate_i] in guide_targets_range:
-                guide_targets_range.remove(nearby_guides[candidate_i]) 
+        for guide in nearby_guides:
+            guide_targets_range.remove(guide) 
     
         # All done, return lists of nearby tiles/targets/standards/guides
         return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
