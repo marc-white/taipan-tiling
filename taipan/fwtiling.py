@@ -5,6 +5,14 @@ from the objects being *tiled* in a way that makes the code easier to interpret.
 class hosts the various setup parameters associated with the various tiling algorithms,
 freeing up function calls from repeated parameters.
 
+Function heirarchy as follows:
+ - FWTiler.generate_tiling()
+    - FWTiler.greedy_tile_mag_range()
+        - FWTiler.greedy_tile_sky()
+            - FWTiler.greedy_tile_sc() --> single-core
+                    ****or****
+            - FWTiler.greedy_tile_mc() --> multi-core
+
 To profile this code for speed, run as:
     kernprof -l funnelweb_generate_tiling.py
 And view with:
@@ -12,7 +20,7 @@ And view with:
 For other usage, visit:
     https://github.com/rkern/line_profiler
 
-Where all functions with an @profile decorator will be profiled.
+Where all functions with an @profile decorator will be profiled - uncomment beforehand.
 """
 import logging
 import core as tp
@@ -31,7 +39,6 @@ class FWTiler(object):
     """FunnelWeb Tiler object to encapsulate tiling settings, wrap tiling functions, and
     perform tiling operations for FunnelWeb. 
     """
-    
     def __init__(self, completeness_target=1.0, ranking_method='priority-expsum',
                  disqualify_below_min=True, tiling_method='SH', randomise_pa=True, 
                  randomise_SH=True, tiling_file='ipack.3.8192.txt', ra_min=0.0, 
@@ -154,6 +161,7 @@ class FWTiler(object):
         self._completeness_target = None
         self._ranking_method = None
         self._disqualify_below_min = None
+        self._disqualify_below_min_original = None
         self._tiling_method = None
         self._randomise_pa = None
         self._randomise_SH = None
@@ -185,6 +193,7 @@ class FWTiler(object):
         self.completeness_target = completeness_target
         self.ranking_method = ranking_method
         self.disqualify_below_min = disqualify_below_min
+        self.disqualify_below_min_original = disqualify_below_min # As above for record
         self.tiling_method = tiling_method
         self.randomise_pa = randomise_pa
         self.randomise_SH = randomise_SH
@@ -245,6 +254,16 @@ class FWTiler(object):
         if value is None: 
             raise Exception('disqualify_below_min may not be blank')
         self._disqualify_below_min = value
+        
+    @property
+    def disqualify_below_min_original(self):
+        return self._disqualify_below_min_original
+
+    @disqualify_below_min_original.setter
+    def disqualify_below_min_original(self, value):
+        if value is None: 
+            raise Exception('disqualify_below_min_original may not be blank')
+        self._disqualify_below_min_original = value        
         
     @property
     def tiling_method(self):
@@ -851,13 +870,14 @@ class FWTiler(object):
         # Calculate the current completeness (cc)
         cc = (float(n_priority_targets - remaining_priority_targets)
               / float(n_priority_targets))
-        print "%4i / %4i P" % (remaining_priority_targets, n_priority_targets),                                          
+        print "%5i / %5i P" % (remaining_priority_targets, n_priority_targets),                                          
         print "[%5i C ] --> %5.2f%%;" % (num_candidate_targets_range, 100*cc),
         print "assigned: P =%3i, C =%3i;" % (num_assigned_priority,
                                            num_non_priority_candidates),
-        print "nearby: P =%4i, C =%4i;" % (nearby_priority, nearby_candidate),
+        print "local: P =%4i, C =%4i;" % (nearby_priority, nearby_candidate),
         print "PID #%i, RA=%5.2f, DEC=%6.2f," % (process_i, ra, dec),
-        print "rank = %4i %s" % (best_rank, "T" if self.disqualify_below_min else "F")  
+        print "rank = %5i %s" % (best_rank, "T" if self.disqualify_below_min else "F")  
+        
               
     # ------------------------------------------------------------------------------------
     # FunnelWeb Tiling Functions
@@ -910,8 +930,10 @@ class FWTiler(object):
                                                         best_tiles, 
                                                         n_radii*tp.TILE_RADIUS)
                                                         
-                if len(nearby_best_tiles) == 0:
-                    # Previous best tiles can be considered distant --> select this tile
+                if len(nearby_best_tiles) == 0 and ranking_list[best_tile_i] > 0:
+                    # Previous best tiles can be considered distant *and* the newly 
+                    # selected tile is not disqualified for not having the minimum number
+                    # of standards and guides --> select this tile
                     found_best_distant_tile = True
                     
                 else:
@@ -941,6 +963,7 @@ class FWTiler(object):
         logging.info('Best tile has ranking score %3.1f' % (best_rank, ))
         
         return best_tile, best_rank
+   
     
     #@profile
     def replace_best_tile(self, best_tile, candidate_tiles, candidate_targets, 
@@ -1054,6 +1077,7 @@ class FWTiler(object):
         logging.info('Assigned tile at %3.1f, %2.1f' % (best_ra, best_dec))
     
         return num_assigned_priority, num_assigned_candidates
+
     
     #@profile
     def pop_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets,  
@@ -1123,22 +1147,15 @@ class FWTiler(object):
         nearby_guides = tp.targets_in_range(ra, dec, guide_targets_range, 
                                             n_target_radii*tp.TILE_RADIUS) 
     
-        # Remove nearby elements from the master lists
+        # Remove candidate tiles from the master list - these need to be updated with the
+        # copies that come back from the other processes. No need to do the same for
+        # targets, standards, or guides.
         for tile in nearby_tiles:
             candidate_tiles.remove(tile) 
-            
-        for target in nearby_targets:
-            candidate_targets.remove(target)  
-            candidate_targets_range.remove(target) 
-            
-        for standard in nearby_standards:
-            standard_targets_range.remove(standard)                              
 
-        for guide in nearby_guides:
-            guide_targets_range.remove(guide) 
-    
         # All done, return lists of nearby tiles/targets/standards/guides
         return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
+    
     
     #@profile
     def greedy_tile_sc(self, candidate_tiles, candidate_targets, candidate_targets_range, 
@@ -1275,9 +1292,16 @@ class FWTiler(object):
             
             # We were unsuccessful in finding tiles up to n_cores, proceed with
             # what we have and break out of the for loop
+            # Note: assumption is that we will never reach this point on the first
+            # iteration of this loop - a situation that could only arise if *all* tile
+            # scores are zero.
             if not nth_best_tile:
                 logging.info("nth_best_tile is None, aborting filling to n_cores")
                 break
+                
+                # Should never get here, but just in case
+                if process_i == 0:
+                    raise Exception("Greedy MC failed without selecting a tile!")
             
             # Replace the best tile and remove its assigned targets from further
             # consideration
@@ -1306,8 +1330,8 @@ class FWTiler(object):
 
             self.log_tiling_progress(local_candidate_targets, n_priority_targets, 
                                      remaining_priority_targets, 
-                                     len(candidate_targets_range), 0, nth_best_tile.ra, 
-                                     nth_best_tile.dec, best_rank,
+                                     len(candidate_targets_range), process_i, 
+                                     nth_best_tile.ra, nth_best_tile.dec, best_rank,
                                      num_assigned_priority, num_assigned_candidates)
                                                      
             # Add an entry to the dictionary to be sent to the subprocess
@@ -1318,13 +1342,16 @@ class FWTiler(object):
             ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles] 
             
             # If max of the ranking_list is now 0, abort filling up to n_cores
-            if max(ranking_list) < 0.05 and self.disqualify_below_min:
+            # Note: by aborting here, any already created processes (at least one) will be
+            # run, but we won't create any more. Should not matter what the status of 
+            # self.disqualify_below_min is - don't want any targets with a score of 0.
+            if max(ranking_list) < 0.05:
                 logging.info("max(ranking_list) < 0.05, abort filling to n_cores")
                 break
      
         # Dictionary is constructed, now perform parallel repick
         n_processes = len(best_tiles.keys())
-        results = Parallel(n_jobs=n_processes, backend="multiprocessing")(
+        results = Parallel(n_jobs=n_processes, backend="threading")(
                      delayed(repick_within_radius)(tile, best_tiles[tile][0],
                                                    best_tiles[tile][1],
                                                    best_tiles[tile][2],
@@ -1332,15 +1359,10 @@ class FWTiler(object):
                                                    self.unpick_settings)
                                              for tile in best_tiles.keys())  
     
-        # Done, now put everything back together
-        # Format of results: [tiles, targets, standards, guides]
-        for result in results:
-            candidate_tiles.extend(result[0])
-            candidate_targets.extend(result[1])
-            candidate_targets_range.extend(result[1])
-            standard_targets_range.extend(result[2])
-            guide_targets_range.extend(result[3])
-        
+        # Done, now add back in the nearby candidate tiles
+        for updated_nearby_candidate_tiles in results:
+            candidate_tiles.extend(updated_nearby_candidate_tiles)
+
         return best_tiles.keys(), remaining_priority_targets
         
 
@@ -1398,28 +1420,28 @@ class FWTiler(object):
         tile_list: list of :class: `TaipanTile`
             The set of tiles meeting the completeness requirement for the provided set of
             targets.
-        """
-        # Create initial tile unpicks
-        # Note that we are *not* updating candidate_targets during this process,
-        # as overlap is allowed - instead, we will need to manually update
-        # candidate_tiles once we pick the highest-ranked tile
-        # Likewise, we don't want the target difficulties to change
-        # Therefore, we'll assign the output of the function to a dummy variable            
-        if self.recompute_difficulty:
-            logging.info("Computing difficulties...")
-            tp.compute_target_difficulties(candidate_targets_range)
-    
+        """         
         print "Tiling mag range %s; # Targets=%i" % (mag_range, 
                                                      len(candidate_targets_range))
- 
+        
+        # Compute the initial difficulties of all candidate tiles
+        if self.recompute_difficulty:
+            start = time.time()
+            logging.info("Computing difficulties...")
+            print ("Computing target difficulties..."),
+            tp.compute_target_difficulties(candidate_targets_range)
+            finish = time.time()
+            delta = finish - start
+            print ("done in %d:%02.1f") % (delta/60, delta % 60.)
+        
+        # Create the initial unpick of every tile, making sure to only pass it those
+        # targets that it can actually tile. Duplicates are not a concern at this stage,
+        # nor are updating the target difficulties - both will be dealt with later.
         logging.info('Creating initial tile unpicks...')
         print "Performing initial global tile unpicks...",
         start = time.time()
         
         for tile_i, tile in enumerate(candidate_tiles):  
-            # Create the initial unpick of every tile, making sure to only pass it those
-            # targets that it can actually tile
-            
             self.unpick_tile(tile, 
                              tp.targets_in_range(tile.ra, tile.dec, 
                                                  candidate_targets_range, 
@@ -1437,7 +1459,7 @@ class FWTiler(object):
         print ("done in %d:%02.1f") % (delta/60, delta % 60.)
         
         # Compute initial rankings for all of the tiles
-        ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
+        ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]      
                     
         # Calculate priority targets
         n_priority_targets = self.calc_priority_targets(candidate_targets_range)
@@ -1514,15 +1536,18 @@ class FWTiler(object):
                 logging.info('Detected no remaining legal tiles - relaxing requirements')
                 self.disqualify_below_min = False
                 ranking_list = [self.calculate_tile_score(tile) 
-                                for tile in candidate_tiles]
-        
-        # Reset disqualify_below_min
-        self.disqualify_below_min = True 
+                                for tile in candidate_tiles]        
         
         cc = (float(n_priority_targets - remaining_priority_targets)
                           / float(n_priority_targets))
-        print "Mag range complete with %i tiles, %5.2f %% complete \n" % (len(tile_list),
+        print "Mag range complete with %i tiles, %5.2f %% complete" % (len(tile_list),
                                                                           100*cc)
+        if cc < self.completeness_target:
+            logging.warning("### WARNING: mag range tiling aborted prior to completeness")
+            
+        # Reset disqualify_below_min
+        self.disqualify_below_min = self.disqualify_below_min_original                                                             
+                                                                          
         return tile_list
 
     
@@ -1595,7 +1620,13 @@ class FWTiler(object):
             target.priority = target.priority_original
     
         # Consolidate the tiling
+        print "Consolidating %i tiles" % len(tile_list),
+        start = time.time()
         tile_list = tl.tiling_consolidate(tile_list)
+        finish = time.time()
+        delta = finish - start
+        print ("--> %i tiles, done in %d:%02.1f \n") % (len(tile_list), delta/60, 
+                                                        delta % 60.)
       
         logging.info('Mag range: {0:3.1f} to {1:3.1f}, '.format(mag_range_prioritise[0], 
                     mag_range_prioritise[1]))
@@ -1674,7 +1705,6 @@ class FWTiler(object):
             tile_list =  self.greedy_tile_mag_range(candidate_targets, standard_targets, 
                                                     guide_targets, candidate_tiles, 
                                                     range_ix)
-            
             tile_lists.append(tile_list)
         
         # Concatenate tiling lists from each range
@@ -1701,6 +1731,7 @@ class FWTiler(object):
         print "Tiling complete! \n"
     
         return tile_list, final_completeness, candidate_targets 
+
 
 # ----------------------------------------------------------------------------------------
 # External tiling code for multiprocessing
@@ -1746,11 +1777,9 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
         
     Returns
     -------
-    results: list of lists
-        List consisting of candidate_tiles, candidate_targets, candidate_standards, and 
-        candidate_guides. These must be returned, as in a multiprocessing environment the 
-        references to the original Taipan objects will have been lost.
-        
+    candidate_tiles: list of :class: `TaipanTile`
+        The now re-unpicked list of *nearby* filled candidate tiles covering the section 
+        of sky observed, with duplicates removed from the recently selected best tile.
     """
     # Repick any tiles within n_radii*TILE_RADIUS
     assigned_targets = best_tile.get_assigned_targets_science()
@@ -1763,13 +1792,16 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
                           for t2 in atile.get_assigned_targets_science() \
                           if is_same_taipan_object(t1, t2)})
     
-    # This won't cause the new tile to be re-picked, so manually add that
-    affected_tiles.append(candidate_tiles[-1])
+    # Tile order is scrambled for MC runs, so rather than adding the empty replacement 
+    # tile by [-1] index as works for the n_cores=0 case, explicitly add any tiles that 
+    # have no allocated fibres 
+    for tile in candidate_tiles:
+        if tile.count_assigned_fibres() == 0:
+            affected_tiles.append(tile)
 
     for tile_i, tile in enumerate(affected_tiles):
         # Repick the affected tiles, but making sure to only supply the targets that 
-        # actually fall within the tile boundaries
-        
+        # actually fall within the tile boundaries - unnecessary processing otherwise
         burn = tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
                                                     1*tp.TILE_RADIUS), 
                                 tp.targets_in_range(tile.ra, tile.dec, 
@@ -1779,7 +1811,13 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
                                                     1*tp.TILE_RADIUS),
                                 **unpick_settings)
 
-    return [candidate_tiles, candidate_targets, candidate_standards, candidate_guides]
+    # It is possible for a candidate tile to have no assigned fibres at this point, but
+    # that should occur only towards the end of a tiling run, or for a sparsely populated
+    # field (i.e. the bright magnitude bin). So long as the replacement tiles are properly
+    # unpicked, there should be no issue reaching the completion target.
+    
+    return candidate_tiles
+
 
 # ----------------------------------------------------------------------------------------
 # Helper functions
