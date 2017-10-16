@@ -4,6 +4,7 @@ import taipan.core as tp
 import matplotlib.patches as mpatches
 import numpy as np
 from collections import OrderedDict
+from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from itertools import cycle
@@ -74,10 +75,25 @@ def plot_tiling(tiling, run_settings):
     # Plot an Aitoff projection of the tile centre positions on-sky
     ax0 = fig.add_subplot(gs[0,0], projection='aitoff')
     ax0.grid(True)
-    ax0.plot([np.radians(t.ra - 180.) for t in tiling], [np.radians(t.dec) 
-        for t in tiling],
-        'ko', lw=0, ms=1)
+    
+    # Count the number of tiles per field
+    coords = Counter(["%f_%f" % (tile.ra, tile.dec) for tile in tiling])
+    coords = np.array([[float(key.split("_")[0]), float(key.split("_")[1]), coords[key]] 
+                      for key in coords.keys()])
+    
+    ax0_plt = ax0.scatter(np.radians(coords[:,0] - 180.), np.radians(coords[:,1]), c=coords[:,2],
+             marker='o', lw=0, s=3, cmap="rainbow")
     ax0.set_title('Tile centre positions', y=1.1)
+    ax0.set_axisbelow(True)
+    
+    # Colour bar
+    ax0_plt.set_clim([np.min(coords[:,2]), np.max(coords[:,2])])
+    cbar = plt.colorbar(ax0_plt, orientation='horizontal')
+    cbar.set_label("# Tiles")
+    
+    ax0.tick_params(axis='both', which='major', labelsize=6)
+    ax0.tick_params(axis='both', which='minor', labelsize=6)
+
     
     # ------------------------------------------------------------------------------------
     # Box-and-whisker plots of number distributions
@@ -141,8 +157,8 @@ def plot_tiling(tiling, run_settings):
             fmt_table.append([key, value])
     
     settings_tab = ax3.table(cellText=fmt_table, colLabels=col_labels, loc="center")
-    settings_tab.set_fontsize(10)
-    settings_tab.scale(1.0,0.8)
+    settings_tab.set_fontsize(8)
+    settings_tab.scale(1.0,0.7)
     
     # ------------------------------------------------------------------------------------
     # Create plots for all tiles, as well as each magnitude range
@@ -172,9 +188,9 @@ def plot_tiling(tiling, run_settings):
         ax4[-1].set_ylabel('Frequency')
         ax4[-1].set_yscale('log')
         ax4[-1].set_xlim(0, max(run_settings["targets_per_tile"]) + 1)
-        ax4[-1].text(ax4[-1].get_xlim()[1]/2, ax4[-1].get_ylim()[1]/10,
-                     "Mean: %i, Median: %i" % (np.mean(tiles_by_mag_range[i]), 
-                     np.median(tiles_by_mag_range[i])), ha="center")
+        ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (np.mean(tiles_by_mag_range[i]), 
+                     np.median(tiles_by_mag_range[i])), ha="center", 
+                     transform=ax4[-1].transAxes)
 
         # --------------------------------------------------------------------------------
         # Number of standards per tile
