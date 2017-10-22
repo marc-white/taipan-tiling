@@ -8,6 +8,8 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from itertools import cycle
+import cv2
+import glob
 
 def plot_tiling(tiling, run_settings):
     """Function to plot an overview of a FunnelWeb tiling run.
@@ -188,9 +190,16 @@ def plot_tiling(tiling, run_settings):
         ax4[-1].set_ylabel('Frequency')
         ax4[-1].set_yscale('log')
         ax4[-1].set_xlim(0, max(run_settings["targets_per_tile"]) + 1)
-        ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (np.mean(tiles_by_mag_range[i]), 
-                     np.median(tiles_by_mag_range[i])), ha="center", 
-                     transform=ax4[-1].transAxes)
+        
+        if len(tiles_by_mag_range[i]) > 0:
+            tile_mean = np.mean(tiles_by_mag_range[i])
+            tile_median = np.median(tiles_by_mag_range[i])
+        else:
+            tile_mean = 0
+            tile_median = 0
+        
+        ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (tile_mean, tile_median),
+                     ha="center", transform=ax4[-1].transAxes)
 
         # --------------------------------------------------------------------------------
         # Number of standards per tile
@@ -210,9 +219,17 @@ def plot_tiling(tiling, run_settings):
         ax5[-1].set_ylabel('Frequency')
         ax5[-1].legend(loc='upper center')
         ax5[-1].set_xlim(0, max(run_settings["standards_per_tile"]) + 1)
+        
+        if len(standards_by_mag_range[i]) > 0:
+            standard_mean = np.mean(standards_by_mag_range[i])
+            standard_median = np.median(standards_by_mag_range[i])
+        else:
+            standard_mean = 0
+            standard_median = 0
+        
         ax5[-1].text(ax5[-1].get_xlim()[1]/2, ax5[-1].get_ylim()[1]/2,
-                     "Mean: %i, Median: %i" % (np.mean(standards_by_mag_range[i]), 
-                     np.median(standards_by_mag_range[i])), ha="center")            
+                     "Mean: %i, Median: %i" % (standard_mean, standard_median), 
+                     ha="center")            
 
         # --------------------------------------------------------------------------------
         # Number of guides per tile
@@ -230,9 +247,16 @@ def plot_tiling(tiling, run_settings):
         ax6[-1].set_ylabel('Frequency')
         ax6[-1].legend(loc='upper center')
         ax6[-1].set_xlim(0, max(run_settings["guides_per_tile"]) + 1)
+        
+        if len(guides_by_mag_range[i]) > 0:
+            guides_mean = np.mean(guides_by_mag_range[i])
+            guides_median = np.median(guides_by_mag_range[i])
+        else:
+            guides_mean = 0
+            guides_median = 0
+        
         ax6[-1].text(ax6[-1].get_xlim()[1]/2, ax6[-1].get_ylim()[1]/2,
-                     "Mean: %i, Median: %i" % (np.mean(guides_by_mag_range[i]), 
-                     np.median(guides_by_mag_range[i])), ha="center") 
+                     "Mean: %i, Median: %i" % (guides_mean, guides_median), ha="center") 
 
     # Set plot titles
     ax3.set_title("Run Settings & Overview", y=0.96)
@@ -243,3 +267,39 @@ def plot_tiling(tiling, run_settings):
     # Save plot
     name = "results/" + run_settings["run_id"] + "_tiling_run_overview.pdf"
     fig.savefig(name, fmt='pdf')
+    
+def create_tiling_visualisation(tiling, run_settings, increment=1000):
+    """
+    For increasingly larger slices of the tiling set, run the plotting code.
+    """
+    # 
+    steps = list(np.arange(increment, len(tiling), increment))
+    
+    if steps[-1] != len(tiling):
+        steps.append(len(tiling))
+    
+    for frame, step in enumerate(steps):
+        plot_tiling(tiling[:step], run_settings)
+        
+        name = "results/visualisation/%s_overview_f%i.png" % (run_settings["run_id"], 
+                                                              frame)
+        plt.savefig(name)
+        
+def create_video(run_id):
+    """
+    """
+    image_paths = glob.glob("results/visualisation/*%s*" % run_id)
+    image_paths.sort()
+    
+    height, width, layers = cv2.imread(image_paths[0]).shape
+    
+    images = [cv2.imread(path) for path in image_paths]
+    
+    video = cv2.VideoWriter("results/visualisation/%s_tiling_visualisation.avi" % run_id, 
+                            -1, 2, (width, height), 1)
+    
+    for frame in images:
+        video.write(frame)
+        
+    cv2.destroyAllWindows()
+    video.release()
