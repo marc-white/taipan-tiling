@@ -1,11 +1,11 @@
 # Utility to do updating of science types, priorities and difficulties
 
-from src.resources.v0_0_1.manipulate import makeScienceUpdate as mScU
-from src.resources.v0_0_1.readout import readCentroidsAffected as rCA
-from src.resources.v0_0_1.readout import readScience as rSc
-from src.resources.v0_0_1.readout import readSciencePosn as rScP
-from src.resources.v0_0_1.readout import readScienceTypes as rScTy
-from src.resources.v0_0_1.readout import readScienceVisits as rSV
+from src.resources.stable.manipulate import makeScienceUpdate as mScU
+from src.resources.stable.readout import readCentroidsAffected as rCA
+from src.resources.stable.readout import readScience as rSc
+from src.resources.stable.readout import readSciencePosn as rScP
+from src.resources.stable.readout import readScienceTypes as rScTy
+from src.resources.stable.readout import readScienceVisits as rSV
 
 import taipan.simulate.logic as tsl
 from taipan.simulate.simulate import test_redshift_success

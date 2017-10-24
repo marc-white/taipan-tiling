@@ -17,14 +17,14 @@ from utils.updatesci import update_science_targets
 
 from src.scripts.connection import get_connection
 
-from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
-from src.resources.v0_0_1.readout import readScienceTypes as rST
+from src.resources.stable.readout.readCentroids import execute as rCexec
+from src.resources.stable.readout import readScienceTypes as rST
 
-from src.resources.v0_0_1.manipulate import makeScienceDiff as mScD
-from src.resources.v0_0_1.manipulate import makeSciencePriorities as mScP
-from src.resources.v0_0_1.manipulate import makeScienceTypes as mScTy
-from src.resources.v0_0_1.manipulate import makeScienceDiff as mSD
-from src.resources.v0_0_1.manipulate import makeCentroidSwitch as mCS
+from src.resources.stable.manipulate import makeScienceDiff as mScD
+from src.resources.stable.manipulate import makeSciencePriorities as mScP
+from src.resources.stable.manipulate import makeScienceTypes as mScTy
+from src.resources.stable.manipulate import makeScienceDiff as mSD
+from src.resources.stable.manipulate import makeCentroidSwitch as mCS
 
 import taipan.simulate.logic as tsl
 

@@ -1049,6 +1049,63 @@ def aitoff_plottable(radec, ra_offset=0.0):
     return math.radians(ra), math.radians(dec)
 
 
+def pa_points(ra, dec, ra1, dec1):
+    """
+    Compute the position angle of (ra1, dec1) from (ra, dec)
+
+    Parameters
+    ----------
+    ra : :obj:`float`, degrees
+        The RA of the initial position in degrees
+    dec : :obj:`float`, degrees
+        The dec of the initial position in degrees
+    ra1 : :obj:`float`, degrees
+        The RA of the second position in degrees
+    dec1 : :obj:`float`, degrees
+        The dec of the second position in degrees
+
+    Returns
+    -------
+    :obj:`float`, degrees
+        The position angle.
+    """
+
+    ra = np.radians(ra)
+    dec = np.radians(dec)
+    ra1 = np.radians(ra1)
+    dec1 = np.radians(dec1)
+
+    radif = ra1 - ra
+
+    pa = np.arctan2(np.sin(radif),
+                    np.cos(dec)*np.tan(dec1) -
+                    np.sin(dec)*np.cos(radif))
+
+    pa = np.degrees(pa)
+    if pa < 0.:
+        pa += 360.
+
+    return pa
+
+    # rarad1 = np.radians(ra)
+    # rarad2 = np.radians(ra1)
+    # dcrad1 = np.radians(dec)
+    # dcrad2 = np.radians(dec1)
+    #
+    # radif = rarad2 - rarad1
+    #
+    # angle = np.arctan2(np.sin(radif),
+    #                    np.cos(dcrad1) * np.tan(dcrad2) -
+    #                    np.sin(dcrad1) * np.cos(radif))
+    #
+    # result = np.degrees(angle)
+    #
+    # if True and (result < 0.0):
+    #     result += 360.0
+
+    return result
+
+
 def dist_points(ra, dec, ra1, dec1):
     """
     Compute the distance between two points on the sky.

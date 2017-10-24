@@ -4,7 +4,7 @@
 import taipan.simulate.fullsurvey as tfs
 
 from src.scripts.connection import get_connection
-import src.resources.v0_0_1.readout.readAlmanacStats as rAS
+import src.resources.stable.readout.readAlmanacStats as rAS
 
 import datetime
 import logging

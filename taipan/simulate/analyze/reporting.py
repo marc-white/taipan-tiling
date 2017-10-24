@@ -1,16 +1,16 @@
 # Generate reports on completed simulations
 
-from src.resources.v0_0_1.readout.readObservingLog import execute as rOLexec
-from src.resources.v0_0_1.readout.readScienceObservingInfo import execute as \
+from src.resources.stable.readout.readObservingLog import execute as rOLexec
+from src.resources.stable.readout.readScienceObservingInfo import execute as \
     rSOIexec
-from src.resources.v0_0_1.readout.readTileObservingInfo import execute as \
+from src.resources.stable.readout.readTileObservingInfo import execute as \
     rTOIexec
-from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
-from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+from src.resources.stable.readout.readTileScores import execute as rTSexec
+from src.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-import src.resources.v0_0_1.readout.readAlmanacStats as rAS
-from src.resources.v0_0_1.readout.readScience import execute as rScexec
-from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
+import src.resources.stable.readout.readAlmanacStats as rAS
+from src.resources.stable.readout.readScience import execute as rScexec
+from src.resources.stable.readout.readCentroids import execute as rCexec
 
 from src.scripts.connection import get_connection
 

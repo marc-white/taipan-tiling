@@ -2,18 +2,18 @@
 
 import numpy as np
 
-from src.resources.v0_0_1.readout import readTileObservingInfo as rTOI
-from src.resources.v0_0_1.readout import readAlmanacStats as rAS
-from src.resources.v0_0_1.readout import readCentroids as rC
-from src.resources.v0_0_1.readout import readFibrePosns as rFP
-from src.resources.v0_0_1.readout import readScienceObservingInfo as rSOI
-from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+from src.resources.stable.readout import readTileObservingInfo as rTOI
+from src.resources.stable.readout import readAlmanacStats as rAS
+from src.resources.stable.readout import readCentroids as rC
+from src.resources.stable.readout import readFibrePosns as rFP
+from src.resources.stable.readout import readScienceObservingInfo as rSOI
+from src.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-from src.resources.v0_0_1.readout.readObservingLog import execute as rOLexec
-from src.resources.v0_0_1.readout.readScienceVisits import execute as rScVexec
-from src.resources.v0_0_1.readout.readScienceTypes import execute as rScTexec
-from src.resources.v0_0_1.readout.readSciencePosn import execute as rScPexec
-from src.resources.v0_0_1.readout.readScienceDates import execute as rScDexec
+from src.resources.stable.readout.readObservingLog import execute as rOLexec
+from src.resources.stable.readout.readScienceVisits import execute as rScVexec
+from src.resources.stable.readout.readScienceTypes import execute as rScTexec
+from src.resources.stable.readout.readSciencePosn import execute as rScPexec
+from src.resources.stable.readout.readScienceDates import execute as rScDexec
 
 from ..utils.allskymap import AllSkyMap
 

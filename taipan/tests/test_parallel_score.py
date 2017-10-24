@@ -1,6 +1,6 @@
 # Test the ability to do parallel re-tiling
 
-from src.resources.v0_0_1.readout import readScience, readGuides, \
+from src.resources.stable.readout import readScience, readGuides, \
     readStandards, readCentroids
 from src.scripts.connection import get_connection
 

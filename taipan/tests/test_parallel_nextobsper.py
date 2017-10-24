@@ -1,6 +1,6 @@
 # Test the speed of running next_observable_period in parallel
 
-from src.resources.v0_0_1.readout import readScience, readGuides, \
+from src.resources.stable.readout import readScience, readGuides, \
     readStandards, readCentroids, readAlmanacStats
 from src.scripts.extract import extract_from
 from src.scripts.connection import get_connection

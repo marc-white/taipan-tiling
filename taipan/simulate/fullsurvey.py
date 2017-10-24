@@ -22,34 +22,34 @@ from functools import partial
 import multiprocessing
 from joblib import Parallel, delayed
 
-from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
-from src.resources.v0_0_1.readout.readGuides import execute as rGexec
-from src.resources.v0_0_1.readout.readStandards import execute as rSexec
-from src.resources.v0_0_1.readout.readScience import execute as rScexec
-from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
-from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexec
-from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
-from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
-from src.resources.v0_0_1.readout.readSciencePosn import execute as rSPexec
-from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
-from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+from src.resources.stable.readout.readCentroids import execute as rCexec
+from src.resources.stable.readout.readGuides import execute as rGexec
+from src.resources.stable.readout.readStandards import execute as rSexec
+from src.resources.stable.readout.readScience import execute as rScexec
+from src.resources.stable.readout.readTileScores import execute as rTSexec
+from src.resources.stable.readout.readCentroidsAffected import execute as rCAexec
+from src.resources.stable.readout.readScienceTypes import execute as rSTyexec
+from src.resources.stable.readout.readScienceTile import execute as rSTiexec
+from src.resources.stable.readout.readSciencePosn import execute as rSPexec
+from src.resources.stable.readout.readScienceVisits import execute as rSVexec
+from src.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-import src.resources.v0_0_1.readout.readAlmanacStats as rAS
+import src.resources.stable.readout.readAlmanacStats as rAS
 
-from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
+from src.resources.stable.insert.insertTiles import execute as iTexec
 
-from src.resources.v0_0_1.manipulate.makeScienceVisitInc import execute as mSVIexec
-from src.resources.v0_0_1.manipulate.makeScienceRepeatInc import execute as mSRIexec
-from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
-from src.resources.v0_0_1.manipulate.makeTilesQueued import execute as mTQexec
-from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
-from src.resources.v0_0_1.manipulate.makeTilesReset import execute as mTRexec
-from src.resources.v0_0_1.manipulate.makeScienceTypes import execute as mScTyexec
-from src.resources.v0_0_1.manipulate.makeSciencePriorities import execute as mScPexec
-from src.resources.v0_0_1.manipulate.makeScienceDiff import execute as mSDexec
-from src.resources.v0_0_1.manipulate import makeObservingLog as mOL
+from src.resources.stable.manipulate.makeScienceVisitInc import execute as mSVIexec
+from src.resources.stable.manipulate.makeScienceRepeatInc import execute as mSRIexec
+from src.resources.stable.manipulate.makeTilesObserved import execute as mTOexec
+from src.resources.stable.manipulate.makeTilesQueued import execute as mTQexec
+from src.resources.stable.manipulate.makeTargetPosn import execute as mTPexec
+from src.resources.stable.manipulate.makeTilesReset import execute as mTRexec
+from src.resources.stable.manipulate.makeScienceTypes import execute as mScTyexec
+from src.resources.stable.manipulate.makeSciencePriorities import execute as mScPexec
+from src.resources.stable.manipulate.makeScienceDiff import execute as mSDexec
+from src.resources.stable.manipulate import makeObservingLog as mOL
 
-import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
+import src.resources.stable.manipulate.makeNSciTargets as mNScT
 
 from src.scripts.connection import get_connection
 
