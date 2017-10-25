@@ -24,7 +24,7 @@ def plan_period(cursor,
                 start_dt, end_dt, date_start, date_end,
                 prisci=False, prisci_end=None,
                 check_dark_bounds=False,
-                output_dir='./', resolution=15.):
+                output_dir='.', resolution=15.):
     """
     Create an observing plan for a set period of time.
 
