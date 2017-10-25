@@ -122,6 +122,7 @@ def plan_period(cursor,
         )
 
         if tile_to_obs is None:
+            logging.info('No tiles available - advancing')
             local_utc_now = rAS.next_time_available(
                 cursor, local_utc_now,
                 end_dt=end_dt, minimum_airmass=2.0,
