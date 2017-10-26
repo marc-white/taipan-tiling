@@ -505,7 +505,8 @@ def select_best_tile(cursor, dt, per_end,
     scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
                                             'n_sci_rem'],
                            ignore_zeros=False, unobserved_only=True,
-                           ignore_empty=True)
+                           # ignore_empty=True
+                           )
     logging.info('-- Number of waiting tiles: %d' % len(scores_array))
     scores_array.sort(order='field_id')
 
