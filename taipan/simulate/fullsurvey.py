@@ -582,7 +582,8 @@ def select_best_tile(cursor, dt, per_end,
                         for
                         row in scores_array if
                         row['field_id'] in fields_available}
-    logging.info('  -- There are now %d tiles in contention')
+    logging.info('  -- There are now %d tiles in contention' %
+                 len(tiles_scores_raw))
     fields_by_tile = {row['tile_pk']: row['field_id'] for
                       row in scores_array if
                       row['field_id'] in fields_available}
