@@ -79,7 +79,7 @@ def plan_period(cursor,
     """
     # Input checking
     if start_dt is None or end_dt is None:
-        raise ValueError('Must provide both start and 1end datetimes!')
+        raise ValueError('Must provide both start and end datetimes!')
     if start_dt > end_dt:
         temp = end_dt
         end_dt = start_dt

@@ -582,6 +582,7 @@ def select_best_tile(cursor, dt, per_end,
                         for
                         row in scores_array if
                         row['field_id'] in fields_available}
+    logging.info('  -- There are now %d tiles in contention')
     fields_by_tile = {row['tile_pk']: row['field_id'] for
                       row in scores_array if
                       row['field_id'] in fields_available}
@@ -767,7 +768,7 @@ def select_best_tile(cursor, dt, per_end,
 
     logging.info('At time %s, considering til %s' % (
         dt.strftime('%Y-%m-%d %H:%M:%S'),
-        dt.strftime('%Y-%m-%d %H:%M:%S'),
+        per_end.strftime('%Y-%m-%d %H:%M:%S'),
     ))
 
     # Select the best ranked field we can see
