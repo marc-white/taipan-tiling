@@ -48,9 +48,9 @@ INSTRUMENT_NAME = 'AAO.Taipan'
 """:obj:`str`: Instrument name"""
 FILE_PURPOSE = 'CoD.Testing'
 """:obj:`str`: Purpose for generation of tiles (for tile definition file)"""
-JSON_DTFORMAT_NAIVE = '%Y-%m-%dT%H:%M:%S'
+JSON_DTFORMAT_NAIVE = r'%Y-%m-%dT%H:%M:%S'
 """:obj:`str`: Format for naive datetime strings in the tile definition file"""
-JSON_DTFORMAT_TZ = '%Y-%m-%dT%H:%M:%S%z'
+JSON_DTFORMAT_TZ = r'%Y-%m-%dT%H:%M:%S%z'
 """:obj:`str`: Format for timezone-d datetime strings in the tile definition file"""
 
 # Computational break-even points
