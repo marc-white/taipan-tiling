@@ -148,7 +148,8 @@ def plan_period(cursor,
         # Re-tile the affect areas
         fields_to_retile = rCA.execute(cursor, tile_list=[tile_to_obs])
         # Re-do the priorities just to be sure
-        utils_updatesci.update_science_targets(cursor, field_list=fields_to_retile,
+        utils_updatesci.update_science_targets(cursor,
+                                               field_list=fields_to_retile,
                                                do_tp=True, do_d=False,
                                                prisci=prisci)
         logging.info('Retiling fields %s' % ', '.join(str(i) for i in
@@ -170,13 +171,14 @@ def plan_period(cursor,
     # Now need to write the tile files out to the specified directory
     file_names = oODF.execute(cursor, unobserved=True, unqueued=False,
                               output_dir=output_dir, local_tz=ts.UKST_TIMEZONE)
+    file_names.sort()
 
     return file_names
 
 
-def plan_night(night, date_start, date_end,
+def plan_night(cursor, night, date_start, date_end,
                prisci=False, prisci_end=None,
-               output_dir='./'):
+               output_dir='.', resolution=15.):
     """
     Create an observing plan for a night of Taipan observations.
 
@@ -189,6 +191,8 @@ def plan_night(night, date_start, date_end,
 
     Parameters
     ----------
+    cursor : :obj:`psybopg2.connection.cursor`
+        Cursor for communicating with the database
     night : :obj:`datetime.date`
         The night to plan for. The date corresponds to the local date at the
         *start* of the night (i.e. for the night of 23/24 April, ``night``
@@ -207,9 +211,55 @@ def plan_night(night, date_start, date_end,
         the first day, local time) that the priority science period runs for.
         Defaults to None. An error will be thrown if ``prisci=True`` and
         ``prisci_end`` is None.
+    output_dir : :obj:`str`
+        Directory to write the tile configuration files to. Defaults to './'
+        (i.e. the present working directory).
+    resolution : :obj:`float`, minutes
+        Resolution of the almanacs (observability information) stored in the
+        database. Defaults to 15 (minutes).
 
     Returns
     -------
 
     """
-    return
+    # Input checking
+    if date_end < date_start:
+        temp = copy.copy(date_end)
+        date_end = date_start
+        date_start = temp
+    if night < date_start or night > date_end:
+        raise ValueError('The night you have requested to schedule is '
+                         'outside the bounds of the survey dates!')
+    if prisci and prisci_end is None:
+        raise ValueError('Must provide prisci_end when prisci=True')
+
+    logging.info('Preparing for observing night %s' %
+                 night.strftime('%Y-%m-%d'))
+
+    # Function variables
+    file_names = []
+
+    # Start at midday of the night in question
+    local_utc_now = datetime.datetime.combine(night ,datetime.time(12, 0, 0))
+    local_utc_now = ts.utc_local_dt(local_utc_now)
+    local_utc_stop = datetime.datetime.combine(
+        night + datetime.timedelta(days=1),
+        datetime.time(12, 0, 0))
+    local_utc_stop = ts.utc_local_dt(local_utc_stop)
+
+    while local_utc_now < local_utc_stop:
+        dark_start, dark_end = rAS.next_night_period(cursor, local_utc_now)
+        if dark_start > local_utc_stop: break
+
+        file_names += plan_period(cursor, dark_start, dark_end,
+                                  date_start, date_end,
+                                  prisci=prisci, prisci_end=prisci_end,
+                                  check_dark_bounds=False,  # Already done
+                                  output_dir=output_dir, resolution=resolution)
+
+        local_utc_now = dark_end + datetime.timedelta(minutes=resolution/2.)
+
+    logging.info('Preparation for observing night %s complete!' %
+                 night.strftime('%Y-%m-%d'))
+
+    return file_names
