@@ -422,7 +422,8 @@ def select_best_tile(cursor, dt, per_end,
                      midday_start=None,
                      prioritize_lowz=True,
                      resolution=15.,
-                     multipool_workers=multiprocessing.cpu_count()):
+                     multipool_workers=multiprocessing.cpu_count(),
+                     dark=True, grey=False):
     """
     Select the best tile to observe at the current datetime.
 
@@ -489,6 +490,11 @@ def select_best_tile(cursor, dt, per_end,
     multipool_workers : :obj:`int`
         The number of pool workers to use in parallel computations/retrievals
         from the database. Defaults to :any:`multiprocessing.cpu_count`.
+    dark, grey: :obj:`bool`
+        Boolean values denoting whether to return the next observable period
+        of grey time, dark time, or all night time (which corresponds to both
+        dark and grey being False). Trying to pass dark=True and grey=True will
+        raise a ValueError.
 
     Returns
     -------
@@ -519,7 +525,9 @@ def select_best_tile(cursor, dt, per_end,
     fields_available = rAS.find_fields_available(
         cursor, dt, datetime_to=per_end,
         field_list=list(scores_array['field_id']),
-        resolution=resolution)
+        resolution=resolution,
+        dark=dark, grey=grey
+    )
     fields_available.sort(order='field_id')
 
     nop_workers = 1  # Set to 1 for single-thread next_observable_period,

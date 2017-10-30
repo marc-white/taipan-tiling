@@ -118,7 +118,8 @@ def plan_period(cursor,
             cursor, local_utc_now,
             end_dt, None,  # midday_end no longer used
             prioritize_lowz=prisci,
-            midday_start=midday_start
+            midday_start=midday_start,
+            dark=True, grey=~check_dark_bounds,
         )
 
         if tile_to_obs is None:
