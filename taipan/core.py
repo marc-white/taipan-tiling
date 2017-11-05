@@ -12,6 +12,7 @@ import operator
 import os
 import random
 import string
+import line_profiler
 
 import numpy as np
 from matplotlib.cbook import flatten
@@ -1168,9 +1169,10 @@ def compute_target_difficulties(target_list, full_target_list=None,
         if verbose:
             'Checking target_list against full_target_list...'
         if not np.all(np.in1d(target_list, full_target_list)):
-            raise ValueError('target_list must be a sublist'
-                             ' of full_target_list')
-
+            #raise ValueError('target_list must be a sublist'
+                             #' of full_target_list')
+            pass
+            
     if verbose:
         logging.debug('Forming Cartesian positions...')
     # Calculate UC positions if they haven't been done already
@@ -1705,27 +1707,30 @@ class TaipanTarget(TaipanPoint):
 
     # Uncomment to have target equality decided on ID
     # WARNING - make sure your IDs are unique!
-    # def __eq__(self, other):
-    #     if isinstance(other, self.__class__):
-    #         return (self.idn == other.idn) and (self.standard
-    #                                             == other.standard) and (
-    #             self.guide == other.guide)
-    #     return False
-    #
-    # def __ne__(self, other):
-    #     if isinstance(other, self.__class__):
-    #         return not((self.idn == other.idn) and (self.standard
-    #                                                 == other.standard) and (
-    #             self.guide == other.guide))
-    #     return True
-    #
-    # def __cmp__(self, other):
-    #     if isinstance(other, self.__class__):
-    #         if (self.idn == other.idn) and (self.standard
-    #                                         == other.standard) and (
-    #                     self.guide == other.guide):
-    #             return 0
-    #     return 1
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (self.idn == other.idn) and (self.standard
+                                                == other.standard) and (
+                self.guide == other.guide)
+        return False
+    
+    def __ne__(self, other):
+        if isinstance(other, self.__class__):
+            return not((self.idn == other.idn) and (self.standard
+                                                    == other.standard) and (
+                self.guide == other.guide))
+        return True
+    
+    def __cmp__(self, other):
+        if isinstance(other, self.__class__):
+            if (self.idn == other.idn) and (self.standard
+                                            == other.standard) and (
+                        self.guide == other.guide):
+                return 0
+        return 1
+        
+    #def __hash__(self):
+        #return hash(tuple(sorted(self.__dict__.items())))
 
     @property
     def idn(self):

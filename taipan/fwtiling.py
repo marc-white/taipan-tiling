@@ -20,7 +20,7 @@ And view with:
 For other usage, visit:
     https://github.com/rkern/line_profiler
 
-Where all functions with an @profile decorator will be profiled - uncomment beforehand.
+Where all functions with an #@profile decorator will be profiled - uncomment beforehand.
 """
 import logging
 import core as tp
@@ -50,7 +50,8 @@ class FWTiler(object):
                  repick_after_complete=True, exp_base=3.0, recompute_difficulty=True, 
                  overwrite_existing=True, check_tile_radius=True, 
                  consider_removed_targets=False, allow_standard_targets=True, 
-                 assign_sky_first=True, n_cores=1):
+                 assign_sky_first=True, n_cores=1, backend="multiprocessing", 
+                 enforce_min_tile_score=True):
         """Constructor for FWTiler. Takes as parameters the various settings needed to 
         unpick and rank individual tiles, as well as tile the sky as a whole.
         
@@ -157,6 +158,11 @@ class FWTiler(object):
             The number of processor cores to be used for the tiling process. n_cores=0 is
             the standard serial method, n_cores=1 is serial, but using the multiprocessing
             implementation, n_cores >= 2 is done in parallel.
+        backend: string
+            The backend to be used for the joblib library - either "threading" or 
+            "multiprocessing".
+        enforce_min_tile_score: boolean
+            Whether a selected tile should be greater than some minimum tile score.
         """
         self._completeness_target = None
         self._ranking_method = None
@@ -187,13 +193,17 @@ class FWTiler(object):
         self._allow_standard_targets = None
         self._assign_sky_first = None
         self._n_cores = None
+        self._backend = None
+        self._enforce_min_tile_score = None
+        self._enforce_min_tile_score_original = None
+        
         
         # Insert the passed values. Doing it like this forces the setter functions to be 
         # called, which provides error checking
         self.completeness_target = completeness_target
         self.ranking_method = ranking_method
         self.disqualify_below_min = disqualify_below_min
-        self.disqualify_below_min_original = disqualify_below_min # As above for record
+        self.disqualify_below_min_original = disqualify_below_min # "Memory" param
         self.tiling_method = tiling_method
         self.randomise_pa = randomise_pa
         self.randomise_SH = randomise_SH
@@ -219,6 +229,9 @@ class FWTiler(object):
         self.allow_standard_targets = allow_standard_targets
         self.assign_sky_first = assign_sky_first
         self.n_cores = n_cores
+        self.backend = backend
+        self.enforce_min_tile_score = enforce_min_tile_score
+        self.enforce_min_tile_score_original = enforce_min_tile_score # "Memory" param
    
     # ------------------------------------------------------------------------------------
     # Attribute handling
@@ -521,9 +534,46 @@ class FWTiler(object):
         self._n_cores = value
     
     @property
+    def backend(self):
+        return self._backend
+
+    @backend.setter
+    def backend(self, value):
+        if value is None: 
+            raise Exception('backend may not be blank')
+        self._backend = value
+
+    @property
+    def enforce_min_tile_score(self):
+        return self._enforce_min_tile_score
+
+    @enforce_min_tile_score.setter
+    def enforce_min_tile_score(self, value):
+        if value is None: 
+            raise Exception('enforce_min_tile_score may not be blank')
+        self._enforce_min_tile_score = value
+
+    @property
+    def enforce_min_tile_score_original(self):
+        return self._enforce_min_tile_score_original
+
+    @enforce_min_tile_score_original.setter
+    def enforce_min_tile_score_original(self, value):
+        if value is None: 
+            raise Exception('enforce_min_tile_score_original may not be blank')
+        self._enforce_min_tile_score_original = value
+    
+    @property
     def completeness_priority(self):
         return self.priority_normal + self.prioritise_extra
-        
+    
+    @property
+    def min_tile_score(self):
+        # Return the minimum tile score - the score a tile would have it it had a single
+        # priority target. When using this, we do not consider any tiles with a lower
+        # score than this.
+        return self.exp_base**self.completeness_target    
+       
     @property
     def unpick_settings(self):
         # This property exists to simplify the need for a non-method function when using
@@ -870,12 +920,13 @@ class FWTiler(object):
         # Calculate the current completeness (cc)
         cc = (float(n_priority_targets - remaining_priority_targets)
               / float(n_priority_targets))
+        print time.strftime("%H:%M:%S %d/%m/%y") + ";",
         print "%5i / %5i P" % (remaining_priority_targets, n_priority_targets),                                          
         print "[%5i C ] --> %5.2f%%;" % (num_candidate_targets_range, 100*cc),
         print "assigned: P =%3i, C =%3i;" % (num_assigned_priority,
                                            num_non_priority_candidates),
         print "local: P =%4i, C =%4i;" % (nearby_priority, nearby_candidate),
-        print "PID #%i, RA=%5.2f, DEC=%6.2f," % (process_i, ra, dec),
+        print "PID #%i, RA=%6.2f, DEC=%6.2f," % (process_i, ra, dec),
         print "rank = %5i %s" % (best_rank, "T" if self.disqualify_below_min else "F")  
         
               
@@ -1333,7 +1384,7 @@ class FWTiler(object):
                                      len(candidate_targets_range), process_i, 
                                      nth_best_tile.ra, nth_best_tile.dec, best_rank,
                                      num_assigned_priority, num_assigned_candidates)
-                                                     
+                                                                  
             # Add an entry to the dictionary to be sent to the subprocess
             best_tiles[nth_best_tile] = (nearby_tiles[:], nearby_targets[:],
                                          nearby_standards[:], nearby_guides[:])
@@ -1348,21 +1399,26 @@ class FWTiler(object):
             if max(ranking_list) < 0.05:
                 logging.info("max(ranking_list) < 0.05, abort filling to n_cores")
                 break
-     
-        # Dictionary is constructed, now perform parallel repick
-        n_processes = len(best_tiles.keys())
-        results = Parallel(n_jobs=n_processes, backend="threading")(
-                     delayed(repick_within_radius)(tile, best_tiles[tile][0],
-                                                   best_tiles[tile][1],
-                                                   best_tiles[tile][2],
-                                                   best_tiles[tile][3],
-                                                   self.unpick_settings)
-                                             for tile in best_tiles.keys())  
+        
+        if self.backend == "multiprocessing" or self.backend == "threading":
+            # Dictionary is constructed, now perform parallel repick
+            n_processes = len(best_tiles.keys())
+            results = Parallel(n_jobs=n_processes, backend=self.backend)(
+                         delayed(repick_within_radius)(tile, best_tiles[tile][0],
+                                                       best_tiles[tile][1],
+                                                       best_tiles[tile][2],
+                                                       best_tiles[tile][3],
+                                                       self.unpick_settings)
+                                                 for tile in best_tiles.keys())  
     
-        # Done, now add back in the nearby candidate tiles
-        for updated_nearby_candidate_tiles in results:
-            candidate_tiles.extend(updated_nearby_candidate_tiles)
-
+            # Done, now add back in the nearby candidate tiles
+            for updated_nearby_candidate_tiles in results:
+                candidate_tiles.extend(updated_nearby_candidate_tiles)
+        
+        else:
+            # Try using multiprocessing module, rather than joblib
+            raise Exception("Error: no other MP method yet implemented")
+        
         return best_tiles.keys(), remaining_priority_targets
         
 
@@ -1531,13 +1587,33 @@ class FWTiler(object):
             logging.info('Remaining guides & standards (this mag range): %d, %d' %
                          (len(guide_targets_range), len(standard_targets_range)))
         
-            # If max of the ranking_list is now 0, try switching off  the disqualify flag
-            if max(ranking_list) < 0.05 and self.disqualify_below_min:
+            # Two checks to be run here:
+            # 1 - Reduce the selection of non-priority targets by setting
+            #     disqualify_below_min to False if the max of the ranking list falls below
+            #     some threshold (e.g. the score of a single priority target). This moves
+            #     the tiling more rapidly towards completion and allows priority targets
+            #     not in the priority magnitude range to observed in the next mag bin.
+            # 2 - If there are no more legal targets (because of disqualify_below_min 
+            #     setting the score to zero when below the minimum number of standards/
+            #     guides) cease disqualifying such tiles to head towards completion.
+            # Note: by having the two booleans first we can short-circuit the expression
+            # in the event they are false, removing the need to sort the ranking list.
+            # This structure ensures we only enter either of the two if statements only
+            # once, as we flip the booleans after successful use.
+            if self.enforce_min_tile_score and max(ranking_list) < self.min_tile_score:
+                logging.info('Detected no tiles above min score - relaxing requirements')
+                self.enforce_min_tile_score = False
+                self.disqualify_below_min = False
+                ranking_list = [self.calculate_tile_score(tile) 
+                                for tile in candidate_tiles]  
+                                
+            elif self.disqualify_below_min and max(ranking_list) < 0.05:
                 logging.info('Detected no remaining legal tiles - relaxing requirements')
                 self.disqualify_below_min = False
                 ranking_list = [self.calculate_tile_score(tile) 
                                 for tile in candidate_tiles]        
         
+        # Print summary of the magnitude range
         cc = (float(n_priority_targets - remaining_priority_targets)
                           / float(n_priority_targets))
         print "Mag range complete with %i tiles, %5.2f %% complete" % (len(tile_list),
@@ -1545,8 +1621,9 @@ class FWTiler(object):
         if cc < self.completeness_target:
             logging.warning("### WARNING: mag range tiling aborted prior to completeness")
             
-        # Reset disqualify_below_min
+        # Reset booleans
         self.disqualify_below_min = self.disqualify_below_min_original                                                             
+        self.enforce_min_tile_score = self.enforce_min_tile_score_original  
                                                                           
         return tile_list
 
@@ -1786,12 +1863,16 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
 
     nearby_candidate_tiles = tp.targets_in_range(best_tile.ra, best_tile.dec, 
                                             candidate_tiles, n_radii*tp.TILE_RADIUS) 
-                                                    
+    """                                                
     affected_tiles = list({atile for atile in nearby_candidate_tiles 
                           for t1 in assigned_targets \
                           for t2 in atile.get_assigned_targets_science() \
                           if is_same_taipan_object(t1, t2)})
-    
+    """
+    affected_tiles = list({atile for atile in nearby_candidate_tiles 
+                          for t in assigned_targets \
+                          if t in atile.get_assigned_targets_science()})
+                          
     # Tile order is scrambled for MC runs, so rather than adding the empty replacement 
     # tile by [-1] index as works for the n_cores=0 case, explicitly add any tiles that 
     # have no allocated fibres 

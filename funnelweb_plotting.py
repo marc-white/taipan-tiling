@@ -181,10 +181,11 @@ def plot_tiling(tiling, run_settings):
         # --------------------------------------------------------------------------------
         # Plot a histogram of the number of targets per tile
         ax4.append(fig.add_subplot(gs[i,1]))
-        ax4[-1].hist(tiles_by_mag_range[i], bins= max(targets_per_tile), color=colour, 
-                     align='right', label=label)
-        ax4[-1].vlines(run_settings["TARGET_PER_TILE"], ax4[-1].get_ylim()[0], ax4[-1].get_ylim()[1], 
-                       linestyles='dashed', colors='k', label='Ideally-filled tile')
+        ax4[-1].hist(tiles_by_mag_range[i], bins=np.arange(0, max(targets_per_tile)+1, 1), 
+                     color=colour, align='right', label=label)
+        #ax4[-1].vlines(run_settings["TARGET_PER_TILE"], ax4[-1].get_ylim()[0],  
+        #               ax4[-1].get_ylim()[1], linestyles='dashed', colors='k', 
+        #               label='Ideally-filled tile')
         ax4[-1].legend(loc='upper center')
         ax4[-1].set_xlabel('No. of targets per tile')
         ax4[-1].set_ylabel('Frequency')
@@ -200,7 +201,7 @@ def plot_tiling(tiling, run_settings):
         
         ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (tile_mean, tile_median),
                      ha="center", transform=ax4[-1].transAxes)
-
+        
         # --------------------------------------------------------------------------------
         # Number of standards per tile
         # --------------------------------------------------------------------------------
@@ -238,8 +239,9 @@ def plot_tiling(tiling, run_settings):
         ax6.append(fig.add_subplot(gs[i,3]))
         ax6[-1].hist(guides_by_mag_range[i], bins=max(guides_per_tile), 
                      color=colour, align='right', label=label)
-        ax6[-1].vlines(run_settings["GUIDES_PER_TILE"], ax6[-1].get_ylim()[0], ax6[-1].get_ylim()[1], 
-                       linestyles='dashed', colors='k', label='Ideally-filled tile')
+        ax6[-1].vlines(run_settings["GUIDES_PER_TILE"], ax6[-1].get_ylim()[0], 
+                       ax6[-1].get_ylim()[1], linestyles='dashed', colors='k', 
+                       label='Ideally-filled tile')
         ax6[-1].vlines(run_settings["GUIDES_PER_TILE_MIN"], ax6[-1].get_ylim()[0], 
                        ax6[-1].get_ylim()[1], linestyles='dotted', colors='k', 
                        label='Minimum guides per tile')
