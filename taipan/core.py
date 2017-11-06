@@ -1729,8 +1729,9 @@ class TaipanTarget(TaipanPoint):
                 return 0
         return 1
         
-    #def __hash__(self):
+    def __hash__(self):
         #return hash(tuple(sorted(self.__dict__.items())))
+        return hash((self.idn, self.standard, self.guide))
 
     @property
     def idn(self):

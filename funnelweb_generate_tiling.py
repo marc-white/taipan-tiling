@@ -21,6 +21,7 @@ import numpy as np
 import cPickle
 import time
 import os
+import platform
 import funnelweb_plotting as fwplt
 import funnelweb_tiling_settings as fwts
 from shutil import copyfile
@@ -116,13 +117,13 @@ def calc_dist_priority(parallax, prioritise_close=False):
 # Reload fwts for repeated runs
 reload(fwts)
 
-#Change defaults. NB By changing in tp, we chance in tl.tp also.
+# Change defaults. NB By changing in tp, we chance in tl.tp also.
 tp.TARGET_PER_TILE = fwts.script_settings["TARGET_PER_TILE"]
 tp.STANDARDS_PER_TILE = fwts.script_settings["STANDARDS_PER_TILE"]
 tp.STANDARDS_PER_TILE_MIN = fwts.script_settings["STANDARDS_PER_TILE_MIN"]
 
-#Enough to fit a linear trend and get a chi-squared uncertainty distribution with
-#4 degrees of freedom, with 1 bad fiber.
+# Enough to fit a linear trend and get a chi-squared uncertainty distribution with
+# 4 degrees of freedom, with 1 bad fiber.
 tp.SKY_PER_TILE = fwts.script_settings["SKY_PER_TILE"]
 tp.SKY_PER_TILE_MIN = fwts.script_settings["SKY_PER_TILE_MIN"]
 tp.GUIDES_PER_TILE = fwts.script_settings["GUIDES_PER_TILE"]
@@ -142,8 +143,10 @@ run_description = raw_input("Description/motivation for tiling run: ")
 if run_description == "": 
     ra_range = fwts.tiler_input["ra_max"] - fwts.tiler_input["ra_min"]
     dec_range = fwts.tiler_input["dec_max"] - fwts.tiler_input["dec_min"]
-    run_description = "%ix%i, n_cores=%i" % (ra_range, dec_range, 
-                                             fwts.tiler_input["n_cores"])
+    run_description = "%s, %ix%i, backend=%s, n_cores=%i" % (platform.node(),
+                                                             ra_range, dec_range, 
+                                                             fwts.tiler_input["backend"],
+                                                             fwts.tiler_input["n_cores"])
 
 # Begin logging, ensuring that we create a new log file handler unique to this run
 log_file = "funnelweb_generate_tiling.log"

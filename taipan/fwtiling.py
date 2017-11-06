@@ -32,6 +32,7 @@ import numpy as np
 import copy
 import line_profiler
 from joblib import Parallel, delayed
+import multiprocessing as mp
 import pdb
 from collections import Counter
 
@@ -572,7 +573,7 @@ class FWTiler(object):
         # Return the minimum tile score - the score a tile would have it it had a single
         # priority target. When using this, we do not consider any tiles with a lower
         # score than this.
-        return self.exp_base**self.completeness_target    
+        return self.exp_base**self.completeness_priority    
        
     @property
     def unpick_settings(self):
@@ -1326,6 +1327,11 @@ class FWTiler(object):
         # {TaipanTile:([Tiles],[Targets],[Standards],[Guides]),}
         best_tiles = {}
         
+        # Shared resources for multiprocessing.pool implementation
+        manager = mp.Manager()
+        tile_neighbourhood = manager.list()
+        repicked_tiles = manager.list()
+        
         num_candidate_targets_range = len(candidate_targets_range)
     
         # This loop builds up the dictionary consisting of the best tile and its
@@ -1386,9 +1392,17 @@ class FWTiler(object):
                                      num_assigned_priority, num_assigned_candidates)
                                                                   
             # Add an entry to the dictionary to be sent to the subprocess
-            best_tiles[nth_best_tile] = (nearby_tiles[:], nearby_targets[:],
-                                         nearby_standards[:], nearby_guides[:])
-     
+            if self.backend == "multiprocessing" or self.backend == "threading":
+                best_tiles[nth_best_tile] = (nearby_tiles[:], nearby_targets[:],
+                                             nearby_standards[:], nearby_guides[:])
+            else:
+                # Instead add the neighbourhood information to the manager
+                tile_neighbourhood.append((nth_best_tile, nearby_targets, 
+                                           nearby_standards, nearby_guides, nearby_tiles))
+                                           
+                # But still add the best tiles to the dictionary
+                best_tiles[nth_best_tile] = process_i
+            
             # Recalculate the ranking list to account for the now missing items
             ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles] 
             
@@ -1414,11 +1428,23 @@ class FWTiler(object):
             # Done, now add back in the nearby candidate tiles
             for updated_nearby_candidate_tiles in results:
                 candidate_tiles.extend(updated_nearby_candidate_tiles)
-        
+            
         else:
             # Try using multiprocessing module, rather than joblib
-            raise Exception("Error: no other MP method yet implemented")
-        
+            #raise Exception("Error: no other MP method yet implemented")
+            n_processes = len(tile_neighbourhood)
+            pool = mp.Pool(processes=n_processes)
+
+            pool.map(repick_within_radius_pool, [(process_i, tile_neighbourhood,  
+                                             repicked_tiles, self.unpick_settings)
+                                           for process_i in xrange(0, n_processes)])
+            pool.close()
+            pool.join()
+            
+            # Done, now add back in the nearby candidate tiles
+            for neighbourhood in repicked_tiles:
+                candidate_tiles.extend(neighbourhood)
+            
         return best_tiles.keys(), remaining_priority_targets
         
 
@@ -1897,6 +1923,68 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     # field (i.e. the bright magnitude bin). So long as the replacement tiles are properly
     # unpicked, there should be no issue reaching the completion target.
     
+    return candidate_tiles
+
+
+def repick_within_radius_pool(input_params):
+    """input_params is tuple of form: 
+    (process_i, neighbourhood_tiles, repicked_tiles, fwtiler.unpick_settings)
+    
+    Where process_i is used to index neighbourhood_tiles, which is of type manager.list()
+    and holds the targets, standards, guides, and tiles from the neighbourhood. 
+    repicked_tiles is also of type manager.list(), and is used to store the repicked 
+    tiles from the neighbourhood.
+    """
+    process_i = input_params[0]
+    neighbourhood_tiles = input_params[1]
+    repicked_tiles = input_params[2]
+    unpick_settings = input_params[3]
+    
+    
+    best_tile = neighbourhood_tiles[process_i][0]
+    candidate_targets = neighbourhood_tiles[process_i][1]
+    candidate_standards = neighbourhood_tiles[process_i][2]
+    candidate_guides = neighbourhood_tiles[process_i][3]
+    candidate_tiles = neighbourhood_tiles[process_i][4]
+    
+    n_radii=2
+
+    # Repick any tiles within n_radii*TILE_RADIUS
+    assigned_targets = best_tile.get_assigned_targets_science()
+
+    nearby_candidate_tiles = tp.targets_in_range(best_tile.ra, best_tile.dec, 
+                                            candidate_tiles, n_radii*tp.TILE_RADIUS) 
+
+    affected_tiles = list({atile for atile in nearby_candidate_tiles 
+                          for t in assigned_targets \
+                          if t in atile.get_assigned_targets_science()})
+                      
+    # Tile order is scrambled for MC runs, so rather than adding the empty replacement 
+    # tile by [-1] index as works for the n_cores=0 case, explicitly add any tiles that 
+    # have no allocated fibres 
+    for tile in candidate_tiles:
+        if tile.count_assigned_fibres() == 0:
+            affected_tiles.append(tile)
+
+    for tile_i, tile in enumerate(affected_tiles):
+        # Repick the affected tiles, but making sure to only supply the targets that 
+        # actually fall within the tile boundaries - unnecessary processing otherwise
+        burn = tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
+                                                    1*tp.TILE_RADIUS), 
+                                tp.targets_in_range(tile.ra, tile.dec, 
+                                                    candidate_standards, 
+                                                    1*tp.TILE_RADIUS), 
+                                tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
+                                                    1*tp.TILE_RADIUS),
+                                **unpick_settings)
+
+    # It is possible for a candidate tile to have no assigned fibres at this point, but
+    # that should occur only towards the end of a tiling run, or for a sparsely populated
+    # field (i.e. the bright magnitude bin). So long as the replacement tiles are properly
+    # unpicked, there should be no issue reaching the completion target.
+    
+    repicked_tiles.append(candidate_tiles)
+        
     return candidate_tiles
 
 
