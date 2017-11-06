@@ -1,18 +1,18 @@
 # Generate reports on completed simulations
 
-from src.resources.stable.readout.readObservingLog import execute as rOLexec
-from src.resources.stable.readout.readScienceObservingInfo import execute as \
+from taipandb.resources.stable.readout.readObservingLog import execute as rOLexec
+from taipandb.resources.stable.readout.readScienceObservingInfo import execute as \
     rSOIexec
-from src.resources.stable.readout.readTileObservingInfo import execute as \
+from taipandb.resources.stable.readout.readTileObservingInfo import execute as \
     rTOIexec
-from src.resources.stable.readout.readTileScores import execute as rTSexec
-from src.resources.stable.readout.readCentroidsByTarget import execute as \
+from taipandb.resources.stable.readout.readTileScores import execute as rTSexec
+from taipandb.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-import src.resources.stable.readout.readAlmanacStats as rAS
-from src.resources.stable.readout.readScience import execute as rScexec
-from src.resources.stable.readout.readCentroids import execute as rCexec
+import taipandb.resources.stable.readout.readAlmanacStats as rAS
+from taipandb.resources.stable.readout.readScience import execute as rScexec
+from taipandb.resources.stable.readout.readCentroids import execute as rCexec
 
-from src.scripts.connection import get_connection
+from taipandb.scripts.connection import get_connection
 
 import taipan.scheduling as ts
 
@@ -106,7 +106,7 @@ def generate_tile_choice(cursor, dt, prioritize_lowz=True, midday_end=None,
         cursor, r, tile_to_check['date_obs'],
         datetime_to=dark_end) for
                      r in list(set(tile_scores['field_id']))}
-    fields_available = [f for f, v in field_periods.iteritems() if
+    fields_available = [f for f, v in field_periods.items() if
                         v[0] is not None and
                         v[0] < tile_to_check['date_obs'] and
                         (v[1] is None or
@@ -334,7 +334,7 @@ def check_tile_choice(cursor, midday_end=None, resolution=15.):
             cursor, r, tile_to_check['date_obs'],
             datetime_to=dark_end) for
                          r in list(set(tile_scores['field_id']))}
-        # fields_available = [f for f, v in field_periods.iteritems() if
+        # fields_available = [f for f, v in field_periods.items() if
         #                     v[0] is not None and
         #                     v[0] - datetime.timedelta(seconds=ts.SLEW_TIME)
         #                     < tile_to_check['date_obs'] and

@@ -16,16 +16,16 @@ import traceback
 from utils.tiling import retile_fields
 from utils.updatesci import update_science_targets
 
-from src.scripts.connection import get_connection
+from taipandb.scripts.connection import get_connection
 
-from src.resources.stable.readout.readCentroids import execute as rCexec
-from src.resources.stable.readout import readScienceTypes as rST
+from taipandb.resources.stable.readout.readCentroids import execute as rCexec
+from taipandb.resources.stable.readout import readScienceTypes as rST
 
-from src.resources.stable.manipulate import makeScienceDiff as mScD
-from src.resources.stable.manipulate import makeSciencePriorities as mScP
-from src.resources.stable.manipulate import makeScienceTypes as mScTy
-from src.resources.stable.manipulate import makeScienceDiff as mSD
-from src.resources.stable.manipulate import makeCentroidSwitch as mCS
+from taipandb.resources.stable.manipulate import makeScienceDiff as mScD
+from taipandb.resources.stable.manipulate import makeSciencePriorities as mScP
+from taipandb.resources.stable.manipulate import makeScienceTypes as mScTy
+from taipandb.resources.stable.manipulate import makeScienceDiff as mSD
+from taipandb.resources.stable.manipulate import makeCentroidSwitch as mCS
 
 import taipan.simulate.logic as tsl
 
@@ -123,9 +123,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
     # # Work out which of the field almanacs already exist on disk
     # files_on_disk = os.listdir(output_loc)
     # almanacs_existing = {k: v.generate_file_name() in files_on_disk
-    #                      for (k, v) in almanacs.iteritems()}
+    #                      for (k, v) in almanacs.items()}
     # logging.info('Saving almanacs to disc...')
-    # for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
+    # for k in [k for (k, v) in almanacs_existing.items() if not v]:
     #     almanacs[k].save()
     # end = datetime.datetime.now()
     # delta = end - start

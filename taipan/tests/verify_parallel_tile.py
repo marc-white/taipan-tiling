@@ -1,8 +1,8 @@
 # Test the ability to do parallel re-tiling
 
-from src.resources.stable.readout import readScience, readGuides, \
+from taipandb.resources.stable.readout import readScience, readGuides, \
     readStandards, readCentroids
-from src.scripts.connection import get_connection
+from taipandb.scripts.connection import get_connection
 
 from taipan.tiling import generate_tiling_greedy_npasses
 

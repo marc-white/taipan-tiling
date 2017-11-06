@@ -816,7 +816,7 @@ class Almanac(object):
                     obs_start < self.data['date'],
                     self.data['date'] < ephem_limiting_dt
                 ))]['date'][0]
-            # obs_end = (t for t, b in sorted(self.airmass.iteritems()) if
+            # obs_end = (t for t, b in sorted(self.airmass.items()) if
             #            obs_start < t < ephem_limiting_dt and
             #            b > self.minimum_airmass).next()
         except IndexError:
@@ -953,7 +953,7 @@ class Almanac(object):
             self.data['date'] >= ephem.Date(tz.localize(datetime_from).
                                             astimezone(pytz.utc))
         ]['airmass'][0]
-        # airmass_now = (v for k, v in sorted(self.airmass.iteritems()) if
+        # airmass_now = (v for k, v in sorted(self.airmass.items()) if
         #                k >= ephem.Date(tz.localize(
         #                    datetime_from).astimezone(pytz.utc))
         #                ).next()
@@ -1008,7 +1008,7 @@ class Almanac(object):
                                                     minimum_airmass),
                     )]
                     # better_per = [k for
-                    #               k, v in sorted(self.airmass.iteritems()) if
+                    #               k, v in sorted(self.airmass.items()) if
                     #               (next_per_start -
                     #                half_res_in_days) <
                     #               k < (next_per_end -
@@ -1021,7 +1021,7 @@ class Almanac(object):
                         self.data['date'] < (next_per_end - half_res_in_days)
                     )]
                     # whole_per = [k for
-                    #              k, v in sorted(self.airmass.iteritems()) if
+                    #              k, v in sorted(self.airmass.items()) if
                     #              (next_per_start -
                     #               half_res_in_days) <
                     #              k < (next_per_end -
@@ -1347,7 +1347,7 @@ class DarkAlmanac(Almanac):
                     self.data['date'] < ephem_limiting_dt),
                 self.data['sun_alt'] < SOLAR_HORIZON
             )]['date'][0]
-            # night_start = (t for t, b in sorted(self.sun_alt.iteritems()) if
+            # night_start = (t for t, b in sorted(self.sun_alt.items()) if
             #                ephem_dt <= t < ephem_limiting_dt and
             #                b < SOLAR_HORIZON).next()
         except IndexError:
@@ -1360,7 +1360,7 @@ class DarkAlmanac(Almanac):
                     self.data['date'] < ephem_limiting_dt),
                 self.data['sun_alt'] >= SOLAR_HORIZON
             )]['date'][0]
-            # night_end = (t for t, b in sorted(self.sun_alt.iteritems()) if
+            # night_end = (t for t, b in sorted(self.sun_alt.items()) if
             #              night_start < t < ephem_limiting_dt and
             #              b >= SOLAR_HORIZON).next()
         except IndexError:
@@ -1410,7 +1410,7 @@ class DarkAlmanac(Almanac):
                 ),
                 self.data['dark_time']
             )]['date'][0]
-            # dark_start = (t for t, b in sorted(self.dark_time.iteritems()) if
+            # dark_start = (t for t, b in sorted(self.dark_time.items()) if
             #               ephem_dt <= t < ephem_limiting_dt and b).next()
         except IndexError:
             # No dark time left in this almanac; return None to both parameters
@@ -1423,7 +1423,7 @@ class DarkAlmanac(Almanac):
                 ),
                 ~self.data['dark_time']
             )]['date'][0]
-            # dark_end = (t for t, b in sorted(self.dark_time.iteritems()) if
+            # dark_end = (t for t, b in sorted(self.dark_time.items()) if
             #             dark_start < t < ephem_limiting_dt and
             #             not b).next()
         except IndexError:

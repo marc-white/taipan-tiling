@@ -3,8 +3,8 @@
 
 import taipan.simulate.fullsurvey as tfs
 
-from src.scripts.connection import get_connection
-import src.resources.stable.readout.readAlmanacStats as rAS
+from taipandb.scripts.connection import get_connection
+import taipandb.resources.stable.readout.readAlmanacStats as rAS
 
 import datetime
 import logging

@@ -307,7 +307,7 @@ def tiling_consolidate(tile_list):
             return_dict=True, include_science_standards=False)
         # Try to assign these targets to another, more-complete tile
         # Be sure not to try re-assignment to the current worst tile!
-        for (fibre, target) in targets_to_redo.iteritems():
+        for (fibre, target) in targets_to_redo.items():
             tiles_to_try = [t for t in tile_list[:-1] 
                 if target.dist_point((t.ra, t.dec)) < tp.TILE_RADIUS]
             target_reassigned = False
@@ -346,7 +346,7 @@ def tiling_consolidate(tile_list):
             # more-complete tile
             # Be sure not to try re-assignment to the current worst tile!
             n_standards_left = len(targets_to_redo)
-            for (fibre, target) in targets_to_redo.iteritems():
+            for (fibre, target) in targets_to_redo.items():
                 tiles_to_try = [t for t in tile_list[:-1] 
                     if target.dist_point((t.ra, t.dec)) < tp.TILE_RADIUS]
                 target_reassigned = False

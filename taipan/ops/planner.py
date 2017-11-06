@@ -12,12 +12,12 @@ import taipan.simulate.fullsurvey as tfs
 from taipan.simulate.utils import updatesci as utils_updatesci
 from taipan.simulate.utils import tiling as utils_tiling
 
-from src.resources.stable.readout import readAlmanacStats as rAS
-from src.resources.stable.readout import readCentroidsAffected as rCA
+from taipandb.resources.stable.readout import readAlmanacStats as rAS
+from taipandb.resources.stable.readout import readCentroidsAffected as rCA
 
-from src.resources.stable.manipulate import makeTilesQueued as mTQ
+from taipandb.resources.stable.manipulate import makeTilesQueued as mTQ
 
-from src.resources.stable.output import outputObsDefFile as oODF
+from taipandb.resources.stable.output import outputObsDefFile as oODF
 
 
 def plan_period(cursor,

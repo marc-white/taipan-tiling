@@ -613,7 +613,7 @@ ARCSEC_PER_MM = 67.2
 
 Correct usage is: arcseconds = :any:`ARCSEC_PER_MM` * millimetres."""
 BUGPOS_ARCSEC = {key: (value[0]*ARCSEC_PER_MM, value[1]*ARCSEC_PER_MM)
-                 for key, value in BUGPOS_MM.iteritems()}
+                 for key, value in BUGPOS_MM.items()}
 """:obj:`dict` of :obj:`int`, (:obj:`float`, :obj:`float`) mappings: Home 
 positions of the Taipan fibres in arcseconds relative to plate centre
 
@@ -625,7 +625,7 @@ Values are computed at module load using :any:`BUGPOS_MM` and
 BUGPOS_OFFSET = {key : ( math.sqrt(value[0]**2 + value[1]**2), 
                          math.degrees(math.atan2(value[0], value[1])) 
                             % 360., )
-                 for key, value in BUGPOS_ARCSEC.iteritems()}
+                 for key, value in BUGPOS_ARCSEC.items()}
 """:obj:`dict` of :obj:`int`, (:obj:`float`, :obj:`float`) mappings: Home 
 positions of the Taipan fibres in arcsecond distance and position angle from
 the plate centre
@@ -2780,7 +2780,7 @@ class TaipanTile(TaipanPoint):
             The list of TaipanTargets currently assigned to
             this tile.
         """
-        assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
+        assigned_targets = {f: t for (f, t) in self._fibres.items()
                             if isinstance(t, TaipanTarget)}
         if return_dict:
             return assigned_targets
@@ -2813,16 +2813,16 @@ class TaipanTile(TaipanPoint):
             The list of science TaipanTargets currently assigned
             to this tile.
         """
-        assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
+        assigned_targets = {f: t for (f, t) in self._fibres.items()
                             if isinstance(t, TaipanTarget)}
         if include_science_standards:
-            assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+            assigned_targets = {f: t for (f, t) in assigned_targets.items()
                                 if t.science}
         elif only_science_standards:
-            assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+            assigned_targets = {f: t for (f, t) in assigned_targets.items()
                                 if t.science and t.standard}
         else:
-            assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+            assigned_targets = {f: t for (f, t) in assigned_targets.items()
                                 if t.science and not t.standard}
         if return_dict:
             return assigned_targets
@@ -2865,9 +2865,9 @@ class TaipanTile(TaipanPoint):
             The list of standard TaipanTargets currently 
             assigned to this tile.
         """
-        assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
+        assigned_targets = {f: t for (f, t) in self._fibres.items()
                             if isinstance(t, TaipanTarget)}
-        assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+        assigned_targets = {f: t for (f, t) in assigned_targets.items()
                             if t.standard}
         if return_dict:
             return assigned_targets
@@ -2904,9 +2904,9 @@ class TaipanTile(TaipanPoint):
             The list of guide TaipanTargets currently 
             assigned to this tile.
         """
-        assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
+        assigned_targets = {f: t for (f, t) in self._fibres.items()
                             if isinstance(t, TaipanTarget)}
-        assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+        assigned_targets = {f: t for (f, t) in assigned_targets.items()
                             if t.guide}
         if return_dict:
             return assigned_targets
@@ -3253,7 +3253,7 @@ class TaipanTile(TaipanPoint):
                          self._fibres[f] is None and
                          f not in sky_fibres}
             sky_fibres.append(
-                min(avg_dists.iteritems(), key=operator.itemgetter(1))[0]
+                min(avg_dists.items(), key=operator.itemgetter(1))[0]
             )
             logging.debug('Added sky to fibre %d' % sky_fibres[-1])
 
@@ -3788,11 +3788,11 @@ class TaipanTile(TaipanPoint):
             # Instead of having randomly ordered guides, let's rank them
             # by the distance to their nearest guide fibre
             guides_this_tile.sort(key=lambda x: np.min([
-                x.dist_point(posn) for posn in fibre_posns.itervalues()
+                x.dist_point(posn) for posn in fibre_posns.values()
             ]))
 
             # guide_targets_dists = None
-            # for posn in fibre_posns.itervalues():
+            # for posn in fibre_posns.values():
             #     guide_dists = [g.dist_point(posn) for g in guide_targets]
             #     if guide_targets_dists is None:
             #         guide_targets_dists = np.asarray(guide_dists)
@@ -3917,7 +3917,7 @@ class TaipanTile(TaipanPoint):
                     continue
                 # Remove the offending targets from the tile, and assign the
                 # guide
-                fibres_for_removal = [f for (f, t) in self._fibres.iteritems()
+                fibres_for_removal = [f for (f, t) in self._fibres.items()
                     if t in problem_targets[i]]
                 for f in fibres_for_removal:
                     removed_targets.append(self.unassign_fibre(f))
@@ -4493,7 +4493,7 @@ class TaipanTile(TaipanPoint):
                 # ID the 'worst' remaining assigned fibre
                 
                 #ZZZ remove ZZZ
-                #wfold = max(fibre_dists.iteritems(),
+                #wfold = max(fibre_dists.items(),
                 #    key=operator.itemgetter(1))[0]
                 #if wfold != wf:
                 #    import pdb; pdb.set_trace()

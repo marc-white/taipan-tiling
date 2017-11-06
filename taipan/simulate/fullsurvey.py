@@ -22,36 +22,36 @@ from functools import partial
 import multiprocessing
 from joblib import Parallel, delayed
 
-from src.resources.stable.readout.readCentroids import execute as rCexec
-from src.resources.stable.readout.readGuides import execute as rGexec
-from src.resources.stable.readout.readStandards import execute as rSexec
-from src.resources.stable.readout.readScience import execute as rScexec
-from src.resources.stable.readout.readTileScores import execute as rTSexec
-from src.resources.stable.readout.readCentroidsAffected import execute as rCAexec
-from src.resources.stable.readout.readScienceTypes import execute as rSTyexec
-from src.resources.stable.readout.readScienceTile import execute as rSTiexec
-from src.resources.stable.readout.readSciencePosn import execute as rSPexec
-from src.resources.stable.readout.readScienceVisits import execute as rSVexec
-from src.resources.stable.readout.readCentroidsByTarget import execute as \
+from taipandb.resources.stable.readout.readCentroids import execute as rCexec
+from taipandb.resources.stable.readout.readGuides import execute as rGexec
+from taipandb.resources.stable.readout.readStandards import execute as rSexec
+from taipandb.resources.stable.readout.readScience import execute as rScexec
+from taipandb.resources.stable.readout.readTileScores import execute as rTSexec
+from taipandb.resources.stable.readout.readCentroidsAffected import execute as rCAexec
+from taipandb.resources.stable.readout.readScienceTypes import execute as rSTyexec
+from taipandb.resources.stable.readout.readScienceTile import execute as rSTiexec
+from taipandb.resources.stable.readout.readSciencePosn import execute as rSPexec
+from taipandb.resources.stable.readout.readScienceVisits import execute as rSVexec
+from taipandb.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-import src.resources.stable.readout.readAlmanacStats as rAS
+import taipandb.resources.stable.readout.readAlmanacStats as rAS
 
-from src.resources.stable.insert.insertTiles import execute as iTexec
+from taipandb.resources.stable.insert.insertTiles import execute as iTexec
 
-from src.resources.stable.manipulate.makeScienceVisitInc import execute as mSVIexec
-from src.resources.stable.manipulate.makeScienceRepeatInc import execute as mSRIexec
-from src.resources.stable.manipulate.makeTilesObserved import execute as mTOexec
-from src.resources.stable.manipulate.makeTilesQueued import execute as mTQexec
-from src.resources.stable.manipulate.makeTargetPosn import execute as mTPexec
-from src.resources.stable.manipulate.makeTilesReset import execute as mTRexec
-from src.resources.stable.manipulate.makeScienceTypes import execute as mScTyexec
-from src.resources.stable.manipulate.makeSciencePriorities import execute as mScPexec
-from src.resources.stable.manipulate.makeScienceDiff import execute as mSDexec
-from src.resources.stable.manipulate import makeObservingLog as mOL
+from taipandb.resources.stable.manipulate.makeScienceVisitInc import execute as mSVIexec
+from taipandb.resources.stable.manipulate.makeScienceRepeatInc import execute as mSRIexec
+from taipandb.resources.stable.manipulate.makeTilesObserved import execute as mTOexec
+from taipandb.resources.stable.manipulate.makeTilesQueued import execute as mTQexec
+from taipandb.resources.stable.manipulate.makeTargetPosn import execute as mTPexec
+from taipandb.resources.stable.manipulate.makeTilesReset import execute as mTRexec
+from taipandb.resources.stable.manipulate.makeScienceTypes import execute as mScTyexec
+from taipandb.resources.stable.manipulate.makeSciencePriorities import execute as mScPexec
+from taipandb.resources.stable.manipulate.makeScienceDiff import execute as mSDexec
+from taipandb.resources.stable.manipulate import makeObservingLog as mOL
 
-import src.resources.stable.manipulate.makeNSciTargets as mNScT
+import taipandb.resources.stable.manipulate.makeNSciTargets as mNScT
 
-from src.scripts.connection import get_connection
+from taipandb.scripts.connection import get_connection
 
 from simulate import test_redshift_success
 
@@ -568,10 +568,10 @@ def select_best_tile(cursor, dt, per_end,
         # logging.debug(field_periods)
         # logging.info('Next available field will rise at %s' %
         #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
-        #                    field_periods.itervalues() if
+        #                    field_periods.values() if
         #                    v[0] is not None]),)
         #              )
-        fields_available = [f for f, v in field_periods.iteritems() if
+        fields_available = [f for f, v in field_periods.items() if
                             v[0] is not None and v[0] < per_end]
         logging.debug('%d fields available at some point tonight' %
                       len(fields_available))
@@ -791,7 +791,7 @@ def select_best_tile(cursor, dt, per_end,
         # logging.debug('Next observing period for each field:')
         # logging.debug(field_periods)
         # Generator pattern
-        # tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
+        # tile_to_obs = (t for t, v in sorted(tiles_scores.items(),
         #                                     key=lambda x: -1. * x[1]
         #                                     ) if
         #                field_periods[fields_by_tile[t]][0] is not
@@ -1436,9 +1436,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     # # Work out which of the field almanacs already exist on disk
     # files_on_disk = os.listdir(output_loc)
     # almanacs_existing = {k: v.generate_file_name() in files_on_disk
-    #                      for (k, v) in almanacs.iteritems()}
+    #                      for (k, v) in almanacs.items()}
     # logging.info('Saving almanacs to disc...')
-    # for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
+    # for k in [k for (k, v) in almanacs_existing.items() if not v]:
     #     almanacs[k].save()
     # end = datetime.datetime.now()
     # delta = end - start
