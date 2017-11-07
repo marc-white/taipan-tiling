@@ -2,12 +2,23 @@
 
 Modify parameters as required - this file is duplicated at the conclusion of the run for 
 documentation purposes, along with a pickle of the results.
+
+n_cores controls whether the code runs runs a multiprocessing implementation or not, with
+the specific implementation determined by the "backend" parameter.
+    n_cores = 0 --> single core (serial) implementation
+    n_cores = 1 --> "single core" multiprocessing implementation
+    n_cores > 1 --> multi core (parallel) implementation
+
+Acceptable values for "backend" are currently:
+    1 - "threading" --> joblib library
+    2 - "multiprocessing" --> joblib library
+    3 - "pool" --> multiprocessing library
 """
 import numpy as np
 from collections import OrderedDict
 
 # Input catalogue 
-catalogue = ("/Users/adamrains/Catalogues/all_tgas.fits")
+catalogue = ("/priv/mulga1/Catalogues/all_tgas.fits")
 
 # Ordered dictionary, so that format is always the same when writing to a file 
 
@@ -22,7 +33,7 @@ tiler_input = OrderedDict([("completeness_target", 0.99),
                            ("tiling_file", "ipack.3.4112.txt"),
                            ("ra_min", 0),
                            ("ra_max", 20),
-                           ("dec_min", -30),
+                           ("dec_min", -20),
                            ("dec_max", 0),
                            ("mag_ranges", [[5,8],[7,10],[9,12],[11,14]]),
                            ("mag_ranges_prioritise", [[5,7],[7,9],[9,11],[11,12]]),
@@ -33,7 +44,7 @@ tiler_input = OrderedDict([("completeness_target", 0.99),
                            ("sequential_ordering", (1,2)),
                            ("rank_supplements", False),
                            ("repick_after_complete", False),
-                           ("exp_base", 4.0),
+                           ("exp_base", 3.0),
                            ("recompute_difficulty", True),
                            ("overwrite_existing", True),
                            ("check_tile_radius", True),
@@ -41,7 +52,7 @@ tiler_input = OrderedDict([("completeness_target", 0.99),
                            ("allow_standard_targets", True),
                            ("assign_sky_first", True),
                            ("n_cores", 0),
-                           ("backend", "multiprocessing"),
+                           ("backend", "pool"),
                            ("enforce_min_tile_score", True)])
  
 # Dictionary of additional parameters not required by FWTiler            

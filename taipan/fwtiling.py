@@ -1395,7 +1395,7 @@ class FWTiler(object):
             if self.backend == "multiprocessing" or self.backend == "threading":
                 best_tiles[nth_best_tile] = (nearby_tiles[:], nearby_targets[:],
                                              nearby_standards[:], nearby_guides[:])
-            else:
+            elif self.backend == "pool":
                 # Instead add the neighbourhood information to the manager
                 tile_neighbourhood.append((nth_best_tile, nearby_targets, 
                                            nearby_standards, nearby_guides, nearby_tiles))
@@ -1403,6 +1403,9 @@ class FWTiler(object):
                 # But still add the best tiles to the dictionary
                 best_tiles[nth_best_tile] = process_i
             
+            else:
+                raise Exception("Warning: Unidentified backend: " + self.backend) 
+                
             # Recalculate the ranking list to account for the now missing items
             ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles] 
             
@@ -1429,7 +1432,7 @@ class FWTiler(object):
             for updated_nearby_candidate_tiles in results:
                 candidate_tiles.extend(updated_nearby_candidate_tiles)
             
-        else:
+        elif self.backend == "pool":
             # Try using multiprocessing module, rather than joblib
             #raise Exception("Error: no other MP method yet implemented")
             n_processes = len(tile_neighbourhood)
@@ -1444,7 +1447,7 @@ class FWTiler(object):
             # Done, now add back in the nearby candidate tiles
             for neighbourhood in repicked_tiles:
                 candidate_tiles.extend(neighbourhood)
-            
+           
         return best_tiles.keys(), remaining_priority_targets
         
 
@@ -1926,21 +1929,30 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     return candidate_tiles
 
 
+#@profile
 def repick_within_radius_pool(input_params):
-    """input_params is tuple of form: 
+    """multiprocessing.pool implementation of repick_within_radius.
+    
+    input_params is tuple of form: 
     (process_i, neighbourhood_tiles, repicked_tiles, fwtiler.unpick_settings)
     
     Where process_i is used to index neighbourhood_tiles, which is of type manager.list()
     and holds the targets, standards, guides, and tiles from the neighbourhood. 
     repicked_tiles is also of type manager.list(), and is used to store the repicked 
     tiles from the neighbourhood.
+    
+    Parameters
+    ----------
+    input_params: list
+        List of input parameters, described above.
     """
+    # Unpack input_params
     process_i = input_params[0]
     neighbourhood_tiles = input_params[1]
     repicked_tiles = input_params[2]
     unpick_settings = input_params[3]
     
-    
+    # Unpack neighbourhood_tiles
     best_tile = neighbourhood_tiles[process_i][0]
     candidate_targets = neighbourhood_tiles[process_i][1]
     candidate_standards = neighbourhood_tiles[process_i][2]
@@ -1983,9 +1995,8 @@ def repick_within_radius_pool(input_params):
     # field (i.e. the bright magnitude bin). So long as the replacement tiles are properly
     # unpicked, there should be no issue reaching the completion target.
     
+    # Add the now repicked tiles to the "results" manager to finish
     repicked_tiles.append(candidate_tiles)
-        
-    return candidate_tiles
 
 
 # ----------------------------------------------------------------------------------------
