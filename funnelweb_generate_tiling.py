@@ -204,8 +204,11 @@ random.shuffle(candidate_targets)
 #Make sure that standards and guides are drawn from candidate_targets, not our master
 #all_targets list.
 standard_targets = [t for t in candidate_targets if t.standard==True]
-guide_targets = [t for t in candidate_targets if fwts.script_settings["guide_range"][0] 
-                    < t.mag < fwts.script_settings["guide_range"][1]]
+
+guide_targets = set([t for t in candidate_targets 
+                     if fwts.script_settings["guide_range"][0] < t.mag 
+                     < fwts.script_settings["guide_range"][1]])          
+                                                  
 print '{0:d} science, {1:d} standard and {2:d} guide targets'.format(
     len(candidate_targets), len(standard_targets), len(guide_targets))
 

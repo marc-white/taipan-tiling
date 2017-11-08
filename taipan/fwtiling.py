@@ -756,6 +756,7 @@ class FWTiler(object):
         candidate_targets_range: list of :class:`TaipanTarget`
             The candidate targets that satisfy magnitude range and priority requirements.
         """ 
+        print "Determining candidate targets for magnitude range...",
         #Find the candidates in the correct magnitude range. If we are not in the faintest
         #magnitude range, then we have to ignore high priority targets for now, as we'd
         #rather them be observed with a long exposure time
@@ -780,7 +781,8 @@ class FWTiler(object):
                     if ( (mag_range_prioritise[0] <= t.mag < mag_range_prioritise[1]) and
                         t.priority == self.priority_normal):
                         t.priority += self.prioritise_extra
-                    
+            
+            print "done, # Targets=%i" % len(candidate_targets_range)      
             return candidate_targets_range
 
 
@@ -802,9 +804,11 @@ class FWTiler(object):
             Subset of candidate_targets consisting of only the targets that satisfy the 
             current magnitude range and priority requirements
         """
+        print "Determining standard targets for magnitude range...",
         standard_targets_range = [t for t in standard_targets 
                                   if mag_range[0] <= t.mag < mag_range[1]]
-            
+        
+        print "done, # Standards=%i" % len(standard_targets_range)      
         return standard_targets_range
 
 
@@ -830,21 +834,26 @@ class FWTiler(object):
         non_candidate_guide_targets: list of :class:`TaipanTarget`
             The guide targets that requirements.
         """
+        print "Determining guide targets for magnitude range...",
         # Find the guides that are not candidate targets only. These have to be copied, 
         # because the same target will be a guide for one field and not a guide for 
         # another field.
-        non_candidate_guide_targets = []
-        for potential_guide in guide_targets:
-            if potential_guide not in candidate_targets_range:
-                aguide = copy.copy(potential_guide)
-                aguide.guide = True
-                #WARNING: We have to set the standard and science flags as well, as this 
-                # error checking isn't done in core.py
-                aguide.standard = False
-                aguide.science = False
-                non_candidate_guide_targets.append(aguide)
-            
-        return non_candidate_guide_targets
+        #non_candidate_guide_targets = [guide for guide in guide_targets 
+        #                               if guide not in candidate_targets_range]
+        
+        # New set with elements in guide_targets but not candidate_targets_range
+        non_candidate_guide_targets = guide_targets.difference(candidate_targets_range)
+        
+        non_candidate_guide_targets = copy.deepcopy(non_candidate_guide_targets)
+        
+        # Set the flags appropriately
+        for target in non_candidate_guide_targets:
+            target.guide = True 
+            target.standard = False
+            target.science = False      
+        
+        print "done, # Guides=%i" % len(non_candidate_guide_targets)      
+        return list(non_candidate_guide_targets)
  
  
     def calc_priority_targets(self, candidate_targets):
@@ -1505,10 +1514,7 @@ class FWTiler(object):
         tile_list: list of :class: `TaipanTile`
             The set of tiles meeting the completeness requirement for the provided set of
             targets.
-        """         
-        print "Tiling mag range %s; # Targets=%i" % (mag_range, 
-                                                     len(candidate_targets_range))
-        
+        """           
         # Compute the initial difficulties of all candidate tiles
         if self.recompute_difficulty:
             start = time.time()
@@ -1690,6 +1696,8 @@ class FWTiler(object):
     
         mag_range = self.mag_ranges[range_ix]
     
+        print "Tiling mag range %s" % mag_range
+        
         # Perform check to see if using priority magnitude ranges
         try:
             mag_range_prioritise = self.mag_ranges_prioritise[range_ix]
@@ -1699,13 +1707,13 @@ class FWTiler(object):
         # Check to see if this is the final magnitude range to be considered
         last_range = not (range_ix < (len(self.mag_ranges) - 1))  
     
-        # Determine targets, standards, and guides                                                   
+        # Determine targets, standards, and guides                                                 
         candidate_targets_range = self.get_targets_mag_range(candidate_targets, mag_range, 
                                                              mag_range_prioritise, 
                                                              last_range)  
         
         standard_targets_range = self.get_standards_mag_range(standard_targets, mag_range)
-    
+        
         non_candidate_guide_targets = self.get_guides_mag_range(guide_targets, 
                                                                 candidate_targets_range)
     
