@@ -1068,7 +1068,7 @@ class FWTiler(object):
         # candidate_targets_range lists, thus removing them from further consideration,
         # then recalculate difficulties for affected remaning targets
         logging.info('Re-computing target list...')
-        assigned_targets = best_tile.get_assigned_targets_science()
+        assigned_targets = set(best_tile.get_assigned_targets_science())
         
         num_assigned_priority = 0
         num_assigned_candidates = len(assigned_targets)
@@ -1076,6 +1076,41 @@ class FWTiler(object):
         init_targets_len = len(candidate_targets_range)
         reobserved_standards = []
         
+        # Set implementation
+        candidate_target_range_set = set(candidate_targets_range)
+        overlapping_targets = candidate_target_range_set.intersection(assigned_targets)
+        non_science_targets = assigned_targets.difference(overlapping_targets)
+        
+        import pdb
+        pdb.set_trace()
+        
+        # Remove overlapping candidates from further consideration
+        for candidate_i, candidate in enumerate(overlapping_targets):
+                # Pop the candidate from both the master candidate, and range lists
+                popped = candidate_targets_range.pop(candidate_i)
+                candidate_targets.pop(candidate_targets.index(popped))
+
+                # Count the priority targets we've just assigned in the same way
+                # as they were originally counted
+                if candidate.priority >= self.completeness_priority:
+                    num_assigned_priority += 1
+        
+                # Change priorities back to normal for targets in our priority 
+                # magnitude range
+                candidate.priority = candidate.priority_original
+                popped.priority = popped.priority_original
+            
+        # Now deal with those targets that were not in our master list
+        for target in non_science_targets:
+            if target.standard:
+                reobserved_standards.append(target)
+                logging.info('Re-allocating standard ' + str(target.idn) + 
+                             ' that is also a science target.')
+            else:
+                logging.warning('### WARNING: Assigned a target that is neither a ' + 
+                                'candidate target nor a standard!')
+                
+        """
         for target in assigned_targets:
             # Note: when candidate_targets contains stars with higher than normal 
             # *initial* priorities, it is possible for a star to be overlooked for
@@ -1117,7 +1152,7 @@ class FWTiler(object):
             else:
                 logging.warning('### WARNING: Assigned a target that is neither a ' + 
                                 'candidate target nor a standard!')
-         
+            """
         if len(set(assigned_targets)) != len(assigned_targets):
             logging.warning('### WARNING: target duplication detected')
         if len(candidate_targets_range) != (init_targets_len - len(assigned_targets) 
