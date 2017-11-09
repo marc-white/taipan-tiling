@@ -1084,36 +1084,19 @@ class FWTiler(object):
             # considered for selection as a standard target. As such is important
             # to use candidate_targets_range, rather than simply candidate_targets 
             # when dealing with assigned targets.
-            
-            target_in_candidate_range = False
-            
-            for candidate_i, candidate in enumerate(candidate_targets_range):
-                # Check equality of targets
-                if target == candidate:
-                    del candidate_targets_range[candidate_i]
-                    candidate_targets.remove(target)
+            if target in candidate_targets_range:
+                candidate_targets.remove(target)
+                candidate_targets_range.remove(target)
 
-                    # Count the priority targets we've just assigned in the same way
-                    # as they were originally counted
-                    if target.priority >= self.completeness_priority:
-                        num_assigned_priority += 1
-            
-                    # Change priorities back to normal for targets in our priority 
-                    # magnitude range.
-                    # Note: We have changed the priorities for only the target instance
-                    # stored in the tile itself, not the master list. Since targets
-                    # should only be used once, this *should* not be a problem, but 
-                    # something to be mindful of if issues are encountered.
-                    target.priority = target.priority_original
-                    #popped.priority = popped.priority_original
-                    
-                    # We know the target is in the range (and have already removed it from
-                    # further consideration), no point continuing this loop
-                    target_in_candidate_range = True
-                    break                
-            
-            if target_in_candidate_range:
-                pass    
+                # Count the priority targets we've just assigned in the same way
+                # as they were originally counted
+                if target.priority >= self.completeness_priority:
+                    num_assigned_priority += 1
+        
+                # Change priorities back to normal for targets in our priority 
+                # magnitude range
+                target.priority = target.priority_original
+                  
             elif target.standard:
                 reobserved_standards.append(target)
                 logging.info('Re-allocating standard ' + str(target.idn) + 
