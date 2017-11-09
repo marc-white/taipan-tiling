@@ -1256,12 +1256,15 @@ class FWTiler(object):
                                                            candidate_targets, 
                                                            candidate_targets_range)
         
+        # Create a temporary list version of our candidate targets range set
+        candidate_targets_range_list = list(candidate_targets_range)
+        
         # Update the count for remaining priority targets                                            
         remaining_priority_targets -= num_assigned_priority
         
         # Create an update on the tiling progress
         local_candidate_targets = tp.targets_in_range(best_tile.ra, best_tile.dec, 
-                                                      candidate_targets_range, 
+                                                      candidate_targets_range_list, 
                                                       1*tp.TILE_RADIUS)
 
         self.log_tiling_progress(local_candidate_targets, n_priority_targets, 
@@ -1270,7 +1273,7 @@ class FWTiler(object):
                                  num_assigned_priority, num_assigned_candidates)
         
         # Repick all tiles within a given radius of the selected tile
-        repick_within_radius(best_tile, candidate_tiles, candidate_targets_range, 
+        repick_within_radius(best_tile, candidate_tiles, candidate_targets_range_list, 
                              standard_targets_range, guide_targets_range, 
                              self.unpick_settings)
                          
@@ -1501,13 +1504,16 @@ class FWTiler(object):
         tile_list: list of :class: `TaipanTile`
             The set of tiles meeting the completeness requirement for the provided set of
             targets.
-        """           
+        """
+        # Create a temporary list version of our candidate targets range set
+        candidate_targets_range_list = list(candidate_targets_range)
+                   
         # Compute the initial difficulties of all candidate tiles
         if self.recompute_difficulty:
             start = time.time()
             logging.info("Computing difficulties...")
             print ("Computing target difficulties..."),
-            tp.compute_target_difficulties(candidate_targets_range)
+            tp.compute_target_difficulties(candidate_targets_range_list)
             finish = time.time()
             delta = finish - start
             print ("done in %d:%02.1f") % (delta/60, delta % 60.)
@@ -1522,7 +1528,7 @@ class FWTiler(object):
         for tile_i, tile in enumerate(candidate_tiles):  
             self.unpick_tile(tile, 
                              tp.targets_in_range(tile.ra, tile.dec, 
-                                                 candidate_targets_range, 
+                                                 candidate_targets_range_list, 
                                                  1*tp.TILE_RADIUS), 
                              tp.targets_in_range(tile.ra, tile.dec, 
                                                  standard_targets_range, 
@@ -1540,7 +1546,7 @@ class FWTiler(object):
         ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]      
                     
         # Calculate priority targets
-        n_priority_targets = self.calc_priority_targets(candidate_targets_range)
+        n_priority_targets = self.calc_priority_targets(candidate_targets_range_list)
         
         remaining_priority_targets = n_priority_targets
 
@@ -1793,10 +1799,10 @@ class FWTiler(object):
         candidate_tiles = [tile for tile in candidate_tiles 
                            if self.is_within_bounds(tile)]
 
-        candidate_targets_master = candidate_targets[:]
+        #candidate_targets_master = candidate_targets[:]
     
         # Initialise some of our counter variables
-        no_submitted_targets = len(candidate_targets_master)
+        no_submitted_targets = len(candidate_targets)
         
         if no_submitted_targets == 0:
             raise ValueError('Attempting to generate a tiling with no targets!')

@@ -162,10 +162,10 @@ fwtiler = FWTiler(**fwts.tiler_input)
 #-----------------------------------------------------------------------------------------
 try:
     if all_targets:
-        print "Previously loaded catalogue will be used, %i stars" % len(all_targets)
-        
+        print "Previously loaded catalogue will be used, on-sky area: %ix%i" % (ra_range, 
+                                                                                dec_range)
 except NameError:
-    print 'Importing input catalogue...'
+    print 'Importing input catalogue for on-sky area: %ix%i' % (ra_range, dec_range)
     start = datetime.datetime.now()
     # It is important not to duplicate targets, i.e. if a science targets is a guide and
     # a standard, then it should become a single instance of a TaipanTarget, appearing in
@@ -177,16 +177,11 @@ except NameError:
                                fwts.script_settings["gal_lat_limit"],
                                fwts.script_settings["tab_type"])
     
-    # Deallocate tabdata 
-    # (Not required now that import is in function)
-    # del tabdata
-    
     #Take standards from the science targets, and assign the standard property to True
     for t in all_targets:
         if (int(t.mag*100) % int(fwts.script_settings["inverse_standard_frac"]))==0:
             t.standard=True
-    #    if t.mag > 8:
-    #        t.guide=True
+            
     end = datetime.datetime.now()
     delta = end - start
     print ("Imported & generated %d targets in %d:%02.1f") % (len(all_targets),
@@ -198,8 +193,7 @@ except NameError:
     burn = [t.compute_usposn() for t in all_targets]
 
 # Make a copy of all_targets list for use in assigning fibres
-candidate_targets = all_targets[:]
-random.shuffle(candidate_targets)
+candidate_targets = set(all_targets)
 
 #Make sure that standards and guides are drawn from candidate_targets, not our master
 #all_targets list.
