@@ -783,7 +783,7 @@ class FWTiler(object):
                         t.priority += self.prioritise_extra
             
             print "done, # Targets=%i" % len(candidate_targets_range)      
-            return candidate_targets_range
+            return set(candidate_targets_range)
 
 
     def get_standards_mag_range(self, standard_targets, mag_range):
@@ -1114,10 +1114,13 @@ class FWTiler(object):
                             (len(assigned_targets),
                              init_targets_len - len(candidate_targets)))
         if self.recompute_difficulty:
+            # Create a temporary list version of our candidate targets range set
+            candidate_targets_range_list = list(candidate_targets_range)
+            
             logging.info('Re-computing target difficulties...')
-            tp.compute_target_difficulties(tp.targets_in_range(
-                best_ra, best_dec, candidate_targets_range,
-                tp.TILE_RADIUS+tp.FIBRE_EXCLUSION_DIAMETER))
+            tp.compute_target_difficulties(tp.targets_in_range(best_ra, best_dec, 
+                                           candidate_targets_range_list,
+                                           tp.TILE_RADIUS + tp.FIBRE_EXCLUSION_DIAMETER))
 
         # Replace the removed tile in candidate_tiles
         candidate_tiles.append(tp.TaipanTile(best_ra, best_dec, pa=self.gen_pa()))
