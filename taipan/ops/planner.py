@@ -18,13 +18,15 @@ from taipandb.resources.stable.readout import readCentroidsAffected as rCA
 from taipandb.resources.stable.manipulate import makeTilesQueued as mTQ
 
 from taipandb.resources.stable.output import outputObsDefFile as oODF
+from taipandb.resources.stable.output import outputObsIndexFile as oOIF
 
 
 def plan_period(cursor,
                 start_dt, end_dt, date_start, date_end,
                 prisci=False, prisci_end=None,
                 check_dark_bounds=False,
-                output_dir='.', resolution=15.):
+                output_dir='.', resolution=15.,
+                do_index=True):
     """
     Create an observing plan for a set period of time.
 
@@ -174,12 +176,17 @@ def plan_period(cursor,
                               output_dir=output_dir, local_tz=ts.UKST_TIMEZONE)
     file_names.sort()
 
+    if do_index:
+        oOIF.execute(cursor, datetime_from=start_dt, datetime_to=end_dt,
+                     output_dir=output_dir, resolution=resolution)
+
     return file_names
 
 
 def plan_night(cursor, night, date_start, date_end,
                prisci=False, prisci_end=None,
-               output_dir='.', resolution=15.):
+               output_dir='.', resolution=15.,
+               do_index=True):
     """
     Create an observing plan for a night of Taipan observations.
 
@@ -248,17 +255,31 @@ def plan_night(cursor, night, date_start, date_end,
         datetime.time(12, 0, 0))
     local_utc_stop = ts.utc_local_dt(local_utc_stop)
 
+    # There are used to track the extent of the full night
+    night_start = local_utc_now
+    night_end = local_utc_now
+
     while local_utc_now < local_utc_stop:
         dark_start, dark_end = rAS.next_night_period(cursor, local_utc_now)
-        if dark_start > local_utc_stop: break
+        if dark_start > local_utc_stop:
+            break
+        # Update the tracking values
+        night_start = min(night_start, dark_start)
+        night_end = max(night_end, dark_end)
 
         file_names += plan_period(cursor, dark_start, dark_end,
                                   date_start, date_end,
                                   prisci=prisci, prisci_end=prisci_end,
                                   check_dark_bounds=False,  # Already done
-                                  output_dir=output_dir, resolution=resolution)
+                                  output_dir=output_dir, resolution=resolution,
+                                  do_index=False)
 
         local_utc_now = dark_end + datetime.timedelta(minutes=resolution/2.)
+
+    if do_index:
+        oOIF.execute(cursor, datetime_from=night_start,
+                     datetime_to=night_end,
+                     output_dir=output_dir, resolution=resolution)
 
     logging.info('Preparation for observing night %s complete!' %
                  night.strftime('%Y-%m-%d'))
