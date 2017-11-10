@@ -18,7 +18,7 @@ import numpy as np
 from collections import OrderedDict
 
 # Input catalogue 
-catalogue = ("/priv/mulga1/Catalogues/all_tgas.fits")
+catalogue = ("/priv/mulga1/arains/Catalogues/all_tgas.fits")
 
 # Ordered dictionary, so that format is always the same when writing to a file 
 
@@ -32,8 +32,8 @@ tiler_input = OrderedDict([("completeness_target", 0.99),
                            ("randomise_SH", False),
                            ("tiling_file", "ipack.3.4112.txt"),
                            ("ra_min", 0),
-                           ("ra_max", 20),
-                           ("dec_min", -20),
+                           ("ra_max", 360),
+                           ("dec_min", -90),
                            ("dec_max", 0),
                            ("mag_ranges", [[5,8],[7,10],[9,12],[11,14]]),
                            ("mag_ranges_prioritise", [[5,7],[7,9],[9,11],[11,12]]),
