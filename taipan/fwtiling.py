@@ -1373,11 +1373,14 @@ class FWTiler(object):
             # Update the count for remaining priority targets                                            
             remaining_priority_targets -= num_assigned_priority                                        
             
+            # Create a temporary list version of our candidate targets range set
+            candidate_targets_range_list = list(candidate_targets_range)
+            
             # Create lists of all neighbouring affected tiles/targets/standards/guides
             nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
                 self.pop_tile_neighbourhood(nth_best_tile.ra, nth_best_tile.dec, 
                                             candidate_tiles, candidate_targets, 
-                                            candidate_targets_range,  
+                                            candidate_targets_range_list,  
                                             standard_targets_range, guide_targets_range,  
                                             n_tile_radii=2, n_target_radii=3)  
             
