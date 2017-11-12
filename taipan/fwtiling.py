@@ -1131,9 +1131,9 @@ class FWTiler(object):
 
     
     @profile
-    def pop_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets,  
-                               candidate_targets_range, standard_targets_range, 
-                               guide_targets_range, n_tile_radii=2, n_target_radii=3):
+    def pop_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets_range, 
+                               standard_targets_range, guide_targets_range, 
+                               n_tile_radii=2, n_target_radii=3):
         """Pop all tiles, targets, standards, and guides from the RA and DEC neighbourhood
         into new lists (in the process removing them from the master lists). The master 
         lists will be updated by reference. This function is required (presently) for the
@@ -1149,9 +1149,6 @@ class FWTiler(object):
     
         candidate_tiles: list of :class: `TaipanTile`
             The list of filled candidate tiles covering the section of sky observed.
-                
-        candidate_targets: list of :class:`TaipanTarget`
-            The entire list of candidate targets to consider.
         
         candidate_targets_range: list of :class:`TaipanTarget`
             Subset of candidate_targets consisting of only the targets that satisfy the 
@@ -1379,8 +1376,7 @@ class FWTiler(object):
             # Create lists of all neighbouring affected tiles/targets/standards/guides
             nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
                 self.pop_tile_neighbourhood(nth_best_tile.ra, nth_best_tile.dec, 
-                                            candidate_tiles, candidate_targets, 
-                                            candidate_targets_range_list,  
+                                            candidate_tiles, candidate_targets_range_list,  
                                             standard_targets_range, guide_targets_range,  
                                             n_tile_radii=2, n_target_radii=3)  
             
@@ -1545,7 +1541,7 @@ class FWTiler(object):
             # tiles are removed from the list
             nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
                 self.pop_tile_neighbourhood(central_tile.ra, central_tile.dec, 
-                                            temp_candidate_tiles, candidate_targets, 
+                                            temp_candidate_tiles, 
                                             candidate_targets_range_list,  
                                             standard_targets_range, guide_targets_range,  
                                             n_tile_radii=2, n_target_radii=3) 
@@ -1553,14 +1549,11 @@ class FWTiler(object):
             for tile in nearby_tiles:
                 # Unpick each tile in the neighbourhood
                 self.unpick_tile(tile, 
-                                 tp.targets_in_range(tile.ra, tile.dec, 
-                                                     candidate_targets_range_list, 
+                                 tp.targets_in_range(tile.ra, tile.dec, nearby_targets, 
                                                      1*tp.TILE_RADIUS), 
-                                 tp.targets_in_range(tile.ra, tile.dec, 
-                                                     standard_targets_range, 
+                                 tp.targets_in_range(tile.ra, tile.dec, nearby_standards, 
                                                      1*tp.TILE_RADIUS), 
-                                 tp.targets_in_range(tile.ra, tile.dec, 
-                                                     guide_targets_range, 
+                                 tp.targets_in_range(tile.ra, tile.dec, nearby_guides, 
                                                      1*tp.TILE_RADIUS)) 
 
             #logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
