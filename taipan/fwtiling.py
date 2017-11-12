@@ -1531,18 +1531,39 @@ class FWTiler(object):
         print "Performing initial global tile unpicks...",
         start = time.time()
         
-        for tile_i, tile in enumerate(candidate_tiles):  
-            self.unpick_tile(tile, 
-                             tp.targets_in_range(tile.ra, tile.dec, 
-                                                 candidate_targets_range_list, 
-                                                 1*tp.TILE_RADIUS), 
-                             tp.targets_in_range(tile.ra, tile.dec, 
-                                                 standard_targets_range, 
-                                                 1*tp.TILE_RADIUS), 
-                             tp.targets_in_range(tile.ra, tile.dec, guide_targets_range, 
-                                                 1*tp.TILE_RADIUS)) 
+        # Create temporary version of candidate_tiles
+        temp_candidate_tiles = candidate_tiles[:]
+        
+        while len(temp_candidate_tiles) > 0:  
+            # Get the neighbourhood of an arbitrary tile, unpick the neighbours, then
+            # remove all from the set. Doing the initial unpicking this way has the 
+            # potential to be 7x faster as we make fewer calls to tp.targets_in_range with
+            # the full length target/standard/guide lists.
+            central_tile = temp_candidate_tiles[-1]
+            
+            # Get the neighbourhood tiles, targets, standards, and guides. The selected
+            # tiles are removed from the list
+            nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
+                self.pop_tile_neighbourhood(central_tile.ra, central_tile.dec, 
+                                            temp_candidate_tiles, candidate_targets, 
+                                            candidate_targets_range_list,  
+                                            standard_targets_range, guide_targets_range,  
+                                            n_tile_radii=2, n_target_radii=3) 
+            
+            for tile in nearby_tiles:
+                # Unpick each tile in the neighbourhood
+                self.unpick_tile(tile, 
+                                 tp.targets_in_range(tile.ra, tile.dec, 
+                                                     candidate_targets_range_list, 
+                                                     1*tp.TILE_RADIUS), 
+                                 tp.targets_in_range(tile.ra, tile.dec, 
+                                                     standard_targets_range, 
+                                                     1*tp.TILE_RADIUS), 
+                                 tp.targets_in_range(tile.ra, tile.dec, 
+                                                     guide_targets_range, 
+                                                     1*tp.TILE_RADIUS)) 
 
-            logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
+            #logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
         
         finish = time.time()
         delta = finish - start
