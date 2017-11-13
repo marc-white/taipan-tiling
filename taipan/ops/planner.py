@@ -183,7 +183,9 @@ def plan_period(cursor,
             oOIF.execute(cursor, datetime_from=start_dt, datetime_to=end_dt,
                          output_dir=output_dir, resolution=resolution)
 
-    return file_names
+    if file_names:
+        return file_names
+    return []
 
 
 def plan_night(cursor, night, date_start, date_end,
