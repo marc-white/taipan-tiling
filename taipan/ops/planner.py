@@ -173,14 +173,15 @@ def plan_period(cursor,
                  len(tiles_queued))
 
     # Now need to write the tile files out to the specified directory
-    file_names = oODF.execute(cursor, unobserved=True, unqueued=False,
-                              min_dt=start_dt, max_dt=end_dt,
-                              output_dir=output_dir, local_tz=ts.UKST_TIMEZONE)
-    file_names.sort()
+    if len(tiles_queued) > 0:
+        file_names = oODF.execute(cursor, unobserved=True, unqueued=False,
+                                  min_dt=start_dt, max_dt=end_dt,
+                                  output_dir=output_dir, local_tz=ts.UKST_TIMEZONE)
+        file_names.sort()
 
-    if do_index:
-        oOIF.execute(cursor, datetime_from=start_dt, datetime_to=end_dt,
-                     output_dir=output_dir, resolution=resolution)
+        if do_index:
+            oOIF.execute(cursor, datetime_from=start_dt, datetime_to=end_dt,
+                         output_dir=output_dir, resolution=resolution)
 
     return file_names
 
