@@ -174,6 +174,7 @@ def plan_period(cursor,
 
     # Now need to write the tile files out to the specified directory
     file_names = oODF.execute(cursor, unobserved=True, unqueued=False,
+                              min_dt=start_dt, max_dt=end_dt,
                               output_dir=output_dir, local_tz=ts.UKST_TIMEZONE)
     file_names.sort()
 
