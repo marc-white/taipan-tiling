@@ -35,6 +35,7 @@ from joblib import Parallel, delayed
 import multiprocessing as mp
 import pdb
 from collections import Counter
+from scipy.spatial import cKDTree
 
 class FWTiler(object):
     """FunnelWeb Tiler object to encapsulate tiling settings, wrap tiling functions, and
@@ -196,8 +197,7 @@ class FWTiler(object):
         self._n_cores = None
         self._backend = None
         self._enforce_min_tile_score = None
-        self._enforce_min_tile_score_original = None
-        
+        self._enforce_min_tile_score_original = None    
         
         # Insert the passed values. Doing it like this forces the setter functions to be 
         # called, which provides error checking
@@ -233,6 +233,10 @@ class FWTiler(object):
         self.backend = backend
         self.enforce_min_tile_score = enforce_min_tile_score
         self.enforce_min_tile_score_original = enforce_min_tile_score # "Memory" param
+        
+        # Not input params (don't currently have getters or setters)
+        self.standard_tree = None
+        self.guide_tree = None
    
     # ------------------------------------------------------------------------------------
     # Attribute handling
@@ -664,6 +668,26 @@ class FWTiler(object):
         return tl.generate_SH_tiling(self.tiling_file, self.randomise_SH, 
                                      self.randomise_pa)
         
+    # ------------------------------------------------------------------------------------
+    # taipan.core helper functions
+    # ------------------------------------------------------------------------------------    
+    def precompute_kd_tree(self, target_list):
+        """Precomputes the KD tree for a list of targets.
+        
+        Parameters
+        ----------
+        target_list: list of :class:`TaipanTarget`
+            The list to compute the tree for.
+        
+        Returns
+        -------
+        tree: cKDTree
+            The pre-computed KD-tree.
+        """
+        cart_targets = np.asarray([t.usposn for t in target_list])
+        tree = cKDTree(cart_targets, leafsize=tp.BREAKEVEN_KDTREE)
+        
+        return tree
         
     # ------------------------------------------------------------------------------------
     # TaipanTile wrapper functions
@@ -1190,10 +1214,12 @@ class FWTiler(object):
                                              n_target_radii*tp.TILE_RADIUS) 
     
         nearby_standards = tp.targets_in_range(ra, dec, standard_targets_range, 
-                                               n_target_radii*tp.TILE_RADIUS) 
+                                               n_target_radii*tp.TILE_RADIUS,
+                                               tree=self.standard_tree) 
                                                 
         nearby_guides = tp.targets_in_range(ra, dec, guide_targets_range, 
-                                            n_target_radii*tp.TILE_RADIUS) 
+                                            n_target_radii*tp.TILE_RADIUS,
+                                            tree=self.guide_tree) 
     
         # Remove candidate tiles from the master list - these need to be updated with the
         # copies that come back from the other processes. No need to do the same for
@@ -1327,9 +1353,10 @@ class FWTiler(object):
         best_tiles = {}
         
         # Shared resources for multiprocessing.pool implementation
-        manager = mp.Manager()
-        tile_neighbourhood = manager.list()
-        repicked_tiles = manager.list()
+        if self.backend == "pool":
+            manager = mp.Manager()
+            tile_neighbourhood = manager.list()
+            repicked_tiles = manager.list()
         
         num_candidate_targets_range = len(candidate_targets_range)
     
@@ -1529,6 +1556,10 @@ class FWTiler(object):
         
         # Create temporary version of candidate_tiles
         temp_candidate_tiles = candidate_tiles[:]
+        
+        # Pre-generate the KD tree for the standards and guide lists (which do not change)
+        self.standard_tree = self.precompute_kd_tree(standard_targets_range)
+        self.guide_tree = self.precompute_kd_tree(guide_targets_range)
         
         while len(temp_candidate_tiles) > 0:  
             # Get the neighbourhood of an arbitrary tile, unpick the neighbours, then

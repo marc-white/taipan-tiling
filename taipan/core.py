@@ -1227,8 +1227,7 @@ def compute_target_difficulties(target_list, full_target_list=None,
     return
 
 
-def targets_in_range(ra, dec, target_list, dist,
-                     leafsize=BREAKEVEN_KDTREE):
+def targets_in_range(ra, dec, target_list, dist, leafsize=BREAKEVEN_KDTREE, tree=None):
     """
     Return the subset of target_list within dist of (ra, dec).
 
@@ -1247,7 +1246,8 @@ def targets_in_range(ra, dec, target_list, dist,
     leafsize : int, optional
         The size of the leaves in the KDTree structure. Defaults to
         BREAKEVEN_KDTREE.
-
+    tree : cKDTree
+        Pre-computed tree to use to save on processing.
     Returns
     -------
     targets_in_range : list of :class:`TaipanPoint`
@@ -1263,16 +1263,22 @@ def targets_in_range(ra, dec, target_list, dist,
         targets_in_range = [t for t in target_list
             if t.dist_point((ra, dec)) < dist]
     else:
-        # Do KDTree computation
-        logging.debug('Generating KDTree with leafsize %d' % leafsize)
-        cart_targets = np.asarray([t.usposn for t in target_list])
-        # logging.debug(cart_targets)
-        tree = cKDTree(cart_targets, leafsize=leafsize)
-        logging.debug('Querying tree')
-        inds = tree.query_ball_point(polar2cart((ra, dec)),
-                                     dist_euclidean(dist / 3600.))
-        targets_in_range = [target_list[i] for i in inds]
-
+        if not tree:
+            # Do KDTree computation
+            logging.debug('Generating KDTree with leafsize %d' % leafsize)
+            cart_targets = np.asarray([t.usposn for t in target_list])
+            # logging.debug(cart_targets)
+            tree = cKDTree(cart_targets, leafsize=leafsize)
+            logging.debug('Querying tree')
+            inds = tree.query_ball_point(polar2cart((ra, dec)),
+                                         dist_euclidean(dist / 3600.))
+            targets_in_range = [target_list[i] for i in inds]
+        else:
+            # Tree has been supplied, save on computation time by using it
+            inds = tree.query_ball_point(polar2cart((ra, dec)),
+                                         dist_euclidean(dist / 3600.))
+            targets_in_range = [target_list[i] for i in inds]
+            
     return targets_in_range
 
 
