@@ -183,8 +183,8 @@ def plan_period(cursor,
             oOIF.execute(cursor, datetime_from=start_dt, datetime_to=end_dt,
                          output_dir=output_dir, resolution=resolution)
 
-    if file_names:
         return file_names
+
     return []
 
 
