@@ -20,7 +20,7 @@ And view with:
 For other usage, visit:
     https://github.com/rkern/line_profiler
 
-Where all functions with an @profile decorator will be profiled - uncomment beforehand.
+Where all functions with an #@profile decorator will be profiled - uncomment beforehand.
 """
 import logging
 import core as tp
@@ -668,26 +668,6 @@ class FWTiler(object):
         return tl.generate_SH_tiling(self.tiling_file, self.randomise_SH, 
                                      self.randomise_pa)
         
-    # ------------------------------------------------------------------------------------
-    # taipan.core helper functions
-    # ------------------------------------------------------------------------------------    
-    def precompute_kd_tree(self, target_list):
-        """Precomputes the KD tree for a list of targets.
-        
-        Parameters
-        ----------
-        target_list: list of :class:`TaipanTarget`
-            The list to compute the tree for.
-        
-        Returns
-        -------
-        tree: cKDTree
-            The pre-computed KD-tree.
-        """
-        cart_targets = np.asarray([t.usposn for t in target_list])
-        tree = cKDTree(cart_targets, leafsize=tp.BREAKEVEN_KDTREE)
-        
-        return tree
         
     # ------------------------------------------------------------------------------------
     # TaipanTile wrapper functions
@@ -967,7 +947,7 @@ class FWTiler(object):
     # ------------------------------------------------------------------------------------
     # FunnelWeb Tiling Functions
     # ------------------------------------------------------------------------------------
-    @profile
+    #@profile
     def get_best_distant_tile(self, candidate_tiles, ranking_list, best_tiles=None, 
                               n_radii=6):
         """Selects the highest ranked tile from tile_list that is considered distant from
@@ -1050,7 +1030,7 @@ class FWTiler(object):
         return best_tile, best_rank
    
     
-    @profile
+    #@profile
     def replace_best_tile(self, best_tile, candidate_tiles, candidate_targets, 
                           candidate_targets_range):
         """Function to select the highest ranked tile for the final tiling, and 
@@ -1154,10 +1134,11 @@ class FWTiler(object):
         return num_assigned_priority, num_assigned_candidates
 
     
-    @profile
-    def pop_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets_range, 
+    #@profile
+    def get_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets_range, 
                                standard_targets_range, guide_targets_range, 
-                               n_tile_radii=2, n_target_radii=3):
+                               n_tile_radii=2, n_target_radii=3, 
+                               remove_tiles_from_master_list=True):
         """Pop all tiles, targets, standards, and guides from the RA and DEC neighbourhood
         into new lists (in the process removing them from the master lists). The master 
         lists will be updated by reference. This function is required (presently) for the
@@ -1190,7 +1171,13 @@ class FWTiler(object):
             The number of tile radii out to consider for the neighbourhood.
             
         n_target_radii: float
-            The number of target radii out to consider for the neighbourhood.           
+            The number of target radii out to consider for the neighbourhood.    
+        
+        remove_tiles_from_master_list: boolean
+            Whether to actually remove the neighbourhood from the master candidate_tile 
+            list. This should be set to true whenever running a multiprocessing 
+            implementation, as the *copies* of the tiles will be modified and returned, 
+            but can be set to false for single core implementations. Defaults to true.
     
         Returns
         -------
@@ -1224,14 +1211,15 @@ class FWTiler(object):
         # Remove candidate tiles from the master list - these need to be updated with the
         # copies that come back from the other processes. No need to do the same for
         # targets, standards, or guides.
-        for tile in nearby_tiles:
-            candidate_tiles.remove(tile) 
+        if remove_tiles_from_master_list:
+            for tile in nearby_tiles:
+                candidate_tiles.remove(tile) 
 
         # All done, return lists of nearby tiles/targets/standards/guides
         return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
     
     
-    @profile
+    #@profile
     def greedy_tile_sc(self, candidate_tiles, candidate_targets, candidate_targets_range, 
                        standard_targets_range, guide_targets_range, ranking_list, 
                        n_priority_targets, remaining_priority_targets):
@@ -1288,10 +1276,22 @@ class FWTiler(object):
         # Update the count for remaining priority targets                                            
         remaining_priority_targets -= num_assigned_priority
         
+        # Implement tiered approach and get neighbourhood (tiles/targets/standards/guides)
+        # of the central tile. By doing this, further calls to tp.targets_in_range from
+        # within repick_within_range do not have to use the full lists (which might be 
+        # millions of targets long), but can instead search the neighbourhood which will 
+        # by definition contain fewer targets. Make sure not to remove the tiles from the
+        # master candidate_tiles list.
+        nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
+                self.get_tile_neighbourhood(best_tile.ra, best_tile.dec, 
+                                            candidate_tiles, candidate_targets_range_list,  
+                                            standard_targets_range, guide_targets_range,  
+                                            n_tile_radii=2, n_target_radii=3,
+                                            remove_tiles_from_master_list=False)  
+        
         # Create an update on the tiling progress
         local_candidate_targets = tp.targets_in_range(best_tile.ra, best_tile.dec, 
-                                                      candidate_targets_range_list, 
-                                                      1*tp.TILE_RADIUS)
+                                                      nearby_targets, 1*tp.TILE_RADIUS)
 
         self.log_tiling_progress(local_candidate_targets, n_priority_targets, 
                                  remaining_priority_targets, len(candidate_targets_range), 
@@ -1299,13 +1299,12 @@ class FWTiler(object):
                                  num_assigned_priority, num_assigned_candidates)
         
         # Repick all tiles within a given radius of the selected tile
-        repick_within_radius(best_tile, candidate_tiles, candidate_targets_range_list, 
-                             standard_targets_range, guide_targets_range, 
-                             self.unpick_settings)
+        repick_within_radius(best_tile, nearby_tiles, nearby_targets, nearby_standards, 
+                             nearby_guides, self.unpick_settings)
                          
         return best_tile, remaining_priority_targets
         
-    @profile    
+    #@profile    
     def greedy_tile_mc(self, candidate_tiles, candidate_targets, candidate_targets_range, 
                        standard_targets_range, guide_targets_range, ranking_list, 
                        n_priority_targets, remaining_priority_targets):
@@ -1402,7 +1401,7 @@ class FWTiler(object):
             
             # Create lists of all neighbouring affected tiles/targets/standards/guides
             nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
-                self.pop_tile_neighbourhood(nth_best_tile.ra, nth_best_tile.dec, 
+                self.get_tile_neighbourhood(nth_best_tile.ra, nth_best_tile.dec, 
                                             candidate_tiles, candidate_targets_range_list,  
                                             standard_targets_range, guide_targets_range,  
                                             n_tile_radii=2, n_target_radii=3)  
@@ -1479,7 +1478,7 @@ class FWTiler(object):
         return best_tiles.keys(), remaining_priority_targets
         
 
-    @profile
+    #@profile
     def greedy_tile_sky(self, candidate_targets, candidate_targets_range,  
                         standard_targets_range, guide_targets_range, candidate_tiles, 
                         mag_range):
@@ -1558,8 +1557,8 @@ class FWTiler(object):
         temp_candidate_tiles = candidate_tiles[:]
         
         # Pre-generate the KD tree for the standards and guide lists (which do not change)
-        self.standard_tree = self.precompute_kd_tree(standard_targets_range)
-        self.guide_tree = self.precompute_kd_tree(guide_targets_range)
+        self.standard_tree = precompute_kd_tree(standard_targets_range)
+        self.guide_tree = precompute_kd_tree(guide_targets_range)
         
         while len(temp_candidate_tiles) > 0:  
             # Get the neighbourhood of an arbitrary tile, unpick the neighbours, then
@@ -1571,23 +1570,28 @@ class FWTiler(object):
             # Get the neighbourhood tiles, targets, standards, and guides. The selected
             # tiles are removed from the list
             nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
-                self.pop_tile_neighbourhood(central_tile.ra, central_tile.dec, 
+                self.get_tile_neighbourhood(central_tile.ra, central_tile.dec, 
                                             temp_candidate_tiles, 
                                             candidate_targets_range_list,  
                                             standard_targets_range, guide_targets_range,  
                                             n_tile_radii=2, n_target_radii=3) 
             
             for tile in nearby_tiles:
+                # Pre-generate the KD tree for the nearby standards and guide lists. These
+                # will not change within each iteration of the loop
+                nearby_standard_tree = precompute_kd_tree(nearby_standards)
+                nearby_guide_tree = precompute_kd_tree(nearby_guides)
+                
                 # Unpick each tile in the neighbourhood
                 self.unpick_tile(tile, 
                                  tp.targets_in_range(tile.ra, tile.dec, nearby_targets, 
                                                      1*tp.TILE_RADIUS), 
                                  tp.targets_in_range(tile.ra, tile.dec, nearby_standards, 
-                                                     1*tp.TILE_RADIUS), 
+                                                     1*tp.TILE_RADIUS,
+                                                     tree=nearby_standard_tree), 
                                  tp.targets_in_range(tile.ra, tile.dec, nearby_guides, 
-                                                     1*tp.TILE_RADIUS)) 
-
-            #logging.info('Created %d / %d tiles' % (tile_i, len(candidate_tiles)))
+                                                     1*tp.TILE_RADIUS,
+                                                     tree=nearby_guide_tree)) 
         
         finish = time.time()
         delta = finish - start
@@ -1707,7 +1711,7 @@ class FWTiler(object):
         return tile_list
 
     
-    @profile
+    #@profile
     def greedy_tile_mag_range(self, candidate_targets, standard_targets, guide_targets, 
                               candidate_tiles, range_ix):
         """Function to perform a greedy sky tiling for a given magnitude range.
@@ -1793,7 +1797,7 @@ class FWTiler(object):
         return tile_list
     
     
-    @profile
+    #@profile
     def generate_tiling(self, candidate_targets, standard_targets, guide_targets):
         """
         Generate a tiling based on the greedy algorithm operating on a set of magnitude 
@@ -1894,7 +1898,7 @@ class FWTiler(object):
 # ----------------------------------------------------------------------------------------
 # External tiling code for multiprocessing
 # ----------------------------------------------------------------------------------------
-@profile
+#@profile
 def repick_within_radius(best_tile, candidate_tiles, candidate_targets, 
                          candidate_standards, candidate_guides, unpick_settings, 
                          n_radii=2):
@@ -1944,12 +1948,7 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
 
     nearby_candidate_tiles = tp.targets_in_range(best_tile.ra, best_tile.dec, 
                                             candidate_tiles, n_radii*tp.TILE_RADIUS) 
-    """                                                
-    affected_tiles = list({atile for atile in nearby_candidate_tiles 
-                          for t1 in assigned_targets \
-                          for t2 in atile.get_assigned_targets_science() \
-                          if is_same_taipan_object(t1, t2)})
-    """
+
     affected_tiles = list({atile for atile in nearby_candidate_tiles 
                           for t in assigned_targets \
                           if t in atile.get_assigned_targets_science()})
@@ -1960,18 +1959,22 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     for tile in candidate_tiles:
         if tile.count_assigned_fibres() == 0:
             affected_tiles.append(tile)
-
+    
+    # Pre-generate the KD tree for the nearby standards and guide lists. These lists will
+    # remain the same, with consistent ordered, per visit to this function
+    standard_tree = precompute_kd_tree(candidate_standards)
+    guide_tree = precompute_kd_tree(candidate_guides)
+    
     for tile_i, tile in enumerate(affected_tiles):
         # Repick the affected tiles, but making sure to only supply the targets that 
         # actually fall within the tile boundaries - unnecessary processing otherwise
-        burn = tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
-                                                    1*tp.TILE_RADIUS), 
-                                tp.targets_in_range(tile.ra, tile.dec, 
-                                                    candidate_standards, 
-                                                    1*tp.TILE_RADIUS), 
-                                tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
-                                                    1*tp.TILE_RADIUS),
-                                **unpick_settings)
+        tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
+                                             1*tp.TILE_RADIUS), 
+                         tp.targets_in_range(tile.ra, tile.dec, candidate_standards, 
+                                            1*tp.TILE_RADIUS, tree=standard_tree), 
+                         tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
+                                            1*tp.TILE_RADIUS, tree=guide_tree),
+                         **unpick_settings)
 
     # It is possible for a candidate tile to have no assigned fibres at this point, but
     # that should occur only towards the end of a tiling run, or for a sparsely populated
@@ -1981,7 +1984,7 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     return candidate_tiles
 
 
-@profile
+#@profile
 def repick_within_radius_pool(input_params):
     """multiprocessing.pool implementation of repick_within_radius.
     
@@ -2030,17 +2033,21 @@ def repick_within_radius_pool(input_params):
         if tile.count_assigned_fibres() == 0:
             affected_tiles.append(tile)
 
+    # Pre-generate the KD tree for the nearby standards and guide lists. These lists will
+    # remain the same, with consistent ordered, per visit to this function
+    standard_tree = precompute_kd_tree(candidate_standards)
+    guide_tree = precompute_kd_tree(candidate_guides)
+
     for tile_i, tile in enumerate(affected_tiles):
         # Repick the affected tiles, but making sure to only supply the targets that 
         # actually fall within the tile boundaries - unnecessary processing otherwise
-        burn = tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
-                                                    1*tp.TILE_RADIUS), 
-                                tp.targets_in_range(tile.ra, tile.dec, 
-                                                    candidate_standards, 
-                                                    1*tp.TILE_RADIUS), 
-                                tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
-                                                    1*tp.TILE_RADIUS),
-                                **unpick_settings)
+        tile.unpick_tile(tp.targets_in_range(tile.ra, tile.dec, candidate_targets, 
+                                             1*tp.TILE_RADIUS), 
+                         tp.targets_in_range(tile.ra, tile.dec, candidate_standards, 
+                                            1*tp.TILE_RADIUS, tree=standard_tree), 
+                         tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
+                                            1*tp.TILE_RADIUS, tree=guide_tree),
+                         **unpick_settings)
 
     # It is possible for a candidate tile to have no assigned fibres at this point, but
     # that should occur only towards the end of a tiling run, or for a sparsely populated
@@ -2118,3 +2125,22 @@ def count_unique_science_targets(tiling):
     duplicates = total-unique
     
     return unique, total, duplicates
+
+    
+def precompute_kd_tree(target_list):
+    """Precomputes the KD tree for a list of targets.
+    
+    Parameters
+    ----------
+    target_list: list of :class:`TaipanTarget`
+        The list to compute the tree for.
+    
+    Returns
+    -------
+    tree: cKDTree
+        The pre-computed KD-tree.
+    """
+    cart_targets = np.asarray([t.usposn for t in target_list])
+    tree = cKDTree(cart_targets, leafsize=tp.BREAKEVEN_KDTREE)
+    
+    return tree
