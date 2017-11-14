@@ -34,7 +34,7 @@ import line_profiler
 from joblib import Parallel, delayed
 import multiprocessing as mp
 import pdb
-from collections import Counter
+from collections import Counter, OrderedDict
 from scipy.spatial import cKDTree
 
 class FWTiler(object):
@@ -943,7 +943,29 @@ class FWTiler(object):
         print "PID #%i, RA=%6.2f, DEC=%6.2f," % (process_i, ra, dec),
         print "rank = %5i %s" % (best_rank, "T" if self.disqualify_below_min else "F")  
         
-              
+    
+    def compute_ranking_dictionary(self, candidate_tiles):
+        """Computes a ranking dictionary pairing tiles with their scores.
+        
+        Parameters
+        ----------
+        candidate_tiles: list of :class: `TaipanTile`
+            The list of filled candidate tiles covering the section of sky observed.
+        
+        Returns
+        -------
+        ranking_list: OrderedDict
+            Dictionary with candidate_tiles as keys, and the corresponding tile score as 
+            values.
+        """
+        # Compute the tile scores
+        tile_scores = [self.calculate_tile_score(tile) for tile in candidate_tiles]
+        
+        # Pair tiles with their scores
+        ranking_list = OrderedDict(zip(candidate_tiles, tile_scores))
+        
+        return ranking_list
+                  
     # ------------------------------------------------------------------------------------
     # FunnelWeb Tiling Functions
     # ------------------------------------------------------------------------------------
@@ -981,13 +1003,16 @@ class FWTiler(object):
         if best_tiles and len(best_tiles) > 0:
             # While loop setup: sort indices of ranking list, initialise bool check/count
             # ranking_list_i_sorted is sorted min-max so we index from the end (hence -1)
-            ranking_list_i_sorted = np.argsort(ranking_list)
+            ranking_list_i_sorted = np.argsort(ranking_list.values())
             found_best_distant_tile = False
             nth_max = -1
             
             # Consider from max-min the best tiles until we find a distant one
             while not found_best_distant_tile:
                 best_tile_i = ranking_list_i_sorted[nth_max]
+                
+                assert candidate_tiles[best_tile_i] == ranking_list.keys()[best_tile_i]
+                
                 candidate_ra = candidate_tiles[best_tile_i].ra
                 candidate_dec =  candidate_tiles[best_tile_i].dec
                 
@@ -995,7 +1020,7 @@ class FWTiler(object):
                                                         best_tiles, 
                                                         n_radii*tp.TILE_RADIUS)
                                                         
-                if len(nearby_best_tiles) == 0 and ranking_list[best_tile_i] > 0:
+                if len(nearby_best_tiles) == 0 and ranking_list.values()[best_tile_i] > 0:
                     # Previous best tiles can be considered distant *and* the newly 
                     # selected tile is not disqualified for not having the minimum number
                     # of standards and guides --> select this tile
@@ -1019,11 +1044,11 @@ class FWTiler(object):
         # Either we are just selecting the first best tile, or will only be selecting one
         else:
             # Find the highest-ranked tile in the candidates_list
-            best_tile_i = np.argmax(ranking_list)
+            best_tile_i = np.argmax(ranking_list.values())
         
         # We now have the index of the best tile --> select it    
         best_tile = candidate_tiles.pop(best_tile_i) 
-        best_rank = ranking_list.pop(best_tile_i)
+        best_rank = ranking_list.pop(best_tile)
         
         logging.info('Best tile has ranking score %3.1f' % (best_rank, ))
         
@@ -1288,6 +1313,12 @@ class FWTiler(object):
                                             standard_targets_range, guide_targets_range,  
                                             n_tile_radii=2, n_target_radii=3,
                                             remove_tiles_from_master_list=False)  
+        
+        # All affected tiles have been unpicked, and best_tile has been replaced. Now 
+        # update the ranking list accordingly (modifying only the affected elements 
+        # rather than entirely recomputing it)    
+        for tile in nearby_tiles:
+            ranking_list[tile] = self.calculate_tile_score(tile)
         
         # Create an update on the tiling progress
         local_candidate_targets = tp.targets_in_range(best_tile.ra, best_tile.dec, 
@@ -1598,7 +1629,7 @@ class FWTiler(object):
         print ("done in %d:%02.1f") % (delta/60, delta % 60.)
         
         # Compute initial rankings for all of the tiles
-        ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]      
+        ranking_list = self.compute_ranking_dictionary(candidate_tiles)     
                     
         # Calculate priority targets
         n_priority_targets = self.calc_priority_targets(candidate_targets_range_list)
@@ -1614,7 +1645,7 @@ class FWTiler(object):
         # Note: 0.05 is a simple proxy for max > 0
         while ((float(n_priority_targets - remaining_priority_targets) 
                / float(n_priority_targets)) < self.completeness_target) and \
-               (max(ranking_list) > 0.05): 
+               (max(ranking_list.values()) > 0.05): 
             # Single core
             if self.n_cores == 0:
                 best_tile, remaining_priority_targets = self.greedy_tile_sc(
@@ -1654,7 +1685,7 @@ class FWTiler(object):
                     tile_list.append(nth_best_tile) 
                 
             # Recalculate the ranking list
-            ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
+            #ranking_list = [self.calculate_tile_score(tile) for tile in candidate_tiles]
 
             # Logging
             logging.info('%d targets, %d standards, %d guides' %
@@ -1683,18 +1714,16 @@ class FWTiler(object):
             # in the event they are false, removing the need to sort the ranking list.
             # This structure ensures we only enter either of the two if statements only
             # once, as we flip the booleans after successful use.
-            if self.enforce_min_tile_score and max(ranking_list) < self.min_tile_score:
+            if self.enforce_min_tile_score and max(ranking_list.values()) < self.min_tile_score:
                 logging.info('Detected no tiles above min score - relaxing requirements')
                 self.enforce_min_tile_score = False
                 self.disqualify_below_min = False
-                ranking_list = [self.calculate_tile_score(tile) 
-                                for tile in candidate_tiles]  
+                ranking_list = self.compute_ranking_dictionary(candidate_tiles)     
                                 
-            elif self.disqualify_below_min and max(ranking_list) < 0.05:
+            elif self.disqualify_below_min and max(ranking_list.values()) < 0.05:
                 logging.info('Detected no remaining legal tiles - relaxing requirements')
                 self.disqualify_below_min = False
-                ranking_list = [self.calculate_tile_score(tile) 
-                                for tile in candidate_tiles]        
+                ranking_list = self.compute_ranking_dictionary(candidate_tiles)           
         
         # Print summary of the magnitude range
         cc = (float(n_priority_targets - remaining_priority_targets)
@@ -2128,7 +2157,8 @@ def count_unique_science_targets(tiling):
 
     
 def precompute_kd_tree(target_list):
-    """Precomputes the KD tree for a list of targets.
+    """Precomputes the KD tree for a list of targets. Returns None if a brute force would
+    be more efficient than computing the KD tree.
     
     Parameters
     ----------
@@ -2137,10 +2167,12 @@ def precompute_kd_tree(target_list):
     
     Returns
     -------
-    tree: cKDTree
+    tree: cKDTree or None
         The pre-computed KD-tree.
     """
-    cart_targets = np.asarray([t.usposn for t in target_list])
-    tree = cKDTree(cart_targets, leafsize=tp.BREAKEVEN_KDTREE)
-    
-    return tree
+    if len(target_list) <= tp.BREAKEVEN_KDTREE:
+        cart_targets = np.asarray([t.usposn for t in target_list])
+        tree = cKDTree(cart_targets, leafsize=tp.BREAKEVEN_KDTREE)
+        return tree
+    else:
+        return None
