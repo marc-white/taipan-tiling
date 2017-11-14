@@ -17,7 +17,7 @@ Acceptable values for "backend" are currently:
 import numpy as np
 from collections import OrderedDict
 
-# Input catalogue 
+# Input catalogue
 catalogue = ("/priv/mulga1/arains/Catalogues/all_tgas.fits")
 
 # Ordered dictionary, so that format is always the same when writing to a file 
@@ -52,7 +52,7 @@ tiler_input = OrderedDict([("completeness_target", 0.99),
                            ("allow_standard_targets", True),
                            ("assign_sky_first", True),
                            ("n_cores", 0),
-                           ("backend", "pool"),
+                           ("backend", "multiprocessing"),
                            ("enforce_min_tile_score", True)])
  
 # Dictionary of additional parameters not required by FWTiler            
