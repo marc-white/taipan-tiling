@@ -20,7 +20,7 @@ And view with:
 For other usage, visit:
     https://github.com/rkern/line_profiler
 
-Where all functions with an @profile decorator will be profiled - uncomment beforehand.
+Where all functions with an #@profile decorator will be profiled - uncomment beforehand.
 """
 import logging
 import core as tp
@@ -969,7 +969,7 @@ class FWTiler(object):
     # ------------------------------------------------------------------------------------
     # FunnelWeb Tiling Functions
     # ------------------------------------------------------------------------------------
-    @profile
+    #@profile
     def get_best_distant_tile(self, candidate_tiles, ranking_list, best_tiles=None, 
                               n_radii=6):
         """Selects the highest ranked tile from tile_list that is considered distant from
@@ -1058,7 +1058,7 @@ class FWTiler(object):
         return best_tile, best_rank
    
     
-    @profile
+    #@profile
     def replace_best_tile(self, best_tile, candidate_tiles, candidate_targets, 
                           candidate_targets_range):
         """Function to select the highest ranked tile for the final tiling, and 
@@ -1162,7 +1162,7 @@ class FWTiler(object):
         return num_assigned_priority, num_assigned_candidates
 
     
-    @profile
+    #@profile
     def get_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets_range, 
                                standard_targets_range, guide_targets_range, 
                                n_tile_radii=2, n_target_radii=3, 
@@ -1247,7 +1247,7 @@ class FWTiler(object):
         return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
     
     
-    @profile
+    #@profile
     def greedy_tile_sc(self, candidate_tiles, candidate_targets, candidate_targets_range, 
                        standard_targets_range, guide_targets_range, ranking_list, 
                        n_priority_targets, remaining_priority_targets):
@@ -1338,7 +1338,7 @@ class FWTiler(object):
                          
         return best_tile, remaining_priority_targets
         
-    @profile    
+    #@profile    
     def greedy_tile_mc(self, candidate_tiles, candidate_targets, candidate_targets_range, 
                        standard_targets_range, guide_targets_range, ranking_list, 
                        n_priority_targets, remaining_priority_targets):
@@ -1531,7 +1531,7 @@ class FWTiler(object):
         return best_tiles.keys(), remaining_priority_targets
         
 
-    @profile
+    #@profile
     def greedy_tile_sky(self, candidate_targets, candidate_targets_range,  
                         standard_targets_range, guide_targets_range, candidate_tiles, 
                         mag_range):
@@ -1768,7 +1768,7 @@ class FWTiler(object):
         return tile_list
 
     
-    @profile
+    #@profile
     def greedy_tile_mag_range(self, candidate_targets, standard_targets, guide_targets, 
                               candidate_tiles, range_ix):
         """Function to perform a greedy sky tiling for a given magnitude range.
@@ -1854,7 +1854,7 @@ class FWTiler(object):
         return tile_list
     
     
-    @profile
+    #@profile
     def generate_tiling(self, candidate_targets, standard_targets, guide_targets):
         """
         Generate a tiling based on the greedy algorithm operating on a set of magnitude 
@@ -1955,7 +1955,7 @@ class FWTiler(object):
 # ----------------------------------------------------------------------------------------
 # External tiling code for multiprocessing
 # ----------------------------------------------------------------------------------------
-@profile
+#@profile
 def repick_within_radius(best_tile, candidate_tiles, candidate_targets, 
                          candidate_standards, candidate_guides, unpick_settings, 
                          n_radii=2):
@@ -2042,7 +2042,7 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     return candidate_tiles
 
 
-@profile
+#@profile
 def repick_within_radius_pool(input_params):
     """multiprocessing.pool implementation of repick_within_radius.
     
