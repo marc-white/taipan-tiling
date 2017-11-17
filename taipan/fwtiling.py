@@ -1756,8 +1756,8 @@ class FWTiler(object):
         # Print summary of the magnitude range
         cc = (float(n_priority_targets - remaining_priority_targets)
                           / float(n_priority_targets))
-        print "Mag range complete with %i tiles, %5.2f %% complete" % (len(tile_list),
-                                                                          100*cc)
+        print "Mag range complete with %i tiles, %5.2f %% complete," % (len(tile_list),
+                                                                        100*cc),
         if cc < self.completeness_target:
             logging.warning("### WARNING: mag range tiling aborted prior to completeness")
             
@@ -1829,10 +1829,13 @@ class FWTiler(object):
                  len(candidate_targets_range)))
         
         # Generate tiling for the magnitude range
+        start = time.time()
         tile_list = self.greedy_tile_sky(candidate_targets, candidate_targets_range, 
                                          standard_targets_range, 
                                          non_candidate_guide_targets, 
                                          candidate_tiles, mag_range)
+        delta = time.time() - start
+        print "done in %d:%02.1f" % (delta/60, delta % 60.)
 
         # Now return the priorities to as they were for the remaining targets.
         for target in candidate_targets_range:
@@ -1842,8 +1845,7 @@ class FWTiler(object):
         print "Consolidating %i tiles" % len(tile_list),
         start = time.time()
         tile_list = tl.tiling_consolidate(tile_list)
-        finish = time.time()
-        delta = finish - start
+        delta = time.time() - start
         print ("--> %i tiles, done in %d:%02.1f \n") % (len(tile_list), delta/60, 
                                                         delta % 60.)
       
