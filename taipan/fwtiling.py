@@ -936,10 +936,10 @@ class FWTiler(object):
               / float(n_priority_targets))
         print time.strftime("%H:%M:%S %d/%m/%y") + ";",
         print "%5i / %5i P" % (remaining_priority_targets, n_priority_targets),                                          
-        print "[%5i C ] --> %5.2f%%;" % (num_candidate_targets_range, 100*cc),
+        print "[%6i C ] --> %5.2f%%;" % (num_candidate_targets_range, 100*cc),
         print "assigned: P =%3i, C =%3i;" % (num_assigned_priority,
                                            num_non_priority_candidates),
-        print "local: P =%4i, C =%4i;" % (nearby_priority, nearby_candidate),
+        print "local: P =%4i, C =%5i;" % (nearby_priority, nearby_candidate),
         print "PID #%i, RA=%6.2f, DEC=%6.2f," % (process_i, ra, dec),
         print "rank = %5i %s" % (best_rank, "T" if self.disqualify_below_min else "F")  
         

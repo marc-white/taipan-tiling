@@ -17,8 +17,9 @@ Acceptable values for "backend" are currently:
 import numpy as np
 from collections import OrderedDict
 
-# Input catalogue
-catalogue = ("/priv/mulga1/arains/Catalogues/all_tgas.fits")
+# Input catalogue and priority list
+catalogue = ("/priv/mulga1/arains/Catalogues/fw_input_catalogue.fits")
+priorities = ("/priv/mulga1/arains/Catalogues/fw_priorities.fits")
 
 # Ordered dictionary, so that format is always the same when writing to a file 
 
@@ -57,9 +58,10 @@ tiler_input = OrderedDict([("completeness_target", 0.99),
  
 # Dictionary of additional parameters not required by FWTiler            
 script_settings = OrderedDict([("input_catalogue", catalogue),
-                               ("tab_type", "gaia"),
+                               ("input_priorities", priorities),
+                               ("tab_type", "fw"),
                                ("gal_lat_limit", 0),
-                               ("inverse_standard_frac", 10),
+                               ("standard_frac", 0.1),
                                ("guide_range", [8,10.5]),
                                ("TARGET_PER_TILE", 139),
                                ("STANDARDS_PER_TILE", 4),
@@ -68,5 +70,5 @@ script_settings = OrderedDict([("input_catalogue", catalogue),
                                ("SKY_PER_TILE_MIN", 7),
                                ("GUIDES_PER_TILE", 9),
                                ("GUIDES_PER_TILE_MIN", 3),
-                               ("prioritise_close", False)])
+                               ("use_colour_cut", False)])
                         
