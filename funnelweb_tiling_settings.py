@@ -26,7 +26,7 @@ priorities = ("/priv/mulga1/arains/Catalogues/fw_priorities.fits")
 
 # Dictionary of *all* parameters required to construct taipan.fwtiling.FWTiler
 # e.g. fwtiler = FWTiler(**tiler_input)
-tiler_input = OrderedDict([("completeness_target", 0.99),
+tiler_input = OrderedDict([("completeness_targets", [0.99, 0.99, 0.99, 0.99]),
                            ("ranking_method", "priority-expsum"),
                            ("disqualify_below_min", True),
                            ("tiling_method", "SH"),

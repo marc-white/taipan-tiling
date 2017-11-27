@@ -41,11 +41,11 @@ class FWTiler(object):
     """FunnelWeb Tiler object to encapsulate tiling settings, wrap tiling functions, and
     perform tiling operations for FunnelWeb. 
     """
-    def __init__(self, completeness_target=1.0, ranking_method='priority-expsum',
-                 disqualify_below_min=True, tiling_method='SH', randomise_pa=True, 
-                 randomise_SH=True, tiling_file='ipack.3.8192.txt', ra_min=0.0, 
-                 ra_max=360.0, dec_min=-90.0, dec_max=90.0, 
-                 mag_ranges=[[5,8],[7,10],[9,12],[11,14]],
+    def __init__(self, completeness_targets=[0.99,0.99,0.99,0.99], 
+                 ranking_method='priority-expsum', disqualify_below_min=True, 
+                 tiling_method='SH', randomise_pa=True, randomise_SH=True, 
+                 tiling_file='ipack.3.8192.txt', ra_min=0.0, ra_max=360.0, dec_min=-90.0, 
+                 dec_max=90.0, mag_ranges=[[5,8],[7,10],[9,12],[11,14]],
                  mag_ranges_prioritise=[[5,7],[7,8],[9,10],[11,12]], priority_normal=2, 
                  prioritise_extra=2, tile_unpick_method='combined_weighted', 
                  combined_weight=4.0, sequential_ordering=(2, 1), rank_supplements=False, 
@@ -59,9 +59,9 @@ class FWTiler(object):
         
         Parameters
         ----------
-        completeness_target: float 
-            A float in the range (0, 1] denoting the science target completeness to stop 
-            at. Defaults to 1.0 (full completeness).
+        completeness_targets: list of floats 
+            A list of floats in the range (0, 1] denoting the science target completeness 
+            to stop at per magnitude range. Defaults to 0.99 (99% completeness).
         
         ranking_method: string
             The scheme to use for ranking the tiles. See the documentation for 
@@ -166,7 +166,7 @@ class FWTiler(object):
         enforce_min_tile_score: boolean
             Whether a selected tile should be greater than some minimum tile score.
         """
-        self._completeness_target = None
+        self._completeness_targets = None
         self._ranking_method = None
         self._disqualify_below_min = None
         self._disqualify_below_min_original = None
@@ -201,7 +201,7 @@ class FWTiler(object):
         
         # Insert the passed values. Doing it like this forces the setter functions to be 
         # called, which provides error checking
-        self.completeness_target = completeness_target
+        self.completeness_targets = completeness_targets
         self.ranking_method = ranking_method
         self.disqualify_below_min = disqualify_below_min
         self.disqualify_below_min_original = disqualify_below_min # "Memory" param
@@ -237,20 +237,29 @@ class FWTiler(object):
         # Not input params (don't currently have getters or setters)
         self.standard_tree = None
         self.guide_tree = None
+        self.completion_target = None
+        
+        # If completeness_targets, mag_ranges, and mag_range_priorities have been set, 
+        # they should all have the same length
+        if self.completeness_targets and self.mag_ranges and self.mag_ranges_prioritise:
+            if len(self.completeness_targets) != len(self.mag_ranges) \
+                and len(self.completeness_targets) != len(self.mag_ranges_prioritise):
+                raise ValueError("completeness_targets, mag_ranges, and "
+                                 "mag_ranges_priorities should have the same length")
    
     # ------------------------------------------------------------------------------------
     # Attribute handling
     # ------------------------------------------------------------------------------------   
     @property
-    def completeness_target(self):
+    def completeness_targets(self):
         return self._completeness_target
 
-    @completeness_target.setter
-    def completeness_target(self, value):
+    @completeness_targets.setter
+    def completeness_targets(self, value):
         if value is None: 
-            raise Exception('completeness_target may not be blank')
-        elif value <= 0. or value > 1:
-            raise ValueError('completeness_target must be in the range (0, 1]')
+            raise Exception('completeness_targets may not be blank')
+        elif np.all([ct <= 0. or ct > 1 for ct in value]):
+            raise ValueError('completeness_targets must be in the range (0, 1]')
         self._completeness_target = value
         
     @property
@@ -1800,8 +1809,11 @@ class FWTiler(object):
         tile_list = []
     
         mag_range = self.mag_ranges[range_ix]
+        
+        self.completeness_target = self.completeness_targets[range_ix]
     
-        print "Tiling mag range %s" % mag_range
+        print "Tiling mag range %s to %0.2f%% completion" % (mag_range, 
+                                                          self.completeness_target)
         
         # Perform check to see if using priority magnitude ranges
         try:
