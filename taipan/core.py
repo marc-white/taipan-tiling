@@ -1168,10 +1168,17 @@ def compute_target_difficulties(target_list, full_target_list=None,
     if full_target_list:
         if verbose:
             'Checking target_list against full_target_list...'
-        if not np.all(np.in1d(target_list, full_target_list)):
-            #raise ValueError('target_list must be a sublist'
-                             #' of full_target_list')
-            pass
+        # Notes about np.in1d - fails for object arrays that are unsortable. This is not a
+        # problem for the Taipan code, but for FunnelWeb, which implements object level
+        # equivalence (i.e. __eq__, __ne__, __cmp__), this check will always raise an 
+        # exception, even when the arrays are subsets. Future versions of numpy will fix 
+        # this, but for now a workaround is needed. See issue links for more details:
+        # 1) https://github.com/numpy/numpy/issues/9874
+        # 2) https://github.com/numpy/numpy/issues/9914
+        if not isinstance(target_list[0], FWTarget) \
+            and not np.all(np.in1d(target_list, full_target_list)):
+            raise ValueError('target_list must be a sublist'
+                             ' of full_target_list')
             
     if verbose:
         logging.debug('Forming Cartesian positions...')
@@ -1713,31 +1720,28 @@ class TaipanTarget(TaipanPoint):
 
     # Uncomment to have target equality decided on ID
     # WARNING - make sure your IDs are unique!
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return (self.idn == other.idn) and (self.standard
-                                                == other.standard) and (
-                self.guide == other.guide)
-        return False
-    
-    def __ne__(self, other):
-        if isinstance(other, self.__class__):
-            return not((self.idn == other.idn) and (self.standard
-                                                    == other.standard) and (
-                self.guide == other.guide))
-        return True
-    
-    def __cmp__(self, other):
-        if isinstance(other, self.__class__):
-            if (self.idn == other.idn) and (self.standard
-                                            == other.standard) and (
-                        self.guide == other.guide):
-                return 0
-        return 1
-        
-    def __hash__(self):
-        #return hash(tuple(sorted(self.__dict__.items())))
-        return hash((self.idn, self.standard, self.guide))
+    # def __eq__(self, other):
+    #     if isinstance(other, self.__class__):
+    #         return (self.idn == other.idn) and (self.standard
+    #                                             == other.standard) and (
+    #             self.guide == other.guide)
+    #     return False
+    # 
+    # def __ne__(self, other):
+    #     if isinstance(other, self.__class__):
+    #         return not((self.idn == other.idn) and (self.standard
+    #                                                 == other.standard) and (
+    #             self.guide == other.guide))
+    #     return True
+    # 
+    # def __cmp__(self, other):
+    #     if isinstance(other, self.__class__):
+    #         if (self.idn == other.idn) and (self.standard
+    #                                         == other.standard) and (
+    #                     self.guide == other.guide):
+    #             return 0
+    #     return 1
+
 
     @property
     def idn(self):
@@ -2040,6 +2044,97 @@ class TaipanTarget(TaipanPoint):
             return True
         return False
 
+
+class FWTarget(TaipanTarget):
+    """Derived class for the FunnelWeb survey, primarily to allow object equivalence and
+    having sky fibres
+    """
+    def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
+                 guide=False, difficulty=0, mag=None,
+                 h0=False, vpec=False, lowz=False, science=True,
+                 assign_science=True, sky=False):
+        """
+        Parameters
+        ----------
+        idn : int
+            Unique target ID
+        ra, dec: float, degrees
+            RA, Dec position of target
+        ucposn : 3-tuple of floats , optional
+            Target (x, y, z) position on the unit sphere. Defaults to None,
+            at which point the position will be calculated internally and
+            stored
+        priority : int, optional
+            Target priority value. Defaults to 1
+        standard : Boolean, optional
+            Denotes this target as a standard. Defaults to False.
+        guide : Boolean, optional
+            Denotes this target as a guide. Defaults to False.
+        difficulty : int, optional
+            Number of targets that this target would exclude. Defaults to 0.
+        mag : float, optional
+            Target magnitude. Defaults to None.
+        h0, vpec, lowz : Boolean, optional
+            Booleans denoting if a target is an H0 target, a low-redshift (lowz)
+            target, or a peculiar velocity (vpec) target. All default to False.
+        science : Boolean, optional
+            Denotes this target as a science target. Defaults to True
+        assign_science : Boolean, optional
+            Do we automatically assign the science flag based on standard and guide 
+            flags? Defaults to True
+        sky: boolean
+            Denotes this target as a science target. Defaults to False.
+        """
+        # Initialise the base class
+        TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard, guide, 
+                              difficulty, mag, h0, vpec, lowz, science, assign_science)
+        
+        # Default all params to None
+        self._sky = None
+        
+        # Insert passed values
+        self.sky = sky
+        
+        @property
+        def sky(self):
+            """Is this target a sky fibre"""
+            return self._sky
+
+        @sky.setter
+        def sky(self, b):
+            b = bool(b)
+            self._sky = b
+        
+    def __repr__(self):
+        return 'FW TGT %s' % str(self._idn)
+
+    def __str__(self):
+        return 'FW TGT %s' % str(self._idn)
+
+    # Two FWTargets should be considered equal if they have the same ID, and status as
+    # science/standard/guide/sky targets.
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (self.idn == other.idn) and (self.standard == other.standard) \
+                   and (self.guide == other.guide) and (self.sky == other.sky)
+        return False
+    
+    def __ne__(self, other):
+        if isinstance(other, self.__class__):
+            return not((self.idn == other.idn) and (self.standard == other.standard) 
+                    and (self.guide == other.guide) and (self.sky == other.sky))
+        return True
+    
+    def __cmp__(self, other):
+        if isinstance(other, self.__class__):
+            if (self.idn == other.idn) and (self.standard == other.standard) \
+                and (self.guide == other.guide) and (self.sky == other.sky):
+                return 0
+        return 1
+        
+    def __hash__(self):
+        return hash((self.idn, self.standard, self.guide, self.sky))
+        
 
 class TaipanTile(TaipanPoint):
     """
@@ -2542,6 +2637,44 @@ class TaipanTile(TaipanPoint):
             tile.
         """
         no_assigned_targets = len(self.get_assigned_targets_guide())
+        return no_assigned_targets
+        
+    def get_assigned_targets_sky(self, return_dict=False):
+        """
+        Return a list of sky TaipanTargets currently assigned to this tile.
+
+        Parameters
+        ----------    
+        return_dict : bool
+            Boolean value denoting whether to return the result as
+            a dictionary with keys corresponding to fibre number (True), or
+            a simple list of targets (False). Defaults to False.
+
+        Returns
+        -------    
+        assigned_targets : list or dict of :class:`TaipanTarget`
+            The list of sky TaipanTargets currently 
+            assigned to this tile.
+        """
+        assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
+                            if isinstance(t, TaipanTarget)}
+        assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+                            if t.sky}
+        if return_dict:
+            return assigned_targets
+        return assigned_targets.values()
+
+    def count_assigned_targets_sky(self):
+        """
+        Count the number of sky targets assigned to this tile.
+
+        Returns
+        -------    
+        no_assigned_targets : int
+            The number of sky targets assigned to this
+            tile.
+        """
+        no_assigned_targets = len(self.get_assigned_targets_sky())
         return no_assigned_targets
 
     def count_assigned_fibres(self):

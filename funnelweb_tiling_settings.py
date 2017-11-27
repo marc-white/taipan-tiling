@@ -15,6 +15,7 @@ Acceptable values for "backend" are currently:
     3 - "pool" --> multiprocessing library
 """
 import numpy as np
+import taipan.core as tp
 from collections import OrderedDict
 
 # Input catalogue and priority list
@@ -66,9 +67,11 @@ script_settings = OrderedDict([("input_catalogue", catalogue),
                                ("TARGET_PER_TILE", 139),
                                ("STANDARDS_PER_TILE", 4),
                                ("STANDARDS_PER_TILE_MIN", 3),
-                               ("SKY_PER_TILE", 7),
-                               ("SKY_PER_TILE_MIN", 7),
                                ("GUIDES_PER_TILE", 9),
                                ("GUIDES_PER_TILE_MIN", 3),
+                               ("SKY_PER_TILE", 7),
+                               ("SKY_PER_TILE_MIN", 7),
+                               ("QUAD_RADII", [tp.TILE_RADIUS, 8164.03, 4082.02, 0.]),
+                               ("QUAD_PER_RADII", [3, 3, 1]),
                                ("use_colour_cut", False)])
                         

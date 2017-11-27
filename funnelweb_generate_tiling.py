@@ -92,7 +92,7 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
             if (ra_min < star["ra"] < ra_max) and (dec_min < star["dec"] < dec_max) \
                 and (np.abs(star['b']) > gal_lat_limit):
                # Target is acceptable, create with parameters necessary for tiling
-                target = tp.TaipanTarget(int(star["source_id"]), star["ra"], star["dec"], 
+                target = tp.FWTarget(int(star["source_id"]), star["ra"], star["dec"], 
                                          priority=get_target_priority(star["source_id"], 
                                                                       priorities, 
                                                                       priority_normal), 
@@ -119,7 +119,7 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
                 and (dec_min < star["Dec_ep2015"] < dec_max) \
                 and (np.abs(star['b']) > gal_lat_limit) and star["Gaia_G_mag"] <= 30:
                # Target is acceptable, create with parameters necessary for tiling
-                target = tp.TaipanTarget(int(star["Gaia_ID"]), star["RA_ep2015"], 
+                target = tp.FWTarget(int(star["Gaia_ID"]), star["RA_ep2015"], 
                                          star["Dec_ep2015"], 
                                          priority=get_target_priority(star["Gaia_ID"], 
                                                                       priorities, 
@@ -255,24 +255,55 @@ def import_target_priorities(priorities_fits_file):
         target_priorities[target[0]] = target[1]
         
     return target_priorities
-       
+
+
+def update_taipan_quadrants():
+    """Function to recompute the number and placement of quadrants that split up a field
+    and define sky fibre locations.
+    """
+    if len(tp.QUAD_PER_RADII) != len(tp.QUAD_RADII)-1:
+        raise ValueError('QUAD_PER_RADII must have one less element than '
+                     'QUAD_RADII')
+    if sum(tp.QUAD_PER_RADII) != tp.SKY_PER_TILE:
+        raise UserWarning('The number of defined tile quandrants does not match '
+                          'SKY_PER_TILE. These are meant to be the same!')
+
+    tp.FIBRES_PER_QUAD = []
+    for i in range(len(tp.QUAD_RADII))[:-1]:
+        theta = 360. / tp.QUAD_PER_RADII[i]
+        for j in range(tp.QUAD_PER_RADII[i]):
+            tp.FIBRES_PER_QUAD.append(
+                [k for k in tp.BUGPOS_OFFSET.keys() if
+                 k not in tp.FIBRES_GUIDE and
+                 tp.QUAD_RADII[i+1] <= tp.BUGPOS_OFFSET[k][0] < tp.QUAD_RADII[i] and
+                 j*theta <= tp.BUGPOS_OFFSET[k][1] < (j+1)*theta])
+                       
 #-----------------------------------------------------------------------------------------
 # Setup
 #-----------------------------------------------------------------------------------------
 # Reload fwts for repeated runs
 reload(fwts)
 
-# Change defaults. NB By changing in tp, we chance in tl.tp also.
+# Change defaults. NB By changing in tp, we chance in tl.tp and fwtl.tp also.
 tp.TARGET_PER_TILE = fwts.script_settings["TARGET_PER_TILE"]
 tp.STANDARDS_PER_TILE = fwts.script_settings["STANDARDS_PER_TILE"]
 tp.STANDARDS_PER_TILE_MIN = fwts.script_settings["STANDARDS_PER_TILE_MIN"]
-
-# Enough to fit a linear trend and get a chi-squared uncertainty distribution with
-# 4 degrees of freedom, with 1 bad fiber.
-tp.SKY_PER_TILE = fwts.script_settings["SKY_PER_TILE"]
-tp.SKY_PER_TILE_MIN = fwts.script_settings["SKY_PER_TILE_MIN"]
 tp.GUIDES_PER_TILE = fwts.script_settings["GUIDES_PER_TILE"]
 tp.GUIDES_PER_TILE_MIN = fwts.script_settings["GUIDES_PER_TILE_MIN"]
+
+# For guides and sky fibres: enough to fit a linear trend and get a chi-squared 
+# uncertainty distribution with 4 degrees of freedom, with 1 bad fibre.
+
+# To update the number of sky fibres, you need to update the following four parameters
+# and recompute the how the tile area itself is segmented into "quadrants". Sky fibres are
+# allocated in increments of the number of quadrants, so this needs to be recomputed in 
+# order to properly update the number of sky fibres used.
+tp.SKY_PER_TILE = fwts.script_settings["SKY_PER_TILE"]
+tp.SKY_PER_TILE_MIN = fwts.script_settings["SKY_PER_TILE_MIN"]
+tp.QUAD_RADII = fwts.script_settings["QUAD_RADII"]
+tp.QUAD_PER_RADII = fwts.script_settings["QUAD_PER_RADII"]
+
+update_taipan_quadrants()
 
 # Save a copy of the settings file for future reference
 # The file will be appropriately timestamped on completion of the tiling
