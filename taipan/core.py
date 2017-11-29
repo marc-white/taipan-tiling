@@ -1641,7 +1641,7 @@ class TaipanTarget(TaipanPoint):
     def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
                  h0=False, vpec=False, lowz=False, science=True,
-                 assign_science=True):
+                 assign_science=True, sky=False):
         """
         Parameters
         ----------
@@ -1671,6 +1671,8 @@ class TaipanTarget(TaipanPoint):
         assign_science : Boolean, optional
             Do we automatically assign the science flag based on standard and guide 
             flags? Defaults to True
+        sky: boolean
+            Denotes this target as a science target. Defaults to False.
         """
         # Initialise the base class
         TaipanPoint.__init__(self, ra, dec, usposn)
@@ -1683,6 +1685,7 @@ class TaipanTarget(TaipanPoint):
         self._science = None
         self._difficulty = None
         self._mag = None
+        self._sky = None
 
         # Taipan-specific fields
         self._h0 = None
@@ -1703,6 +1706,7 @@ class TaipanTarget(TaipanPoint):
         self.h0 = h0
         self.vpec = vpec
         self.lowz = lowz
+        self.sky = sky
         
         # A default useful for Taipan (FunnelWeb will override,
         # as it takes its standards
@@ -1862,6 +1866,16 @@ class TaipanTarget(TaipanPoint):
     def vpec(self, b):
         b = bool(b)
         self._vpec = b
+        
+    @property
+    def sky(self):
+        """Is this target a sky fibre"""
+        return self._sky
+
+    @sky.setter
+    def sky(self, b):
+        b = bool(b)
+        self._sky = b
 
     def return_target_code(self):
         """
@@ -2087,23 +2101,8 @@ class FWTarget(TaipanTarget):
         """
         # Initialise the base class
         TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard, guide, 
-                              difficulty, mag, h0, vpec, lowz, science, assign_science)
-        
-        # Default all params to None
-        self._sky = None
-        
-        # Insert passed values
-        self.sky = sky
-        
-        @property
-        def sky(self):
-            """Is this target a sky fibre"""
-            return self._sky
-
-        @sky.setter
-        def sky(self, b):
-            b = bool(b)
-            self._sky = b
+                              difficulty, mag, h0, vpec, lowz, science, assign_science,
+                              sky)
         
     def __repr__(self):
         return 'FW TGT %s' % str(self._idn)
@@ -3713,7 +3712,17 @@ class TaipanTile(TaipanPoint):
 
         # Calculate rest positions for all sky fibres
         fibre_posns = {fibre: self.compute_fibre_posn(fibre) for fibre in FIBRES_SKY}
+        
+        # Calculate rest positions for all non-guide fibres
+        # TODO: Consideration for avoiding standard fibres
+        fibre_posns_all = {fibre: self.compute_fibre_posn(fibre) 
+                           for fibre in FIBRES_NORMAL if fibre not in FIBRES_GUIDE}
 
+        # Reset the sky fibres
+        for fibre in FIBRES_SKY:
+            self.fibres[fibre] == None
+        
+        # Create a copy
         sky_this_tile = sky_targets[:]
         
         if check_tile_radius:
@@ -3826,8 +3835,8 @@ class TaipanTile(TaipanPoint):
                 sky = sky_this_tile[i]
                 
                 # Check related sky can actually be assigned to an available sky fibre
-                fibre_dists = {fibre: sky.dist_point(fibre_posns[fibre])
-                    for fibre in fibre_posns}
+                fibre_dists = {fibre: sky.dist_point(fibre_posns_all[fibre])
+                    for fibre in fibre_posns_all}
                     
                 permitted_fibres = sorted([fibre for fibre in fibre_dists
                     if fibre_dists[fibre] < PATROL_RADIUS],
