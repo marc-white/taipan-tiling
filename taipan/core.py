@@ -3653,6 +3653,210 @@ class TaipanTile(TaipanPoint):
 
         return removed_targets
 
+
+    def assign_sky_fibres(self, sky_targets, target_method='priority',  
+                          combined_weight=1.0,sequential_ordering=(2, 1), 
+                          check_tile_radius=True, rank_sky=False):
+        """
+        Assign sky coordinates to this tile.
+
+        Guides are assigned their own special fibres. This function will
+        attempt to assign up to GUIDES_PER_TILE to the guide fibres. If
+        necessary, it will then remove targets from this tile to allow
+        up to GUIDES_PER_TILE_MIN to be assigned. This is more complex than for
+        standards, because we are not removing targets to assign standards to
+        their fibres - rather, we have to work out the best targets to drop so
+        other fibres are no longer within FIBRE_EXCLUSION_DIAMETER of the guide
+        we wish to assign.
+
+        Parameters
+        ----------    
+        guide_targets : list of :class:`TaipanTarget`
+            The list of candidate guides for assignment.
+            
+        target_method : str
+            The method that should be used to determine the
+            lowest-priority target to remove to allow for an extra guide
+            star assignment to be made. Values for this input are as for
+            the 'method' option in assign_tile/unpick_tile. Defaults to
+            'priority'.
+            
+        combined_weight, sequential_ordering : float, 2-tuple of ints
+            Additional control options
+            for the specified target_method. See docs for assign_tile/
+            unpick_tile for description. Defaults to 1.0 and (1,2)
+            respectively.
+            
+        check_tile_radius : Boolean, optional
+            Boolean value, denoting whether to reduce the
+            guide_targets list to only those targets within the tile radius.
+            Defaults to True.
+            
+        rank_sky : Boolean, optional
+            Attempt to assign guides in priority order. This allows
+            for 'better' guides to be specified. Defaults to False.
+
+        Returns
+        -------    
+        removed_targets : list of :class:`TaipanTarget`
+            A list of TaipanTargets that have been removed to
+            make way for sky fibres. If no targets are removed, the empty
+            list is returned. Targets are *not* separated by type (science or
+            standard).
+        """
+
+        removed_targets = []
+        
+        # Each TaipanTile object will have a different set of fibres reserved as sky 
+        # fibres. Grab these and assign sky "targets" to them
+        FIBRES_SKY = [fibre for fibre in self.fibres if self.fibres[fibre] == "sky"]
+
+        # Calculate rest positions for all sky fibres
+        fibre_posns = {fibre: self.compute_fibre_posn(fibre) for fibre in FIBRES_SKY}
+
+        sky_this_tile = sky_targets[:]
+        
+        if check_tile_radius:
+            sky_this_tile = [g for g in sky_this_tile
+                if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
+
+        if rank_sky:
+            logging.debug('Sorting input sky list by priority')
+            sky_this_tile.sort(key=lambda x: -1 * x.priority)
+        else:
+            logging.debug('Sorting input sky list by dist to sky fibre')
+            # Instead of having randomly ordered sky, let's rank them
+            # by the distance to their nearest sky fibre
+            sky_this_tile.sort(key=lambda x: np.min([
+                x.dist_point(posn) for posn in fibre_posns.itervalues()
+            ]))
+
+        # Assign up to SKY_PER_TILE sky, check how many have already been assigned
+        assigned_sky = len([t for t in self._fibres.values() 
+            if isinstance(t, TaipanTarget) and t.sky])
+
+        logging.debug('Finding available fibres...')
+        # Loop while we have not assigned the required number of sky fibres *but* still 
+        # have candidate sky targets remaining
+        while assigned_sky < SKY_PER_TILE and len(sky_this_tile) > 0:
+            # Check that it is possible to place current sky fibre
+            sky = sky_this_tile[0]
+            if sky.is_target_forbidden(self.get_assigned_targets()):
+                sky_this_tile.pop(0)
+                continue
+
+            # Identify the closest fibre to this target
+            fibre_dists = {fibre: sky.dist_point(fibre_posns[fibre])
+                for fibre in fibre_posns}
+            permitted_fibres = sorted([fibre for fibre in fibre_dists
+                if fibre_dists[fibre] < PATROL_RADIUS],
+                key=lambda x: fibre_dists[x])
+            
+            # Attempt to make assignment
+            logging.debug('Looking to add to fiber...')
+            candidate_found = False
+            while not(candidate_found) and len(permitted_fibres) > 0:
+                if self._fibres[permitted_fibres[0]] == "sky":
+                    # Assign the target and 'pop' it from the input list
+                    self._fibres[permitted_fibres[0]] = sky_this_tile.pop(0)
+                    candidate_found = True
+                    assigned_sky += 1
+                    # print 'Done!'
+                else:
+                    permitted_fibres.pop(0)
+
+            if not(candidate_found):
+                # If this point has been reached, the best target cannot be
+                # assigned to this tile, so remove it from the
+                # candidates_this_tile list
+                # print 'Candidate not possible!'
+                sky_this_tile.pop(0)
+
+        assigned_objs = self.get_assigned_targets()
+        
+        # If we have not assigned to the minimum accepted number of sky fibres, but have
+        # exhausted all possibilities, we now have to remove science targets to reach the
+        # minimum accepted.
+        if assigned_sky < SKY_PER_TILE_MIN:
+            logging.debug('Having to strip targets for sky...')
+            sky_this_tile = [t for t in sky_targets if t not in assigned_objs]
+            if check_tile_radius:
+                sky_this_tile = [g for g in sky_this_tile
+                    if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
+            
+            # For the available sky, calculate the total weight of the targets which may 
+            # be blocking the assignment of that sky by ways of the fibre exclusion radius
+            # Weights are computed according to the passed target_method
+            # Work out which targets are obscuring each available sky
+            problem_targets = [g.excluded_targets(assigned_objs) for g in sky_this_tile]
+            
+            # Don't consider sky which are excluded by already-assigned sky
+            excluded_by_sky = [i for i in range(len(sky_this_tile)) if
+                                  np.any(map(lambda x: x.sky,
+                                             problem_targets[i]))]
+            sky_this_tile = [sky_this_tile[i] for i in
+                                range(len(sky_this_tile)) if
+                                i not in excluded_by_sky]
+            problem_targets = [problem_targets[i] for
+                               i in range(len(problem_targets)) if
+                               i not in excluded_by_sky]
+
+            # Compute the total ranking weights for targets blocking the remaining sky 
+            # candidates. Note that, for consistency, we must calculate the target 
+            # rankings as a combined group, and then sum from that list on a piecewise-
+            # basis. Otherwise, when we compute, e.g., a combined_weight ranking, the 
+            # scaling of the weights if we do the calculation for each sub-list of 
+            # problem_targets separately
+            problem_targets_all = list(set(flatten(problem_targets)))
+            
+            ranking_list = generate_ranking_list(problem_targets_all,
+                                                 method=target_method, 
+                                                 combined_weight=combined_weight,
+                                                 sequential_ordering=sequential_ordering)
+                                                 
+            problem_targets_rankings = [np.sum([ranking_list[i] 
+                for i in range(len(ranking_list)) 
+                if problem_targets_all[i] in pt]) for pt in problem_targets]
+
+            # Assign guides by removing the excluding target(s) with the lowest weighting 
+            # sum and assigning the sky
+            while assigned_sky < SKY_PER_TILE_MIN and len(sky_this_tile) > 0:
+                # Identify the lowest-ranked set of science targets excluding a sky
+                i = np.argmin(problem_targets_rankings)
+                sky = sky_this_tile[i]
+                
+                # Check related sky can actually be assigned to an available sky fibre
+                fibre_dists = {fibre: sky.dist_point(fibre_posns[fibre])
+                    for fibre in fibre_posns}
+                    
+                permitted_fibres = sorted([fibre for fibre in fibre_dists
+                    if fibre_dists[fibre] < PATROL_RADIUS],
+                    key=lambda x: fibre_dists[x])
+                    
+                if len(permitted_fibres) == 0:
+                    burn = problem_targets_rankings.pop(i)
+                    burn = problem_targets.pop(i)
+                    burn = sky_this_tile.pop(i)
+                    continue
+                    
+                # Remove the offending targets from the tile, and assign the sky
+                fibres_for_removal = [f for (f, t) in self._fibres.iteritems()
+                    if t in problem_targets[i]]
+                    
+                for f in fibres_for_removal:
+                    removed_targets.append(self.unassign_fibre(f))
+                    
+                self._fibres[permitted_fibres[0]] = sky_this_tile[i]
+                assigned_sky += 1
+                
+                # Pop these candidates from the lists
+                burn = problem_targets.pop(i)
+                burn = problem_targets_rankings.pop(i)
+                burn = sky_this_tile.pop(i)
+
+        return removed_targets
+        
+
     #@profile
     def unpick_tile(self, candidate_targets,
                     standard_targets, guide_targets,
