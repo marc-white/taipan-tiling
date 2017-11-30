@@ -4132,26 +4132,34 @@ class TaipanTile(TaipanPoint):
         
         # Each TaipanTile object will have a different set of fibres reserved as sky 
         # fibres. Grab these and assign sky "targets" to them
-        FIBRES_SKY = [fibre for fibre in self.fibres if self.fibres[fibre] == "sky"]
+        FIBRES_SKY = [fibre for fibre in self.fibres if self.fibres[fibre] ==
+                      "sky"]
 
         # Calculate rest positions for all sky fibres
-        fibre_posns = {fibre: self.compute_fibre_posn(fibre) for fibre in FIBRES_SKY}
+        fibre_posns = {fibre: self.compute_fibre_posn(fibre) for fibre in
+                       FIBRES_SKY}
         
         # Calculate rest positions for all non-guide fibres
-        # TODO: Consideration for avoiding standard fibres
+        # DONE: Consideration for avoiding standard fibres
         fibre_posns_all = {fibre: self.compute_fibre_posn(fibre) 
-                           for fibre in FIBRES_NORMAL if fibre not in FIBRES_GUIDE}
+                           for fibre in FIBRES_NORMAL if fibre not in
+                           FIBRES_GUIDE and
+                           fibre not in
+                           self.get_assigned_targets_standard(
+                               return_dict=True).keys()
+                           }
 
         # Reset the sky fibres
         for fibre in FIBRES_SKY:
-            self.fibres[fibre] == None
+            self.fibres[fibre] = None
         
         # Create a copy
         sky_this_tile = sky_targets[:]
         
         if check_tile_radius:
             sky_this_tile = [g for g in sky_this_tile
-                if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
+                             if g.dist_point((self.ra, self.dec, )) <
+                             TILE_RADIUS]
 
         if rank_sky:
             logging.debug('Sorting input sky list by priority')
@@ -4164,13 +4172,14 @@ class TaipanTile(TaipanPoint):
                 x.dist_point(posn) for posn in fibre_posns.itervalues()
             ]))
 
-        # Assign up to SKY_PER_TILE sky, check how many have already been assigned
+        # Assign up to SKY_PER_TILE sky, check how many have already
+        # been assigned
         assigned_sky = len([t for t in self._fibres.values() 
             if isinstance(t, TaipanTarget) and t.sky])
 
         logging.debug('Finding available fibres...')
-        # Loop while we have not assigned the required number of sky fibres *but* still 
-        # have candidate sky targets remaining
+        # Loop while we have not assigned the required number of sky fibres
+        # *but* still have candidate sky targets remaining
         while assigned_sky < SKY_PER_TILE and len(sky_this_tile) > 0:
             # Check that it is possible to place current sky fibre
             sky = sky_this_tile[0]
@@ -4206,10 +4215,10 @@ class TaipanTile(TaipanPoint):
                 sky_this_tile.pop(0)
 
         assigned_objs = self.get_assigned_targets()
-        
-        # If we have not assigned to the minimum accepted number of sky fibres, but have
-        # exhausted all possibilities, we now have to remove science targets to reach the
-        # minimum accepted.
+
+        # If we have not assigned to the minimum accepted number of sky fibres,
+        # but have exhausted all possibilities, we now have to remove science
+        # targets to reach the minimum accepted.
         if assigned_sky < SKY_PER_TILE_MIN:
             logging.debug('Having to strip targets for sky...')
             sky_this_tile = [t for t in sky_targets if t not in assigned_objs]
@@ -4217,11 +4226,13 @@ class TaipanTile(TaipanPoint):
                 sky_this_tile = [g for g in sky_this_tile
                     if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
             
-            # For the available sky, calculate the total weight of the targets which may 
-            # be blocking the assignment of that sky by ways of the fibre exclusion radius
+            # For the available sky, calculate the total weight of the targets
+            # which may be blocking the assignment of that sky by ways of the
+            # fibre exclusion radius
             # Weights are computed according to the passed target_method
             # Work out which targets are obscuring each available sky
-            problem_targets = [g.excluded_targets(assigned_objs) for g in sky_this_tile]
+            problem_targets = [g.excluded_targets(assigned_objs) for g in
+                               sky_this_tile]
             
             # Don't consider sky which are excluded by already-assigned sky
             excluded_by_sky = [i for i in range(len(sky_this_tile)) if
@@ -4244,8 +4255,10 @@ class TaipanTile(TaipanPoint):
             
             ranking_list = generate_ranking_list(problem_targets_all,
                                                  method=target_method, 
-                                                 combined_weight=combined_weight,
-                                                 sequential_ordering=sequential_ordering)
+                                                 combined_weight=
+                                                 combined_weight,
+                                                 sequential_ordering=
+                                                 sequential_ordering)
                                                  
             problem_targets_rankings = [np.sum([ranking_list[i] 
                 for i in range(len(ranking_list)) 
