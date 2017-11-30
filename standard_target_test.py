@@ -1,39 +1,18 @@
-"""Script for generating the tiling for FunnelWeb
-
-Notes about this script:
-- To change the settings used for tiling generation, modify funnelweb_tiling_settings.py
-- ipython "%run -i funnelweb_generate_tiling" to avoid having to read in target list twice
-  for repeated runs
-- Test speed with:
-    kernprof -l funnelweb_generate_tiling.py
-    python -m line_profiler script_to_profile.py.lprof
 """
-import taipan.core as tp
-import taipan.tiling as tl
-import taipan.fwtiling as fwtl
-from taipan.fwtiling import FWTiler
-from astropy.table import Table
-import random
-import sys
-import datetime
-import time
-import logging
+"""
 import numpy as np
-import cPickle
-import time
-import os
-import platform
-import funnelweb_plotting as fwplt
+import taipan.core as tp
+import taipan.fwtiling as fwtl
+from astropy.table import Table
 import funnelweb_tiling_settings as fwts
-from shutil import copyfile
-from collections import OrderedDict
+import time
 
 #-----------------------------------------------------------------------------------------
 # Helper Functions
 #-----------------------------------------------------------------------------------------
 def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab_type,
                  priorities=None, priority_normal=2, use_colour_cut=False, 
-                 standard_frac=0.1):
+                 standard_frac=0.1, colour_index="G-J"):
     """Function to import the input catalogue and make any required cuts.
     
     Parameters
@@ -106,9 +85,10 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
                 # for making cuts based on colour index (i.e. using 2MASS J & K), numbers
                 # which are not required elsewhere in the tiling code so it is needlessly
                 # complex to assign them as class parameters.
-                if is_standard(star, use_colour_cut, standard_frac, tab_type):
+                if is_standard(star, use_colour_cut, standard_frac, tab_type, "G-J"):
                     target.standard = True           
-            
+                if is_standard(star, use_colour_cut, standard_frac, tab_type, "J-K"):
+                    target.standard = True  
                 # All done, add to the master list
                 all_targets.append(target)    
             
@@ -126,9 +106,14 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
                                                                       priority_normal), 
                                          mag=star["Gaia_G_mag"], difficulty=1)
                 
-                # Check if star is a standard (same reasoning as above for tab_type=gaia)
-                if is_standard(star, use_colour_cut, standard_frac, tab_type):
-                    target.standard = True           
+                # Dodgy, but useful method for counting:
+                # Assign stars that satisfy the G-J colour index as standards, and those
+                # that satisfy the J-K index as guides
+                if is_standard(star, use_colour_cut, standard_frac, tab_type, "G-J"):
+                    target.standard = True   
+                            
+                if is_standard(star, use_colour_cut, standard_frac, tab_type, "J-K"):
+                    target.guide = True         
             
                 # All done, add to the master list
                 all_targets.append(target)
@@ -142,7 +127,8 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
     return all_targets
     
 
-def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw"):
+def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw",
+                colour_index="G-J"):
     """Prototype function to determine whether a star can be considered a standard or not.
     
     Parameters
@@ -165,19 +151,21 @@ def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw"):
     """
     if use_colour_cut:
         # Define the limits for the colour indices used to select A-type stars
-        COLOUR_INDEX_CENTRE = 0
-        COLOUR_INDEX_RANGE = 0.1
+        #COLOUR_INDEX_CENTRE = 0
+        #COLOUR_INDEX_RANGE = 0.1
 
-        COLOUR_INDEX_MIN = COLOUR_INDEX_CENTRE - COLOUR_INDEX_RANGE
-        COLOUR_INDEX_MAX = COLOUR_INDEX_CENTRE + COLOUR_INDEX_RANGE
+        COLOUR_INDEX_MIN = -0.05
+        COLOUR_INDEX_MAX = 0.15
 
         # Calculate the colour indices
         G_minus_J = star["Gaia_G_mag"] - star["2MASS_J_mag"]
         J_minus_K = star["2MASS_J_mag"] - star["2MASS_Ks_mag"]
 
         # Select as standards only those stars within the allowed colour indices
-        if (COLOUR_INDEX_MIN <= G_minus_J <= COLOUR_INDEX_MAX):# and \
-           #(COLOUR_INDEX_MIN <= J_minus_K <= COLOUR_INDEX_MAX):
+        if colour_index=="G-J" and (COLOUR_INDEX_MIN <= G_minus_J <= COLOUR_INDEX_MAX):
+            is_standard = True
+            
+        elif colour_index=="J-K" and (COLOUR_INDEX_MIN <= J_minus_K <= COLOUR_INDEX_MAX):
             is_standard = True
         else:
             is_standard = False
@@ -277,65 +265,12 @@ def update_taipan_quadrants():
                  k not in tp.FIBRES_GUIDE and
                  tp.QUAD_RADII[i+1] <= tp.BUGPOS_OFFSET[k][0] < tp.QUAD_RADII[i] and
                  j*theta <= tp.BUGPOS_OFFSET[k][1] < (j+1)*theta])
-                       
-#-----------------------------------------------------------------------------------------
-# Setup
-#-----------------------------------------------------------------------------------------
-# Reload fwts for repeated runs
-reload(fwts)
-
-# Change defaults. NB By changing in tp, we chance in tl.tp and fwtl.tp also.
-tp.TARGET_PER_TILE = fwts.script_settings["TARGET_PER_TILE"]
-tp.STANDARDS_PER_TILE = fwts.script_settings["STANDARDS_PER_TILE"]
-tp.STANDARDS_PER_TILE_MIN = fwts.script_settings["STANDARDS_PER_TILE_MIN"]
-tp.GUIDES_PER_TILE = fwts.script_settings["GUIDES_PER_TILE"]
-tp.GUIDES_PER_TILE_MIN = fwts.script_settings["GUIDES_PER_TILE_MIN"]
-
-# For guides and sky fibres: enough to fit a linear trend and get a chi-squared 
-# uncertainty distribution with 4 degrees of freedom, with 1 bad fibre.
-
-# To update the number of sky fibres, you need to update the following four parameters
-# and recompute the how the tile area itself is segmented into "quadrants". Sky fibres are
-# allocated in increments of the number of quadrants, so this needs to be recomputed in 
-# order to properly update the number of sky fibres used.
-tp.SKY_PER_TILE = fwts.script_settings["SKY_PER_TILE"]
-tp.SKY_PER_TILE_MIN = fwts.script_settings["SKY_PER_TILE_MIN"]
-tp.QUAD_RADII = fwts.script_settings["QUAD_RADII"]
-tp.QUAD_PER_RADII = fwts.script_settings["QUAD_PER_RADII"]
-
-update_taipan_quadrants()
-
-# Save a copy of the settings file for future reference
-# The file will be appropriately timestamped on completion of the tiling
-temp_timestamp = time.strftime("%y%d%m_%H%M_%S_")
-settings_file = "funnelweb_tiling_settings.py"
-temp_settings_file = "results/temp_" + temp_timestamp + settings_file
-copyfile(settings_file, temp_settings_file)
-
-# Prompt user for the description or motivation of the run
-run_description = raw_input("Description/motivation for tiling run: ")
-
-# No description given, assign one based on on-sky area and number of cores
-if run_description == "": 
-    ra_range = fwts.tiler_input["ra_max"] - fwts.tiler_input["ra_min"]
-    dec_range = fwts.tiler_input["dec_max"] - fwts.tiler_input["dec_min"]
-    run_description = "%s, %ix%i, backend=%s, n_cores=%i" % (platform.node(),
-                                                             ra_range, dec_range, 
-                                                             fwts.tiler_input["backend"],
-                                                             fwts.tiler_input["n_cores"])
-
-# Begin logging, ensuring that we create a new log file handler unique to this run
-log_file = "funnelweb_generate_tiling.log"
-temp_log_file = "results/temp_" + temp_timestamp + log_file
-log_file_handler = logging.FileHandler(temp_log_file, "a")
-logging.getLogger().handlers = [log_file_handler]
-
-# Initialise the tiler
-fwtiler = FWTiler(**fwts.tiler_input)
-
+                 
 #-----------------------------------------------------------------------------------------
 # Importing & Generating Science, Standard, and Guide Targets
 #-----------------------------------------------------------------------------------------
+ra_range = fwts.tiler_input["ra_max"] - fwts.tiler_input["ra_min"]
+dec_range = fwts.tiler_input["dec_max"] - fwts.tiler_input["dec_min"]
 try:
     # Check to see if we already have the targets imported, thus saving time
     if all_targets:
@@ -355,12 +290,6 @@ except NameError:
                                fwts.tiler_input["priority_normal"], 
                                fwts.script_settings["use_colour_cut"], 
                                fwts.script_settings["standard_frac"])
-    
-    # Compute the unit sphere (US) positions for each target
-    start = time.time()
-    burn = [t.compute_usposn() for t in all_targets]
-    delta = time.time() - start
-    print "Calculated target US positions in %d:%02.1f" % (delta/60, delta % 60.)
 
 # Make a copy of all_targets list for use in assigning fibres. For speed, this is a set
 candidate_targets = set(all_targets)
@@ -369,99 +298,10 @@ candidate_targets = set(all_targets)
 # candidate_targets set (i.e. using references to the same objects, rather than copies).
 
 # Standard stars are those that we previously flagged the 'standard' flag for
-standard_targets = [t for t in candidate_targets if t.standard==True]
+gj_targets = [t for t in candidate_targets if t.standard==True]
 
-# Guide targets are drawn from a separate magnitude range and will have their flags set
-# later during the tiling itself
-guide_targets = set([t for t in candidate_targets 
-                     if fwts.script_settings["guide_range"][0] < t.mag 
-                     < fwts.script_settings["guide_range"][1]])          
-                                                  
-#-----------------------------------------------------------------------------------------
-# Generate Tiling
-#-----------------------------------------------------------------------------------------
-print "Commencing tiling with %i core/s" % (fwts.tiler_input["n_cores"]),
-print "using %i science, %i standard, & %i guide targets\n" % (len(candidate_targets), 
-                                                               len(standard_targets), 
-                                                               len(guide_targets))
-start = datetime.datetime.now()
-tiling, completeness, remaining_targets = fwtiler.generate_tiling(candidate_targets, 
-                                                                  standard_targets, 
-                                                                  guide_targets)
-end = datetime.datetime.now()
+print "%i stars satisfy G-J cut for standards" % len(gj_targets)
 
-#-----------------------------------------------------------------------------------------
-# Analysis
-#-----------------------------------------------------------------------------------------
-time_to_complete = (end - start).total_seconds()
-non_standard_targets_per_tile = [t.count_assigned_targets_science(
-                                 include_science_standards=False) for t in tiling]
-targets_per_tile = [t.count_assigned_targets_science() for t in tiling]
-standards_per_tile = [t.count_assigned_targets_standard() for t in tiling]
-guides_per_tile = [t.count_assigned_targets_guide() for t in tiling]
+jk_targets = [t for t in candidate_targets if t.guide==True]
 
-print 'TILING STATS'
-print '------------'
-print 'FW tiling complete using %i core/s in %d:%2.1f' % (fwts.tiler_input["n_cores"],
-        int(np.floor(time_to_complete/60.)), time_to_complete % 60.)
-print '%d targets required %d tiles' % (len(all_targets), len(tiling), )
-print 'Tiling completeness = %4.4f, %i targets remaining' % (completeness, 
-        len(remaining_targets))
-print 'Average %3.1f targets per tile' % np.average(targets_per_tile)
-print '(min %d, max %d, median %d, std %2.1f)' % (min(targets_per_tile),
-    max(targets_per_tile), np.median(targets_per_tile), 
-    np.std(targets_per_tile))
-print "%i total targets, %i unique targets, %i duplicate targets" % \
-    fwtl.count_unique_science_targets(tiling)
-    
-#-----------------------------------------------------------------------------------------
-# Saving Tiling Outputs
-#-----------------------------------------------------------------------------------------
-# Use time stamp as run ID
-date_time = time.strftime("%y%d%m_%H%M_%S_")
-
-# Document the settings and results of the tiling run
-# Dictionary used to easily load results/settings of past runs, OrderedDict so txt has 
-# same format for every run (i.e. the keys are in the order added)
-run_settings = OrderedDict([("run_id", date_time[:-1]),
-                            ("description", run_description),
-                            ("mins_to_complete", time_to_complete/60.),
-                            ("num_targets", len(all_targets)),
-                            ("num_tiles", len(tiling)),
-                            ("avg_targets_per_tile", np.average(targets_per_tile)),
-                            ("min_targets_per_tile", min(targets_per_tile)),
-                            ("max_targets_per_tile", max(targets_per_tile)),
-                            ("median_targets_per_tile", np.median(targets_per_tile)),
-                            ("std_targets_per_tile", np.std(targets_per_tile)),
-                            ("tiling_completeness", completeness),
-                            ("remaining_targets", len(remaining_targets)),
-                            ("non_standard_targets_per_tile", 
-                             non_standard_targets_per_tile),
-                            ("targets_per_tile", targets_per_tile),
-                            ("standards_per_tile", standards_per_tile),
-                            ("guides_per_tile", guides_per_tile)]) 
-
-# Append input parameters for plotting/saving
-run_settings.update(fwts.tiler_input) 
-run_settings.update(fwts.script_settings)                             
-
-# Use pickle to save outputs of tiling in a binary format
-name = "results/" + date_time + "fw_tiling.pkl"
-output = open(name, "wb")
-cPickle.dump( (tiling, remaining_targets, run_settings), output, -1)
-output.close()
-
-# Timestamp the copy of the settings and log files from earlier
-final_settings_file = "results/" + date_time + settings_file
-os.rename(temp_settings_file, final_settings_file)
-
-final_log_file = "results/" + date_time + log_file
-os.rename(temp_log_file, final_log_file)
-
-print "Output files saved as results/%s*" % date_time
-                
-#-----------------------------------------------------------------------------------------
-# Plotting
-#-----------------------------------------------------------------------------------------
-# Create a pdf summary of the tiling run, with histograms broken up by magnitude range
-fwplt.plot_tiling(tiling, run_settings)
+print "%i stars satisfy J-K cut for standards" % len(jk_targets)

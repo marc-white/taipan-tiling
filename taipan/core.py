@@ -20,6 +20,7 @@ import operator
 import os
 import random
 import string
+import line_profiler
 
 import numpy as np
 from matplotlib.cbook import flatten
@@ -1416,10 +1417,18 @@ def compute_target_difficulties(target_list, full_target_list=None,
     if full_target_list:
         if verbose:
             'Checking target_list against full_target_list...'
-        if not np.all(np.in1d(target_list, full_target_list)):
+        # Notes about np.in1d - fails for object arrays that are unsortable. This is not a
+        # problem for the Taipan code, but for FunnelWeb, which implements object level
+        # equivalence (i.e. __eq__, __ne__, __cmp__), this check will always raise an 
+        # exception, even when the arrays are subsets. Future versions of numpy will fix 
+        # this, but for now a workaround is needed. See issue links for more details:
+        # 1) https://github.com/numpy/numpy/issues/9874
+        # 2) https://github.com/numpy/numpy/issues/9914
+        if not isinstance(target_list[0], FWTarget) \
+            and not np.all(np.in1d(target_list, full_target_list)):
             raise ValueError('target_list must be a sublist'
                              ' of full_target_list')
-
+            
     if verbose:
         logging.debug('Forming Cartesian positions...')
     # Calculate UC positions if they haven't been done already
@@ -1474,8 +1483,7 @@ def compute_target_difficulties(target_list, full_target_list=None,
     return
 
 
-def targets_in_range(ra, dec, target_list, dist,
-                     leafsize=BREAKEVEN_KDTREE):
+def targets_in_range(ra, dec, target_list, dist, leafsize=BREAKEVEN_KDTREE, tree=None):
     """
     Return the subset of ``target_list`` within ``dist`` of (``ra``, ``dec``).
 
@@ -1494,7 +1502,10 @@ def targets_in_range(ra, dec, target_list, dist,
     leafsize : int, optional
         The size of the leaves in the KDTree structure. Defaults to
         :any:`BREAKEVEN_KDTREE`.
-
+    tree : cKDTree
+        Pre-computed tree to use to save on processing. Defaults to 
+        :obj:`None` (at which point a new tree will be computed).
+      
     Returns
     -------
     targets_in_range : list of :class:`TaipanPoint` (or children of)
@@ -1510,16 +1521,22 @@ def targets_in_range(ra, dec, target_list, dist,
         targets_in_range = [t for t in target_list
             if t.dist_point((ra, dec)) < dist]
     else:
-        # Do KDTree computation
-        logging.debug('Generating KDTree with leafsize %d' % leafsize)
-        cart_targets = np.asarray([t.usposn for t in target_list])
-        # logging.debug(cart_targets)
-        tree = cKDTree(cart_targets, leafsize=leafsize)
-        logging.debug('Querying tree')
-        inds = tree.query_ball_point(polar2cart((ra, dec)),
-                                     dist_euclidean(dist / 3600.))
-        targets_in_range = [target_list[i] for i in inds]
-
+        if not tree:
+            # Do KDTree computation
+            logging.debug('Generating KDTree with leafsize %d' % leafsize)
+            cart_targets = np.asarray([t.usposn for t in target_list])
+            # logging.debug(cart_targets)
+            tree = cKDTree(cart_targets, leafsize=leafsize)
+            logging.debug('Querying tree')
+            inds = tree.query_ball_point(polar2cart((ra, dec)),
+                                         dist_euclidean(dist / 3600.))
+            targets_in_range = [target_list[i] for i in inds]
+        else:
+            # Tree has been supplied, save on computation time by using it
+            inds = tree.query_ball_point(polar2cart((ra, dec)),
+                                         dist_euclidean(dist / 3600.))
+            targets_in_range = [target_list[i] for i in inds]
+            
     return targets_in_range
 
 
@@ -1922,7 +1939,7 @@ class TaipanTarget(TaipanPoint):
     def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
                  h0=False, vpec=False, lowz=False, science=True,
-                 assign_science=True):
+                 assign_science=True, sky=False):
         """
         Parameters
         ----------
@@ -1952,6 +1969,8 @@ class TaipanTarget(TaipanPoint):
         assign_science : Boolean, optional
             Do we automatically assign the science flag based on standard and guide 
             flags? Defaults to True
+        sky: boolean
+            Denotes this target as a science target. Defaults to False.
         """
         # Initialise the base class
         TaipanPoint.__init__(self, ra, dec, usposn)
@@ -1964,6 +1983,7 @@ class TaipanTarget(TaipanPoint):
         self._science = None
         self._difficulty = None
         self._mag = None
+        self._sky = None
 
         # Taipan-specific fields
         self._h0 = None
@@ -1984,6 +2004,7 @@ class TaipanTarget(TaipanPoint):
         self.h0 = h0
         self.vpec = vpec
         self.lowz = lowz
+        self.sky = sky
         
         # A default useful for Taipan (FunnelWeb will override,
         # as it takes its standards
@@ -2007,14 +2028,14 @@ class TaipanTarget(TaipanPoint):
     #                                             == other.standard) and (
     #             self.guide == other.guide)
     #     return False
-    #
+    # 
     # def __ne__(self, other):
     #     if isinstance(other, self.__class__):
     #         return not((self.idn == other.idn) and (self.standard
     #                                                 == other.standard) and (
     #             self.guide == other.guide))
     #     return True
-    #
+    # 
     # def __cmp__(self, other):
     #     if isinstance(other, self.__class__):
     #         if (self.idn == other.idn) and (self.standard
@@ -2022,6 +2043,7 @@ class TaipanTarget(TaipanPoint):
     #                     self.guide == other.guide):
     #             return 0
     #     return 1
+
 
     @property
     def idn(self):
@@ -2170,6 +2192,16 @@ class TaipanTarget(TaipanPoint):
     def vpec(self, b):
         b = bool(b)
         self._vpec = b
+        
+    @property
+    def sky(self):
+        """Is this target a sky fibre"""
+        return self._sky
+
+    @sky.setter
+    def sky(self, b):
+        b = bool(b)
+        self._sky = b
 
     def return_target_code(self):
         """
@@ -2357,6 +2389,82 @@ class TaipanTarget(TaipanPoint):
             return True
         return False
 
+
+class FWTarget(TaipanTarget):
+    """Derived class for the FunnelWeb survey, primarily to allow object equivalence and
+    having sky fibres
+    """
+    def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
+                 guide=False, difficulty=0, mag=None,
+                 h0=False, vpec=False, lowz=False, science=True,
+                 assign_science=True, sky=False):
+        """
+        Parameters
+        ----------
+        idn : int
+            Unique target ID
+        ra, dec: float, degrees
+            RA, Dec position of target
+        ucposn : 3-tuple of floats , optional
+            Target (x, y, z) position on the unit sphere. Defaults to None,
+            at which point the position will be calculated internally and
+            stored
+        priority : int, optional
+            Target priority value. Defaults to 1
+        standard : Boolean, optional
+            Denotes this target as a standard. Defaults to False.
+        guide : Boolean, optional
+            Denotes this target as a guide. Defaults to False.
+        difficulty : int, optional
+            Number of targets that this target would exclude. Defaults to 0.
+        mag : float, optional
+            Target magnitude. Defaults to None.
+        h0, vpec, lowz : Boolean, optional
+            Booleans denoting if a target is an H0 target, a low-redshift (lowz)
+            target, or a peculiar velocity (vpec) target. All default to False.
+        science : Boolean, optional
+            Denotes this target as a science target. Defaults to True
+        assign_science : Boolean, optional
+            Do we automatically assign the science flag based on standard and guide 
+            flags? Defaults to True
+        sky: boolean
+            Denotes this target as a science target. Defaults to False.
+        """
+        # Initialise the base class
+        TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard, guide, 
+                              difficulty, mag, h0, vpec, lowz, science, assign_science,
+                              sky)
+        
+    def __repr__(self):
+        return 'FW TGT %s' % str(self._idn)
+
+    def __str__(self):
+        return 'FW TGT %s' % str(self._idn)
+
+    # Two FWTargets should be considered equal if they have the same ID, and status as
+    # science/standard/guide/sky targets.
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (self.idn == other.idn) and (self.standard == other.standard) \
+                   and (self.guide == other.guide) and (self.sky == other.sky)
+        return False
+    
+    def __ne__(self, other):
+        if isinstance(other, self.__class__):
+            return not((self.idn == other.idn) and (self.standard == other.standard) 
+                    and (self.guide == other.guide) and (self.sky == other.sky))
+        return True
+    
+    def __cmp__(self, other):
+        if isinstance(other, self.__class__):
+            if (self.idn == other.idn) and (self.standard == other.standard) \
+                and (self.guide == other.guide) and (self.sky == other.sky):
+                return 0
+        return 1
+        
+    def __hash__(self):
+        return hash((self.idn, self.standard, self.guide, self.sky))
+        
 
 class TaipanTile(TaipanPoint):
     """
@@ -2923,6 +3031,44 @@ class TaipanTile(TaipanPoint):
             tile.
         """
         no_assigned_targets = len(self.get_assigned_targets_guide())
+        return no_assigned_targets
+        
+    def get_assigned_targets_sky(self, return_dict=False):
+        """
+        Return a list of sky TaipanTargets currently assigned to this tile.
+
+        Parameters
+        ----------    
+        return_dict : bool
+            Boolean value denoting whether to return the result as
+            a dictionary with keys corresponding to fibre number (True), or
+            a simple list of targets (False). Defaults to False.
+
+        Returns
+        -------    
+        assigned_targets : list or dict of :class:`TaipanTarget`
+            The list of sky TaipanTargets currently 
+            assigned to this tile.
+        """
+        assigned_targets = {f: t for (f, t) in self._fibres.iteritems()
+                            if isinstance(t, TaipanTarget)}
+        assigned_targets = {f: t for (f, t) in assigned_targets.iteritems()
+                            if t.sky}
+        if return_dict:
+            return assigned_targets
+        return assigned_targets.values()
+
+    def count_assigned_targets_sky(self):
+        """
+        Count the number of sky targets assigned to this tile.
+
+        Returns
+        -------    
+        no_assigned_targets : int
+            The number of sky targets assigned to this
+            tile.
+        """
+        no_assigned_targets = len(self.get_assigned_targets_sky())
         return no_assigned_targets
 
     def count_assigned_fibres(self):
@@ -3929,6 +4075,220 @@ class TaipanTile(TaipanPoint):
                 burn = guides_this_tile.pop(i)
 
         return removed_targets
+
+
+    def assign_sky_fibres(self, sky_targets, target_method='priority',  
+                          combined_weight=1.0,sequential_ordering=(2, 1), 
+                          check_tile_radius=True, rank_sky=False):
+        """
+        Assign sky coordinates to this tile.
+
+        Guides are assigned their own special fibres. This function will
+        attempt to assign up to GUIDES_PER_TILE to the guide fibres. If
+        necessary, it will then remove targets from this tile to allow
+        up to GUIDES_PER_TILE_MIN to be assigned. This is more complex than for
+        standards, because we are not removing targets to assign standards to
+        their fibres - rather, we have to work out the best targets to drop so
+        other fibres are no longer within FIBRE_EXCLUSION_DIAMETER of the guide
+        we wish to assign.
+
+        Parameters
+        ----------    
+        guide_targets : list of :class:`TaipanTarget`
+            The list of candidate guides for assignment.
+            
+        target_method : str
+            The method that should be used to determine the
+            lowest-priority target to remove to allow for an extra guide
+            star assignment to be made. Values for this input are as for
+            the 'method' option in assign_tile/unpick_tile. Defaults to
+            'priority'.
+            
+        combined_weight, sequential_ordering : float, 2-tuple of ints
+            Additional control options
+            for the specified target_method. See docs for assign_tile/
+            unpick_tile for description. Defaults to 1.0 and (1,2)
+            respectively.
+            
+        check_tile_radius : Boolean, optional
+            Boolean value, denoting whether to reduce the
+            guide_targets list to only those targets within the tile radius.
+            Defaults to True.
+            
+        rank_sky : Boolean, optional
+            Attempt to assign guides in priority order. This allows
+            for 'better' guides to be specified. Defaults to False.
+
+        Returns
+        -------    
+        removed_targets : list of :class:`TaipanTarget`
+            A list of TaipanTargets that have been removed to
+            make way for sky fibres. If no targets are removed, the empty
+            list is returned. Targets are *not* separated by type (science or
+            standard).
+        """
+
+        removed_targets = []
+        
+        # Each TaipanTile object will have a different set of fibres reserved as sky 
+        # fibres. Grab these and assign sky "targets" to them
+        FIBRES_SKY = [fibre for fibre in self.fibres if self.fibres[fibre] == "sky"]
+
+        # Calculate rest positions for all sky fibres
+        fibre_posns = {fibre: self.compute_fibre_posn(fibre) for fibre in FIBRES_SKY}
+        
+        # Calculate rest positions for all non-guide fibres
+        # TODO: Consideration for avoiding standard fibres
+        fibre_posns_all = {fibre: self.compute_fibre_posn(fibre) 
+                           for fibre in FIBRES_NORMAL if fibre not in FIBRES_GUIDE}
+
+        # Reset the sky fibres
+        for fibre in FIBRES_SKY:
+            self.fibres[fibre] == None
+        
+        # Create a copy
+        sky_this_tile = sky_targets[:]
+        
+        if check_tile_radius:
+            sky_this_tile = [g for g in sky_this_tile
+                if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
+
+        if rank_sky:
+            logging.debug('Sorting input sky list by priority')
+            sky_this_tile.sort(key=lambda x: -1 * x.priority)
+        else:
+            logging.debug('Sorting input sky list by dist to sky fibre')
+            # Instead of having randomly ordered sky, let's rank them
+            # by the distance to their nearest sky fibre
+            sky_this_tile.sort(key=lambda x: np.min([
+                x.dist_point(posn) for posn in fibre_posns.itervalues()
+            ]))
+
+        # Assign up to SKY_PER_TILE sky, check how many have already been assigned
+        assigned_sky = len([t for t in self._fibres.values() 
+            if isinstance(t, TaipanTarget) and t.sky])
+
+        logging.debug('Finding available fibres...')
+        # Loop while we have not assigned the required number of sky fibres *but* still 
+        # have candidate sky targets remaining
+        while assigned_sky < SKY_PER_TILE and len(sky_this_tile) > 0:
+            # Check that it is possible to place current sky fibre
+            sky = sky_this_tile[0]
+            if sky.is_target_forbidden(self.get_assigned_targets()):
+                sky_this_tile.pop(0)
+                continue
+
+            # Identify the closest fibre to this target
+            fibre_dists = {fibre: sky.dist_point(fibre_posns[fibre])
+                for fibre in fibre_posns}
+            permitted_fibres = sorted([fibre for fibre in fibre_dists
+                if fibre_dists[fibre] < PATROL_RADIUS],
+                key=lambda x: fibre_dists[x])
+            
+            # Attempt to make assignment
+            logging.debug('Looking to add to fiber...')
+            candidate_found = False
+            while not(candidate_found) and len(permitted_fibres) > 0:
+                if self._fibres[permitted_fibres[0]] == "sky":
+                    # Assign the target and 'pop' it from the input list
+                    self._fibres[permitted_fibres[0]] = sky_this_tile.pop(0)
+                    candidate_found = True
+                    assigned_sky += 1
+                    # print 'Done!'
+                else:
+                    permitted_fibres.pop(0)
+
+            if not(candidate_found):
+                # If this point has been reached, the best target cannot be
+                # assigned to this tile, so remove it from the
+                # candidates_this_tile list
+                # print 'Candidate not possible!'
+                sky_this_tile.pop(0)
+
+        assigned_objs = self.get_assigned_targets()
+        
+        # If we have not assigned to the minimum accepted number of sky fibres, but have
+        # exhausted all possibilities, we now have to remove science targets to reach the
+        # minimum accepted.
+        if assigned_sky < SKY_PER_TILE_MIN:
+            logging.debug('Having to strip targets for sky...')
+            sky_this_tile = [t for t in sky_targets if t not in assigned_objs]
+            if check_tile_radius:
+                sky_this_tile = [g for g in sky_this_tile
+                    if g.dist_point((self.ra, self.dec, )) < TILE_RADIUS]
+            
+            # For the available sky, calculate the total weight of the targets which may 
+            # be blocking the assignment of that sky by ways of the fibre exclusion radius
+            # Weights are computed according to the passed target_method
+            # Work out which targets are obscuring each available sky
+            problem_targets = [g.excluded_targets(assigned_objs) for g in sky_this_tile]
+            
+            # Don't consider sky which are excluded by already-assigned sky
+            excluded_by_sky = [i for i in range(len(sky_this_tile)) if
+                                  np.any(map(lambda x: x.sky,
+                                             problem_targets[i]))]
+            sky_this_tile = [sky_this_tile[i] for i in
+                                range(len(sky_this_tile)) if
+                                i not in excluded_by_sky]
+            problem_targets = [problem_targets[i] for
+                               i in range(len(problem_targets)) if
+                               i not in excluded_by_sky]
+
+            # Compute the total ranking weights for targets blocking the remaining sky 
+            # candidates. Note that, for consistency, we must calculate the target 
+            # rankings as a combined group, and then sum from that list on a piecewise-
+            # basis. Otherwise, when we compute, e.g., a combined_weight ranking, the 
+            # scaling of the weights if we do the calculation for each sub-list of 
+            # problem_targets separately
+            problem_targets_all = list(set(flatten(problem_targets)))
+            
+            ranking_list = generate_ranking_list(problem_targets_all,
+                                                 method=target_method, 
+                                                 combined_weight=combined_weight,
+                                                 sequential_ordering=sequential_ordering)
+                                                 
+            problem_targets_rankings = [np.sum([ranking_list[i] 
+                for i in range(len(ranking_list)) 
+                if problem_targets_all[i] in pt]) for pt in problem_targets]
+
+            # Assign guides by removing the excluding target(s) with the lowest weighting 
+            # sum and assigning the sky
+            while assigned_sky < SKY_PER_TILE_MIN and len(sky_this_tile) > 0:
+                # Identify the lowest-ranked set of science targets excluding a sky
+                i = np.argmin(problem_targets_rankings)
+                sky = sky_this_tile[i]
+                
+                # Check related sky can actually be assigned to an available sky fibre
+                fibre_dists = {fibre: sky.dist_point(fibre_posns_all[fibre])
+                    for fibre in fibre_posns_all}
+                    
+                permitted_fibres = sorted([fibre for fibre in fibre_dists
+                    if fibre_dists[fibre] < PATROL_RADIUS],
+                    key=lambda x: fibre_dists[x])
+                    
+                if len(permitted_fibres) == 0:
+                    burn = problem_targets_rankings.pop(i)
+                    burn = problem_targets.pop(i)
+                    burn = sky_this_tile.pop(i)
+                    continue
+                    
+                # Remove the offending targets from the tile, and assign the sky
+                fibres_for_removal = [f for (f, t) in self._fibres.iteritems()
+                    if t in problem_targets[i]]
+                    
+                for f in fibres_for_removal:
+                    removed_targets.append(self.unassign_fibre(f))
+                    
+                self._fibres[permitted_fibres[0]] = sky_this_tile[i]
+                assigned_sky += 1
+                
+                # Pop these candidates from the lists
+                burn = problem_targets.pop(i)
+                burn = problem_targets_rankings.pop(i)
+                burn = sky_this_tile.pop(i)
+
+        return removed_targets
+        
 
     #@profile
     def unpick_tile(self, candidate_targets,
