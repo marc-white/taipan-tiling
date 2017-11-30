@@ -1,5 +1,10 @@
 # Simulate a full tiling of the Taipan galaxy survey
 
+
+"""
+This module was the initial simulation to be set up.
+"""
+
 import sys
 import logging
 import taipan.tiling as tl
@@ -17,48 +22,72 @@ from functools import partial
 import multiprocessing
 from joblib import Parallel, delayed
 
-from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
-from src.resources.v0_0_1.readout.readGuides import execute as rGexec
-from src.resources.v0_0_1.readout.readStandards import execute as rSexec
-from src.resources.v0_0_1.readout.readScience import execute as rScexec
-from src.resources.v0_0_1.readout.readTileScores import execute as rTSexec
-from src.resources.v0_0_1.readout.readCentroidsAffected import execute as rCAexec
-from src.resources.v0_0_1.readout.readScienceTypes import execute as rSTyexec
-from src.resources.v0_0_1.readout.readScienceTile import execute as rSTiexec
-from src.resources.v0_0_1.readout.readSciencePosn import execute as rSPexec
-from src.resources.v0_0_1.readout.readScienceVisits import execute as rSVexec
-from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+from taipandb.resources.stable.readout.readCentroids import execute as rCexec
+from taipandb.resources.stable.readout.readGuides import execute as rGexec
+from taipandb.resources.stable.readout.readStandards import execute as rSexec
+from taipandb.resources.stable.readout.readScience import execute as rScexec
+from taipandb.resources.stable.readout.readTileScores import execute as rTSexec
+from taipandb.resources.stable.readout.readCentroidsAffected import execute as rCAexec
+from taipandb.resources.stable.readout.readScienceTypes import execute as rSTyexec
+from taipandb.resources.stable.readout.readScienceTile import execute as rSTiexec
+from taipandb.resources.stable.readout.readSciencePosn import execute as rSPexec
+from taipandb.resources.stable.readout.readScienceVisits import execute as rSVexec
+from taipandb.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-import src.resources.v0_0_1.readout.readAlmanacStats as rAS
+import taipandb.resources.stable.readout.readAlmanacStats as rAS
 
-from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
+from taipandb.resources.stable.insert.insertTiles import execute as iTexec
 
-from src.resources.v0_0_1.manipulate.makeScienceVisitInc import execute as mSVIexec
-from src.resources.v0_0_1.manipulate.makeScienceRepeatInc import execute as mSRIexec
-from src.resources.v0_0_1.manipulate.makeTilesObserved import execute as mTOexec
-from src.resources.v0_0_1.manipulate.makeTilesQueued import execute as mTQexec
-from src.resources.v0_0_1.manipulate.makeTargetPosn import execute as mTPexec
-from src.resources.v0_0_1.manipulate.makeTilesReset import execute as mTRexec
-from src.resources.v0_0_1.manipulate.makeScienceTypes import execute as mScTyexec
-from src.resources.v0_0_1.manipulate.makeSciencePriorities import execute as mScPexec
-from src.resources.v0_0_1.manipulate.makeScienceDiff import execute as mSDexec
-from src.resources.v0_0_1.manipulate import makeObservingLog as mOL
+from taipandb.resources.stable.manipulate.makeScienceVisitInc import execute as mSVIexec
+from taipandb.resources.stable.manipulate.makeScienceRepeatInc import execute as mSRIexec
+from taipandb.resources.stable.manipulate.makeTilesObserved import execute as mTOexec
+from taipandb.resources.stable.manipulate.makeTilesQueued import execute as mTQexec
+from taipandb.resources.stable.manipulate.makeTargetPosn import execute as mTPexec
+from taipandb.resources.stable.manipulate.makeTilesReset import execute as mTRexec
+from taipandb.resources.stable.manipulate.makeScienceTypes import execute as mScTyexec
+from taipandb.resources.stable.manipulate.makeSciencePriorities import execute as mScPexec
+from taipandb.resources.stable.manipulate.makeScienceDiff import execute as mSDexec
+from taipandb.resources.stable.manipulate import makeObservingLog as mOL
 
-import src.resources.v0_0_1.manipulate.makeNSciTargets as mNScT
+import taipandb.resources.stable.manipulate.makeNSciTargets as mNScT
 
-from src.scripts.connection import get_connection
+from taipandb.scripts.connection import get_connection
 
 from simulate import test_redshift_success
 
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
+USE_NEW_FIELDS_AVAIL = True
+
 # HELPER FUNCITONS
 
 
-def hours_obs_reshuffle(f,
-                        # cursor=get_connection().cursor(),
+def _hours_obs_reshuffle(f,
+                         # cursor=get_connection().cursor(),
                         dt=None, datetime_to=None,
-                        hours_better=True, airmass_delta=0.05):
+                         hours_better=True, airmass_delta=0.05):
+    """
+    Helper function for parallelizing the determination of hours observable
+
+    Parameters
+    ----------
+    f : :obj:`int`
+        Field ID
+    dt : :obj:`datetime.datetime`
+        Current datetime
+    datetime_to : :obj:`datetime.datetime`
+        Datetime to consider to for the computation of hours available.
+    hours_better : :obj:`bool`
+        See documentation for :any:`readAlmanacStats.hours_observable`.
+    airmass_delta : obj:`float`
+        See documentation for :any:`readAlmanacStats.hours_observable`.
+
+    Returns
+    -------
+    hrs: :obj:`float`
+        The number of hours that this field remains observable over the
+        prescribed time period.
+    """
     # Multipool process needs its own cursor
     # if cursor is None:
     #     cursor = get_connection().cursor()
@@ -70,28 +99,60 @@ def hours_obs_reshuffle(f,
     return hrs
 
 
-def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
-                   commit=True):
+def _field_period_reshuffle(f,
+                            dt=None, per_end=None,
+                            ):
     """
-    This initial step prepares the database for the simulation run by getting
-    the fields in from the database, performing the initial tiling of fields,
-    and then returning that information to the database for later use.\d
+    Helper function for parallelizing the retrieval of next available field
+    period
 
     Parameters
     ----------
-    cursor:
-        psycopg2 cursor for interacting with the database.
-    prepare_time:
-        Optional; datetime.datetime instance that the database should be
-        considered to be prepared at (e.g., initial tiles will have
-        date_config set to this). Defaults to datetime.datetime.now().
-    commit:
-        Optional; Boolean value denoting whether to hard-commit changes to
-        actual database. Defaults to True.
+    f : :obj:`int`
+        Field ID
+    dt : :obj:`datetime.datetime`
+        Datetime that we are searching forward from (inclusively)
+    per_end : :obj:`datetime.datetime`
+        End of the time period we are searching through
 
     Returns
     -------
-    Nil. Database updated in place.
+    period : (:obj:`datetime.datetime`, :obj:`datetime.datetime`) or
+    (:obj:`None`, :obj:`None`)
+        Time period that this field is observable for
+    """
+    with get_connection().cursor() as cursor_int:
+        period = rAS.next_observable_period(
+            cursor_int, f, dt,
+            datetime_to=per_end,
+        )
+    return period
+
+
+def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
+                   commit=True):
+    """
+    Perform initial database set-up at the start of the run
+
+    This initial step prepares the database for the simulation run by getting
+    the fields in from the database, performing the initial tiling of fields,
+    and then returning that information to the database for later use.
+
+    Note that this function does *not* do any target loading, almanac loading
+    or related functions - these should have been done previously using the
+    utitlies available in :any:`TaipanDB`.
+
+    Parameters
+    ----------
+    cursor : :obj:`psycopg2.connection.cursor`
+        psycopg2 cursor for interacting with the database.
+    prepare_time: :obj:`datetime.datetime`
+        Optional; datetime.datetime instance that the database should be
+        considered to be prepared at (e.g., initial tiles will have
+        date_config set to this). Defaults to datetime.datetime.now().
+    commit: :obj:`bool`
+        Optional; Boolean value denoting whether to hard-commit changes to
+        actual database. Defaults to True.
     """
 
     logger = logging.getLogger()
@@ -157,6 +218,82 @@ def sim_dq_analysis(cursor, tiles_observed, tiles_observed_at,
                     prob_lowz_each=0.8, prisci=False,
                     do_diffs=False,
                     hrs_better=None, airmass=None):
+    """
+    Perform simulated data analysis on simulated observations
+
+    This function is effectively a wrapper to
+    :any:`taipan.simulate.simulate.test_redshift_success`.
+    It also handles all the
+    necessary database options around the actual determination of the
+    redshift success. The procedure is:
+
+    - Get the target IDs of all observed targets
+    - Run `taipan.simulate.test_redshift_success` on these targets
+    - Record the result to the observing log first
+    - Increment the visits or repeats number of the targets in the database
+      as appropriate (visits increments if the observation was unsuccessful,
+      repeats increments and visits goes to 0 if successful)
+    - Update the science target information (e.g. priorities) based on the
+      updated success/visits/repeats
+    - Mark the tiles passed in as 'observed' in the database
+    - Set all tiles in the database to be unqueued
+
+    Note that this algorithm has two important assumptions:
+
+    - Targets will only be observed once on the tile set passed in. Therefore,
+      this function should be called before every attempt to re-tile
+      any fields based on observational results.
+    - *All* tiles marked as 'queued' in the simulator (that is, sent to be
+      observed, but status currently unknown) should be passed to this function
+      at once. The last step of the algorithm above (set all tiles to unqueued)
+      is a safety check against errant flags, and will destroy the queued
+      status of any tiles that are legitimately still queued, even if they've
+      not been passed to this function.
+
+
+    Parameters
+    ----------
+    cursor : :obj:`psycopg2.connection.cursor`
+        Cursor for database communication
+    tiles_observed : :obj:`list` of :any:`TaipanTile`
+        The list of :any:`TaipanTile` observed
+    tiles_observed_at : :obj:`list` of :obj:`datetime.datetime`
+        The list of times that ``tiles_observed`` were observed at. There
+        is a one-to-one correspondence between tiles and observing times.
+    prob_bugfail : :obj:`float`
+        The probability of any one Starbug failing (e.g. failing to find
+        correct position, falling off the plate, other malfunction) for any
+        one observation. Must be <= 1.
+    prob_vpec_first : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the first visit. Must be <= 1.
+    prob_vpec_second : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the second visit. Must be <= 1.
+    prob_vpec_third : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the second visit. Must be <= 1.
+    prob_vpec_fourth : :obj:`float`
+        Probability that a peculiar velocity target will be successfully
+        observed on the second visit. Must be <= 1.
+    prob_lowz_each : :obj:`float`
+        Probability that a low redshift science target will be successfully
+        observed on *any* visit. Must be <= 1.
+    prisci : :obj:`bool`
+        Flag denoting whether to use priority science or main survey tiling
+        schema.
+    do_diffs : :obj:`bool`
+        Flag denoting whether to recompute target difficulties are evaluating
+        observation success.
+    hrs_better : :obj:`float`
+        DEPRECATED. The hours_better value of the tile when observed. This
+        functionality is now handled by the observing_log database table; should
+        leave this as default value (:obj:`None`).
+    airmass : obj:`float`
+        DEPRECATED. The airmass the tile when observed. This
+        functionality is now handled by the observing_log database table; should
+        leave this as default value (:obj:`None`).
+    """
     # -------
     # FAKE DQ/SCIENCE ANALYSIS
     # -------
@@ -285,9 +422,44 @@ def select_best_tile(cursor, dt, per_end,
                      midday_start=None,
                      prioritize_lowz=True,
                      resolution=15.,
-                     multipool_workers=multiprocessing.cpu_count()):
+                     multipool_workers=multiprocessing.cpu_count(),
+                     dark=True, grey=False):
     """
     Select the best tile to observe at the current datetime.
+
+    The algorithm for determining the best tile is as follows:
+
+    - Read in the tile score information from the database
+    - Use the almanac information stored in the database to determine which
+      tiles will be available for observation within the current time period.
+    - For those tiles, compute an 'hours remaining' statistic from the
+      almanacs database. This is the number of hours that the field will
+      be observable over some period of time (which may be evaluated differently
+      depending on which targets are in which fields, whether we are in
+      priority or main survey operations, etc.)
+    - Compute the number of targets awaiting observation on the available
+      fields.
+    - Compute the final tile score (see below)
+    - Return the primary key of the tile to observe (or :obj:`None` if no tile
+      is available).
+
+    The final tile score is computed as:
+
+    .. math::
+        \textrm {metric} * targets rem. / hours rem. \sum_x \t{l}
+
+    This has the effect of:
+
+    - Prioritising fields that have a lot of targets left to go through;
+    - Prioritising fields that will not be available very often in the upcoming
+      months/years.
+
+    The exact details of which targets count towards this score, and over
+    which time period to compute the time remaining to observe the field,
+    are parameters which can be tweaked in code. At present, the metrics are:
+
+    Only tiles which are marked as unqueued and unobserved in the database will
+    be considered.
 
     Note that the function will analyse observability at the given time with
     no interest in configure time etc. - users should therefore pass the time
@@ -295,89 +467,142 @@ def select_best_tile(cursor, dt, per_end,
 
     Parameters
     ----------
-    cursor : psycopg2 cursor
+    cursor : :obj:`psycopg2.connection.cursor`
         For interacting with the database
-    dt : datetime.datetime object
+    dt : :obj:`datetime.datetime`
         Current datetime (should be naive, but in UTC)
-    per_end:
+    per_end : :obj:`datetime.datetime`
         End of the time bracket (e.g. dark time ends) when tiles should
         be considered to. Used to compute field observability.
-    midday_end: datetime.datetime object
-        Midday after the lowz prioritization period finishes,
+    midday_end: :obj:`datetime.datetime`
+        Midday after the priority science period finishes,
         transformed to UTC
-    midday_start: datetime.datetime object, optional
+    midday_start: :obj:`datetime.datetime`
         Midday before the survey begins,
         transformed to UTC. Defaults to None.
-    prioritize_lowz : Boolean, optional
-        Whether or not to prioritize fields with lowz targets by computing
+    prioritize_lowz : :obj:`bool`
+        Whether or not to prioritize fields with hurry-up targets by computing
         the hours_observable for those fields against a set end date, and
-        compute all other fields against a rolling one-year end date.
+        compute all other fields against a rolling end date.
         Defaults to True.
-    resolution: float, optional, representing minutes
+    resolution: :obj:`float`, minutes
         Denotes the resolution of the almanacs being used. Defaults to 15.
+    multipool_workers : :obj:`int`
+        The number of pool workers to use in parallel computations/retrievals
+        from the database. Defaults to :any:`multiprocessing.cpu_count`.
+    dark, grey: :obj:`bool`
+        Boolean values denoting whether to return the next observable period
+        of grey time, dark time, or all night time (which corresponds to both
+        dark and grey being False). Trying to pass dark=True and grey=True will
+        raise a ValueError.
 
     Returns
     -------
-    tile_pk: int or None
-        The primary key of the tile that should be observed. Returns None
+    tile_pk: :obj:`int` or :obj:`None`
+        The primary key of the tile that should be observed. Returns :obj:`None`
         if no tile is available.
+    fields_available, tiles_scores, scores_array, field_periods, fields_by_tile,
+    hours_obs : :any:`numpy` arrays
+        Data used to compute the best tile to observe. Designed to be fed into
+        the :any:`check_tile_choice` function.
     """
     # Get the latest scores_array
     logging.info('Fetching scores array...')
-    scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum',
-                                            'n_sci_rem'],
-                           ignore_zeros=True, unobserved_only=True)
+    scores_array = rTSexec(cursor, metrics=[
+        # 'cw_sum',
+        'prior_sum',
+        'n_sci_rem',
+    ],
+                           ignore_zeros=False, unobserved_only=True,
+                           ignore_empty=True
+                           )
+    logging.info('-- Number of waiting tiles: %d' % len(scores_array))
     scores_array.sort(order='field_id')
 
     logging.info('Fetching next field periods...')
 
+    logging.info('-- Finding available fields')
     fields_available = rAS.find_fields_available(
         cursor, dt, datetime_to=per_end,
         field_list=list(scores_array['field_id']),
-        resolution=resolution)
-    field_periods = {r['field_id']: rAS.next_observable_period(
-        cursor, r['field_id'], dt,
-        datetime_to=per_end
-    ) for
-        r in
-        # scores_array
-        fields_available
-    }
-    # logging.debug('Next observing period for each field:')
-    # logging.debug(field_periods)
-    # logging.info('Next available field will rise at %s' %
-    #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
-    #                    field_periods.itervalues() if
-    #                    v[0] is not None]),)
-    #              )
-    fields_available = [f for f, v in field_periods.iteritems() if
-                        v[0] is not None and v[0] < per_end]
-    logging.debug('%d fields available at some point tonight' %
-                  len(fields_available))
-    # Further trim fields_available for to account for field observability
-    # at the time of observation
-    fields_available = [f for f in fields_available if
-                        field_periods[f][0] is not None and
-                        field_periods[f][1] is not None and
-                        field_periods[f][0] < dt and
-                        field_periods[f][1] > dt + datetime.timedelta(
-                            seconds=ts.OBS_TIME)
-                        ]
+        resolution=resolution,
+        dark=dark, grey=grey
+    )
+    fields_available.sort(order='field_id')
+
+    nop_workers = 1  # Set to 1 for single-thread next_observable_period,
+    # set to multipool_workers to utilize threading
+
+    logging.info('-- Computing field periods')
+
+    if USE_NEW_FIELDS_AVAIL:
+        fields_available = rAS.get_fields_available_pointing(
+            cursor, dt, minimum_airmass=2.0,
+            resolution=resolution,
+            pointing_time=ts.POINTING_TIME,
+        )
+        fields_available = fields_available['field_id']
+        field_periods = None
+    else:
+        if nop_workers == 1:
+            field_periods = {r['field_id']: rAS.next_observable_period(
+                cursor, r['field_id'], dt,
+                datetime_to=per_end,
+            ) for
+                r in
+                # scores_array
+                fields_available
+            }
+        else:
+            field_periods_partial = partial(_field_period_reshuffle, dt=dt,
+                                            per_end=per_end)
+            pool = multiprocessing.Pool(nop_workers)
+            field_periods = pool.map(field_periods_partial,
+                                     fields_available['field_id'])
+            pool.close()
+            pool.join()
+            field_periods = {fields_available['field_id'][i]: field_periods[i] for i
+                             in range(len(field_periods))}
+
+        # logging.debug('Next observing period for each field:')
+        # logging.debug(field_periods)
+        # logging.info('Next available field will rise at %s' %
+        #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
+        #                    field_periods.values() if
+        #                    v[0] is not None]),)
+        #              )
+        fields_available = [f for f, v in field_periods.items() if
+                            v[0] is not None and v[0] < per_end]
+        logging.debug('%d fields available at some point tonight' %
+                      len(fields_available))
+        # Further trim fields_available for to account for field observability
+        # at the time of observation
+        logging.info('-- Trimming fields_available to now')
+        fields_available = [f for f in fields_available if
+                            field_periods[f][0] is not None and
+                            field_periods[f][1] is not None and
+                            field_periods[f][0] < dt and
+                            field_periods[f][1] > dt + datetime.timedelta(
+                                seconds=ts.OBS_TIME)
+                            ]
     logging.info('Currently %d fields available for observation' %
                  len(fields_available))
 
     # Rank the available fields
     logging.info('Computing field scores')
     start = datetime.datetime.now()
+    logging.info('-- Forming tile score dictonary')
     tiles_scores_raw = {row['tile_pk']: (row['n_sci_rem'], row['prior_sum'])
                         for
                         row in scores_array if
                         row['field_id'] in fields_available}
+    logging.info('  -- There are now %d tiles in contention' %
+                 len(tiles_scores_raw))
     fields_by_tile = {row['tile_pk']: row['field_id'] for
                       row in scores_array if
                       row['field_id'] in fields_available}
 
-    hours_obs_stan_partial = partial(hours_obs_reshuffle,
+    hours_obs_stan_partial = partial(_hours_obs_reshuffle,
                                      # cursor=cursor,
                                      dt=dt,
                                      datetime_to=dt + datetime.timedelta(
@@ -386,7 +611,7 @@ def select_best_tile(cursor, dt, per_end,
                                      airmass_delta=0.05
                                      )
 
-    hours_obs_lowz_partial = partial(hours_obs_reshuffle,
+    hours_obs_lowz_partial = partial(_hours_obs_reshuffle,
                                      # cursor=cursor,
                                      dt=dt,
                                      datetime_to=max(
@@ -410,9 +635,10 @@ def select_best_tile(cursor, dt, per_end,
     fields_to_calculate = list(set(fields_by_tile.values()))
     fields_to_calculate.sort()
 
+    logging.info('-- Calculating scores')
     if prioritize_lowz:
         lowz_fields = rCBTexec(cursor, 'is_lowz_target',
-                               unobserved=True, threshold_value=50,
+                               unobserved=True, threshold_value=30,
                                assigned_only=True)
         lowz_of_interest = [f for f in fields_to_calculate if f in lowz_fields]
         stan_fields = [f for f in fields_to_calculate if f not in
@@ -532,8 +758,8 @@ def select_best_tile(cursor, dt, per_end,
         hours_obs = {fields_to_calculate[i]: hrs[i] for i in
                      range(len(fields_to_calculate))}
 
-    logging.debug('Hours_observable:')
-    logging.debug(hours_obs)
+    # logging.debug('Hours_observable:')
+    # logging.debug(hours_obs)
 
     # Need to replace any points where hours_obs=0 with the almanac resolution;
     # otherwise, 0 hours fields will be forcibly observed, even if their score
@@ -544,8 +770,8 @@ def select_best_tile(cursor, dt, per_end,
 
     tiles_scores = {t: (v[0] * v[1] / hours_obs[fields_by_tile[t]]) for
                     t, v in tiles_scores_raw.items()}
-    logging.debug('Tiles scores: ')
-    logging.debug(tiles_scores)
+    # logging.debug('Tiles scores: ')
+    # logging.debug(tiles_scores)
     end = datetime.datetime.now()
     delta = end - start
     logging.info('Computed tile scores/hours remaining in %d:%2.1f' %
@@ -557,7 +783,7 @@ def select_best_tile(cursor, dt, per_end,
 
     logging.info('At time %s, considering til %s' % (
         dt.strftime('%Y-%m-%d %H:%M:%S'),
-        dt.strftime('%Y-%m-%d %H:%M:%S'),
+        per_end.strftime('%Y-%m-%d %H:%M:%S'),
     ))
 
     # Select the best ranked field we can see
@@ -565,7 +791,7 @@ def select_best_tile(cursor, dt, per_end,
         # logging.debug('Next observing period for each field:')
         # logging.debug(field_periods)
         # Generator pattern
-        # tile_to_obs = (t for t, v in sorted(tiles_scores.iteritems(),
+        # tile_to_obs = (t for t, v in sorted(tiles_scores.items(),
         #                                     key=lambda x: -1. * x[1]
         #                                     ) if
         #                field_periods[fields_by_tile[t]][0] is not
@@ -635,20 +861,24 @@ def check_tile_choice(cursor, dt, tile_to_obs, fields_available, tiles_scores,
                       scores_array, field_periods, fields_by_tile, hours_obs,
                       abort=False):
     """
-    Do some simple checking of the selection made by select_best_tile
+    Do some simple checking of the selection made by select_best_tile.
+
+    This function uses the data generated by :any:`select_best_tile`, but uses
+    a different algorithm to confirm that the best tile was indeed selected.
+    This function should not be required in production.
 
     Parameters
     ----------
-    cursor : psycopg2 cursor
+    cursor : :obj:`psycopg2.connection.cursor`
         For interacting with the database
-    dt : datetime.datetime object
+    dt : :obj:`datetime.datetime`
         Current datetime (should be naive, but in UTC)
-    tile_to_obs : int
+    tile_to_obs : :obj:`int`
         The PK of the tile that has been selected
     scores_array, field_periods, fields_by_tile, hours_obs : numpy arrays
         Arrays of numpy data. These match those arrays output by
-        select_best_tile
-    abort : Boolean, optional
+        :any:`select_best_tile`.
+    abort : :obj:`bool`, optional
         Boolean value denoting whether to abort the run if a failure is
         detected. If true, diagnostic information will be dumped to the logging
         system, the cursor will commit to the database, and then sys.exit() will
@@ -742,10 +972,20 @@ def sim_do_night(cursor, date, date_start, date_end,
                  commit=True, kill_time=None,
                  prisci_end=None):
     """
-    Do a simulated 'night' of observations. This involves:
-    - Determine the tiles to do tonighttar
-    - 'Observe' them
-    - Update the DB appropriately
+    Do a simulated 'night' of observations.
+
+    This involves:
+
+    - Determine the first block of available time for observing (currently
+      hardcoded to be 'dark' time), and advance time to then.
+    - During the block of available time, until the end of the block is reached:
+
+      - Determine the tiles to do next;
+      - 'Observe' it;
+      - Update the DB appropriately;
+      - Advance time by :any:`taipan.scheduling.POINTING_TIME` and repeat.
+
+    - Repeat the procedure until the end of the night is reached.
 
     Parameters
     ----------
@@ -862,7 +1102,9 @@ def sim_do_night(cursor, date, date_start, date_end,
     dark_start, dark_end = rAS.next_night_period(cursor, midday,
                                                  limiting_dt=
                                                  midday + datetime.timedelta(1),
-                                                 dark=True, grey=False)
+                                                 dark=True, grey=False,
+                                                 field_id=scores_array[
+                                                     'field_id'][0])
     end = datetime.datetime.now()
     delta = end - start
     logging.info('Found first block of dark time in %d:%2.1f' %
@@ -927,10 +1169,17 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # This triggers if fields will be available later tonight,
                 # but none are up right now. What we do now is advance time_now
                 # to the first time when any field becomes available
-                local_utc_now = min([v[0] for f, v in
-                                     field_periods.items()
-                                     if v[0] is not None and
-                                     v[0] > local_utc_now])
+                if USE_NEW_FIELDS_AVAIL:
+                    local_utc_now = rAS.next_time_available(
+                        cursor, local_utc_now,
+                        end_dt=dark_end, minimum_airmass=2.0,
+                        resolution=15.,
+                    )
+                else:
+                    local_utc_now = min([v[0] for f, v in
+                                         field_periods.items()
+                                         if v[0] is not None and
+                                         v[0] > local_utc_now])
                 if local_utc_now is None:
                     logging.info('There appears to be no valid observing time '
                                  'remaining out to the end_date')
@@ -941,12 +1190,12 @@ def sim_do_night(cursor, date, date_start, date_end,
                 # local_time_now = ts.localize_utc_dt(ts.ephem_to_dt(
                 #     ephem_time_now, ts.EPHEM_DT_STRFMT))
                 continue
-            else:
-                _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
-                                      fields_available, tiles_scores,
-                                      scores_array, field_periods,
-                                      fields_by_tile, hours_obs,
-                                      abort=False)
+            # else:
+            #     _ = check_tile_choice(cursor, local_utc_now, tile_to_obs,
+            #                           fields_available, tiles_scores,
+            #                           scores_array, field_periods,
+            #                           fields_by_tile, hours_obs,
+            #                           abort=False)
 
             # 'Observe' the field
             logging.info('Observing tile %d (score: %.1f), field %d at '
@@ -1100,28 +1349,35 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             instant_dq=False, seed=None, kill_time=None,
             prior_lowz_end=None, weather_loss=0.4):
     """
-    Execute the simulation
+    Execute the simulation.
+
+    .. warning::
+        This function encapsulates the initial simulation scheme considered.
+        It should now be considered redundant, and other simulation packages
+        (e.g. :any:`fullsurvey_baseline`) should be run instead.
+
+    Tiling outputs are written to the database (to simulate the action of
+    the virtual observer). Anything generated and written out to file will end
+    up in output_loc (although currently nothing is).
+
     Parameters
     ----------
-    cursor:
+    cursor: :obj:`psycopg2.connection.cursor`
         psycopg2 cursor for communicating with the database.
-    output_loc:
+    output_loc: :obj:`str`
         String providing the path for placing the output plotting images.
         Defaults to '.' (ie. the present working directory). Directory must
         already exist.
-    date_start:
+    date_start: :obj:`datetime.date`
         The start date of the simulated observing period. Should be a
         datetime.date instance.
-    date_end:
+    date_end: :obj:`datetime.date`
         The final day of the simulated observing period. Should be a
         datetime.date instance.
-    output_loc:
-        Optional; location for storing any command-line returns from the
-        simulation. Defaults to '.' (i.e. present working directory).
-    prep_db:
+    prep_db: :obj:`bool`
         Boolean value, denoting whether or not to invoke the sim_prepare_db
         function before beginning the simulation. Defaults to True.
-    instant_dq:
+    instant_dq: :obj:`bool`
         Optional Boolean value, denoting whether to immediately apply
         simulated data quality checks at the tile selection phase (effectively,
         assume instantaneous data processing; True) or not, which requires
@@ -1133,13 +1389,11 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         simulator operations. This is useful for making comparisons between
         different simulator runs. Defaults to None, such that no seed is
         applied.
-        .. warning:: Supplying a seed will not work if the Python environment
-                     variable ``PYTHONHASHSEED`` has been set.
-    prior_lowz_end : datetime.timedelta object, optional
+    prior_lowz_end : :obj:`datetime.timedelta`, optional
         Denotes for how long after the start of the survey that lowz targets
         should be prioritized. Defaults to None, and which point lowz fields
         will always be prioritized (if prioritize_lowz=True).
-    weather_loss: float, in the range [0, 1)
+    weather_loss: :obj:`float`, in the range :math:`[0, 1)`
         Percentage of nights lost to weather every calendar year. The nights
         to be lost will be computed at the start of each calendar year, to
         ensure exactly 40% of nights are lost per calendar year (or part
@@ -1147,9 +1401,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
     Returns
     -------
-    Nil. Tiling outputs are written to the database (to simulate the action of
-    the virtual observer). Anything generated and written out to file will end
-    up in output_loc (although currently nothing is).
+    :obj:`None`
     """
 
     # Seed the random number generator
@@ -1184,9 +1436,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     # # Work out which of the field almanacs already exist on disk
     # files_on_disk = os.listdir(output_loc)
     # almanacs_existing = {k: v.generate_file_name() in files_on_disk
-    #                      for (k, v) in almanacs.iteritems()}
+    #                      for (k, v) in almanacs.items()}
     # logging.info('Saving almanacs to disc...')
-    # for k in [k for (k, v) in almanacs_existing.iteritems() if not v]:
+    # for k in [k for (k, v) in almanacs_existing.items() if not v]:
     #     almanacs[k].save()
     # end = datetime.datetime.now()
     # delta = end - start

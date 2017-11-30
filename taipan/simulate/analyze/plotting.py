@@ -2,18 +2,18 @@
 
 import numpy as np
 
-from src.resources.v0_0_1.readout import readTileObservingInfo as rTOI
-from src.resources.v0_0_1.readout import readAlmanacStats as rAS
-from src.resources.v0_0_1.readout import readCentroids as rC
-from src.resources.v0_0_1.readout import readFibrePosns as rFP
-from src.resources.v0_0_1.readout import readScienceObservingInfo as rSOI
-from src.resources.v0_0_1.readout.readCentroidsByTarget import execute as \
+from taipandb.resources.stable.readout import readTileObservingInfo as rTOI
+from taipandb.resources.stable.readout import readAlmanacStats as rAS
+from taipandb.resources.stable.readout import readCentroids as rC
+from taipandb.resources.stable.readout import readFibrePosns as rFP
+from taipandb.resources.stable.readout import readScienceObservingInfo as rSOI
+from taipandb.resources.stable.readout.readCentroidsByTarget import execute as \
     rCBTexec
-from src.resources.v0_0_1.readout.readObservingLog import execute as rOLexec
-from src.resources.v0_0_1.readout.readScienceVisits import execute as rScVexec
-from src.resources.v0_0_1.readout.readScienceTypes import execute as rScTexec
-from src.resources.v0_0_1.readout.readSciencePosn import execute as rScPexec
-from src.resources.v0_0_1.readout.readScienceDates import execute as rScDexec
+from taipandb.resources.stable.readout.readObservingLog import execute as rOLexec
+from taipandb.resources.stable.readout.readScienceVisits import execute as rScVexec
+from taipandb.resources.stable.readout.readScienceTypes import execute as rScTexec
+from taipandb.resources.stable.readout.readSciencePosn import execute as rScPexec
+from taipandb.resources.stable.readout.readScienceDates import execute as rScDexec
 
 from ..utils.allskymap import AllSkyMap
 
@@ -988,10 +988,10 @@ def plot_hours_remain_analysis(cursor,
         # logging.debug(field_periods)
         # logging.info('Next available field will rise at %s' %
         #              (min([v[0].strftime('%Y-%m-%d %H:%M:%S') for v in
-        #                    field_periods.itervalues() if
+        #                    field_periods.values() if
         #                    v[0] is not None]),)
         #              )
-        fields_available = [f for f, v in field_periods.iteritems() if
+        fields_available = [f for f, v in field_periods.items() if
                             v[0] is not None and v[0] < dark_end]
         # logging.debug('%d fields available at some point tonight' %
         #               len(fields_available))

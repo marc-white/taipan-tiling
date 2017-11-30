@@ -36,7 +36,6 @@ def value_from_trunc_norm(loc, scale, trim_low, trim_high):
     return rv
 
 
-
 def simulate_weather_interrupt(datetime, weather_function, **kwargs):
     """
     Simulate a weather interruption using a pre-defined, date-specific
@@ -48,8 +47,7 @@ def simulate_weather_interrupt(datetime, weather_function, **kwargs):
         The current datetime. This is important for some of the weather
         functions, which will return success of failure with a probability
         dependent on the date.
-    Further keyword arguments may be passed, depending on which weather
-    function is invoked.
+    **kwargs
 
     Returns
     -------
@@ -61,7 +59,7 @@ def simulate_weather_interrupt(datetime, weather_function, **kwargs):
     """
 
 
-def wf_flat(dt, prob=0.005, fail_mean=120., fail_width=120. **kwargs):
+def wf_flat(dt, prob=0.005, fail_mean=120., fail_width=120., **kwargs):
     """
     Weather function which returns a flat probability of a weather failure,
     regardless of the current datetime.

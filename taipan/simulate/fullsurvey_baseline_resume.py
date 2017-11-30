@@ -1,4 +1,5 @@
-# Simulate a full tiling of the Taipan galaxy survey
+# Restart a full tiling of the Taipan galaxy survey
+# Assumes you want to run a fibre changover on the restart
 
 import taipan.simulate.fullsurvey as tfs
 import taipan.scheduling as ts
@@ -32,46 +33,32 @@ import taipan.simulate.logic as tsl
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
 
-def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
+def execute(cursor, date_start, date_end, output_loc='.', prep_db=False,
             instant_dq=False, seed=None, kill_time=None,
             prior_lowz_end=None, weather_loss=0.4):
     """
-    Execute the baseline-case simulation.
-
-    The baseline case simulation assumes the following:
-
-    - Start and end dates specified as per the ``__main__`` code block;
-    - Approximately 12-18 months of 'priority science' operations;
-    - Loss of a month of time around the start of 2019 to install an
-      extra 150 fibres into the instrument;
-    - A period of 'full survey' operations out to the end of 2022.
-
-    .. warning::
-        Supplying a seed will not work if the Python environment variable
-        :any:`PYTHONHASHSEED` has been set.
-
-    Tiling outputs are written to the database (to simulate the action of
-    the virtual observer). Anything generated and written out to file will end
-    up in output_loc (although currently nothing is)
-
+    Execute the simulation
     Parameters
     ----------
-    cursor: :obj:`psycopg2.connection.cursor`
+    cursor:
         psycopg2 cursor for communicating with the database.
-    output_loc: :obj:`str`
+    output_loc:
         String providing the path for placing the output plotting images.
         Defaults to '.' (ie. the present working directory). Directory must
         already exist.
-    date_start: :obj:`datetime.date`
+    date_start:
         The start date of the simulated observing period. Should be a
         datetime.date instance.
-    date_end: :obj:`datetime.date`
+    date_end:
         The final day of the simulated observing period. Should be a
         datetime.date instance.
-    prep_db: :obj:`bool`
+    output_loc:
+        Optional; location for storing any command-line returns from the
+        simulation. Defaults to '.' (i.e. present working directory).
+    prep_db:
         Boolean value, denoting whether or not to invoke the sim_prepare_db
         function before beginning the simulation. Defaults to True.
-    instant_dq: :obj:`bool`
+    instant_dq:
         Optional Boolean value, denoting whether to immediately apply
         simulated data quality checks at the tile selection phase (effectively,
         assume instantaneous data processing; True) or not, which requires
@@ -83,11 +70,13 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         simulator operations. This is useful for making comparisons between
         different simulator runs. Defaults to None, such that no seed is
         applied.
-    prior_lowz_end : :obj:`datetime.timedelta`
+        .. warning:: Supplying a seed will not work if the Python environment
+                     variable ``PYTHONHASHSEED`` has been set.
+    prior_lowz_end : datetime.timedelta object, optional
         Denotes for how long after the start of the survey that lowz targets
         should be prioritized. Defaults to None, and which point lowz fields
         will always be prioritized (if prioritize_lowz=True).
-    weather_loss: :obj:`float`, in the range [0, 1)
+    weather_loss: float, in the range [0, 1)
         Percentage of nights lost to weather every calendar year. The nights
         to be lost will be computed at the start of each calendar year, to
         ensure exactly 40% of nights are lost per calendar year (or part
@@ -95,7 +84,9 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
     Returns
     -------
-    :obj:`None`
+    Nil. Tiling outputs are written to the database (to simulate the action of
+    the virtual observer). Anything generated and written out to file will end
+    up in output_loc (although currently nothing is).
     """
 
     # Seed the random number generator
@@ -103,17 +94,17 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         random.seed(seed)
         np.random.seed(seed)
 
-    if prep_db:
-        start = datetime.datetime.now()
-        tfs.sim_prepare_db(cursor,
-                           prepare_time=ts.utc_local_dt(
-                               datetime.datetime.combine(
-                                   date_start, datetime.time(12, 0))),
-                           commit=True)
-        end = datetime.datetime.now()
-        delta = end - start
-        logging.info('Completed DB prep in %d:%2.1f' %
-                     (delta.total_seconds() / 60, delta.total_seconds() % 60.))
+    # if prep_db:
+    #     start = datetime.datetime.now()
+    #     tfs.sim_prepare_db(cursor,
+    #                        prepare_time=ts.utc_local_dt(
+    #                            datetime.datetime.combine(
+    #                                date_start, datetime.time(12, 0))),
+    #                        commit=True)
+    #     end = datetime.datetime.now()
+    #     delta = end - start
+    #     logging.info('Completed DB prep in %d:%2.1f' %
+    #                  (delta.total_seconds() / 60, delta.total_seconds() % 60.))
 
 
 
@@ -153,6 +144,60 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
     weather_fail_thresh = np.percentile(weather_fails.values(),
                                         weather_loss*100.)
     while curr_date <= date_end:
+        if curr_date == date_start:
+            pass
+            # logging.warning('FIBRE CHANGEOVER')
+            # # logging.warning('ABORTING at tile changeover')
+            # # sys.exit()
+            # # Modify taipan.core.BUGPOS_MM to add in another 150
+            # # science fibres
+            # # We do this by adding a new fibre in between each pair of
+            # # consecutive science fibres
+            # # tp.FIBRES_NORMAL.sort()
+            # # last_fibre = np.max(tp.BUGPOS_MM.keys())
+            # # for i in range(len(tp.FIBRES_NORMAL)):
+            # #     pos_avg = (
+            # #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][0],
+            # #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][0]]),
+            # #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][1],
+            # #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][1]]),
+            # #     )
+            # #     tp.BUGPOS_MM[last_fibre + i + 1] = pos_avg
+            # #     tp.BUGPOS_ARCSEC[last_fibre + i + 1] = (
+            # #         pos_avg[0] * tp.ARCSEC_PER_MM,
+            # #         pos_avg[1] * tp.ARCSEC_PER_MM,
+            # #     )
+            # #     tp.BUGPOS_OFFSET[last_fibre + i + 1] = (
+            # #         math.sqrt(pos_avg[0]**2 + pos_avg[1]**2),
+            # #         math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
+            # #     )
+            # #     tp.FIBRES_NORMAL.append(last_fibre + i + 1)
+            # # tp.TARGET_PER_TILE = 270
+            # # tp.FIBRES_PER_TILE = 309
+            # # tp.INSTALLED_FIBRES = 309
+            # tp._alter_fibres(no_fibres=300)
+            # # Lose 30 days to the upgrade
+            # curr_date += datetime.timedelta(days=30.)
+            # # Need to now do:
+            # # Complete re-compute of target types, priorities and difficulties
+            # update_science_targets(cursor, target_list=None,
+            #                        do_d=True,
+            #                        prisci=
+            #                        (curr_date - sim_start) < prior_lowz_end)
+            #
+            # # Switch the field statuses
+            # # mCS.execute(cursor, remove_inactive_tiles=True)
+            # # mScD.execute(cursor)t
+            # # Complete re-tile of all fields
+            # fields_to_retile = [t.field_id for t in rCexec(cursor)]
+            # retile_fields(cursor, fields_to_retile, tiles_per_field=1,
+            #               tiling_time=ts.utc_local_dt(datetime.datetime.combine(
+            #                   curr_date,
+            #                   datetime.time(12,0,0)
+            #               )),
+            #               disqualify_below_min=False,
+            #               multicores=7
+            #               )
         if weather_fails[curr_date] > weather_fail_thresh:
             tfs.sim_do_night(cursor, curr_date, date_start, date_end,
                              almanac_dict=almanacs, dark_almanac=dark_almanac,
@@ -172,57 +217,6 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                 }
             weather_fail_thresh = np.percentile(weather_fails.values(),
                                                 weather_loss * 100.)
-        if curr_date == sim_start + prior_lowz_end:
-            # logging.warning('ABORTING at tile changeover')
-            # sys.exit()
-            # Modify taipan.core.BUGPOS_MM to add in another 150
-            # science fibres
-            # We do this by adding a new fibre in between each pair of
-            # consecutive science fibres
-            # tp.FIBRES_NORMAL.sort()
-            # last_fibre = np.max(tp.BUGPOS_MM.keys())
-            # for i in range(len(tp.FIBRES_NORMAL)):
-            #     pos_avg = (
-            #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][0],
-            #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][0]]),
-            #         np.average([tp.BUGPOS_MM[tp.FIBRES_NORMAL[i]][1],
-            #                     tp.BUGPOS_MM[tp.FIBRES_NORMAL[i + 1]][1]]),
-            #     )
-            #     tp.BUGPOS_MM[last_fibre + i + 1] = pos_avg
-            #     tp.BUGPOS_ARCSEC[last_fibre + i + 1] = (
-            #         pos_avg[0] * tp.ARCSEC_PER_MM,
-            #         pos_avg[1] * tp.ARCSEC_PER_MM,
-            #     )
-            #     tp.BUGPOS_OFFSET[last_fibre + i + 1] = (
-            #         math.sqrt(pos_avg[0]**2 + pos_avg[1]**2),
-            #         math.degrees(math.atan2(pos_avg[0], pos_avg[1])) % 360.,
-            #     )
-            #     tp.FIBRES_NORMAL.append(last_fibre + i + 1)
-            # tp.TARGET_PER_TILE = 270
-            # tp.FIBRES_PER_TILE = 309
-            # tp.INSTALLED_FIBRES = 309
-            tp._alter_fibres(no_fibres=300)
-            # Lose 30 days to the upgrade
-            curr_date += datetime.timedelta(days=30.)
-            # Need to now do:
-            # Complete re-compute of target types, priorities and difficulties
-            update_science_targets(cursor, target_list=None,
-                                   do_d=True,
-                                   prisci=False)
-            # Switch the field statuses
-            # mCS.execute(cursor, remove_inactive_tiles=True)
-            # mScD.execute(cursor)t
-            # Complete re-tile of all fields
-            fields_to_retile = [t.field_id for t in rCexec(cursor)]
-            retile_fields(cursor, fields_to_retile, tiles_per_field=1,
-                          tiling_time=ts.utc_local_dt(datetime.datetime.combine(
-                              curr_date,
-                              datetime.time(12,0,0)
-                          )),
-                          disqualify_below_min=False,
-                          # prisci=prioritize_lowz_today,
-                          multicores=7
-                          )
 
 
         # if curr_date == datetime.date(2017, 4, 5):
@@ -235,7 +229,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2017, 12, 4)
+    sim_start = datetime.date(2020, 5, 21)
     sim_end = datetime.date(2022, 7, 1)
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.date(2022, 7, 1) - sim_start
@@ -273,7 +267,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    logging.info('Executing fullsurvey.py as file')
+    logging.info('Executing fullsurvey_baseline_resume.py as file')
     logging.info('*** THIS IS AN INSTANT-FEEDBACK SIMULATION')
 
     # Get a cursor
@@ -285,7 +279,7 @@ if __name__ == '__main__':
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
-            output_loc='.', prep_db=True, kill_time=kill_time,
+            output_loc='.', prep_db=False, kill_time=kill_time,
             seed=100, prior_lowz_end=prior_lowz_end)
 
     global_end = datetime.datetime.now()

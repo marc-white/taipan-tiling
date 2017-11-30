@@ -5,16 +5,16 @@ import logging
 
 import taipan.tiling as tl
 
-from src.resources.v0_0_1.readout.readScience import execute as rScexec
-from src.resources.v0_0_1.readout.readGuides import execute as rGexec
-from src.resources.v0_0_1.readout.readStandards import execute as rSexec
-from src.resources.v0_0_1.readout.readCentroids import execute as rCexec
-from src.resources.v0_0_1.readout.readCentroidsAffected import execute as \
+from taipandb.resources.stable.readout.readScience import execute as rScexec
+from taipandb.resources.stable.readout.readGuides import execute as rGexec
+from taipandb.resources.stable.readout.readStandards import execute as rSexec
+from taipandb.resources.stable.readout.readCentroids import execute as rCexec
+from taipandb.resources.stable.readout.readCentroidsAffected import execute as \
     rCAexec
 
-from src.resources.v0_0_1.insert.insertTiles import execute as iTexec
+from taipandb.resources.stable.insert.insertTiles import execute as iTexec
 
-from src.resources.v0_0_1.delete.deleteTiles import execute as dTexec
+from taipandb.resources.stable.delete.deleteTiles import execute as dTexec
 
 from taipan.simulate.utils.updatesci import update_science_targets
 from taipan.core import compute_target_difficulties
