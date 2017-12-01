@@ -11,6 +11,7 @@ from taipandb.resources.stable.readout.readStandards import execute as rSexec
 from taipandb.resources.stable.readout.readCentroids import execute as rCexec
 from taipandb.resources.stable.readout.readCentroidsAffected import execute as \
     rCAexec
+from taipandb.resources.stable.readout.readSkies import execute as rSkexec
 
 from taipandb.resources.stable.insert.insertTiles import execute as iTexec
 
@@ -25,7 +26,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                   delete_queued=False, bins=1,
                   repick_after_complete=False,
                   do_priorities=True,
-                  multicores=7):
+                  multicores=7, assign_sky_fibres=False):
     """
     Re-tile the fields passed.
 
@@ -59,6 +60,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
         Optional integer, denoting how many bins to split re-tiling into.
         Tiling appears to be optimally efficient for 10-20 tiles per batch.
         Defaults to 1 (i.e. tiling will be done in one batch).
+    assign_sky_fibres:
+        Optional Boolean, telling the system whether to assign sky fibres to
+        sky targets, or leave them with the special value 'sky'.
 
     Returns
     -------
@@ -111,6 +115,9 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
 
         guide_targets = rGexec(cursor, field_list=fields_w_targets)
         standard_targets = rSexec(cursor, field_list=fields_w_targets)
+        if assign_sky_fibres:
+            sky_targets = rSkexec(cursor, field_list=fields_w_targets)
+
         fields_to_tile = rCexec(cursor, field_ids=sub_field_list)
         # logging.info('retile_fields is tiling the following fields together:'
         #              ' %s' %
@@ -121,6 +128,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
             tl.generate_tiling_greedy_npasses(candidate_targets,
                                               standard_targets,
                                               guide_targets, tiles_per_field,
+                                              sky_targets=sky_targets if assign_sky_fibres else None,
                                               tiles=fields_to_tile,
                                               sequential_ordering=(2, 1),
                                               recompute_difficulty=False,

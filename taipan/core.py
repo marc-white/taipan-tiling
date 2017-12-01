@@ -4245,12 +4245,13 @@ class TaipanTile(TaipanPoint):
                                i in range(len(problem_targets)) if
                                i not in excluded_by_sky]
 
-            # Compute the total ranking weights for targets blocking the remaining sky 
-            # candidates. Note that, for consistency, we must calculate the target 
-            # rankings as a combined group, and then sum from that list on a piecewise-
-            # basis. Otherwise, when we compute, e.g., a combined_weight ranking, the 
-            # scaling of the weights if we do the calculation for each sub-list of 
-            # problem_targets separately
+            # Compute the total ranking weights for targets blocking the
+            # remaining sky candidates. Note that, for consistency, we must
+            # calculate the target rankings as a combined group, and then sum
+            # from that list on a piecewise-basis. Otherwise, when
+            # we compute, e.g., a combined_weight ranking, the
+            # scaling of the weights if we do the calculation for each sub-list
+            # of  problem_targets separately
             problem_targets_all = list(set(flatten(problem_targets)))
             
             ranking_list = generate_ranking_list(problem_targets_all,
@@ -4264,14 +4265,17 @@ class TaipanTile(TaipanPoint):
                 for i in range(len(ranking_list)) 
                 if problem_targets_all[i] in pt]) for pt in problem_targets]
 
-            # Assign guides by removing the excluding target(s) with the lowest weighting 
+            # Assign guides by removing the excluding target(s) with the lowest
+            # weighting
             # sum and assigning the sky
             while assigned_sky < SKY_PER_TILE_MIN and len(sky_this_tile) > 0:
-                # Identify the lowest-ranked set of science targets excluding a sky
+                # Identify the lowest-ranked set of science targets excluding
+                # a sky
                 i = np.argmin(problem_targets_rankings)
                 sky = sky_this_tile[i]
                 
-                # Check related sky can actually be assigned to an available sky fibre
+                # Check related sky can actually be assigned to an available
+                # sky fibre
                 fibre_dists = {fibre: sky.dist_point(fibre_posns_all[fibre])
                     for fibre in fibre_posns_all}
                     
@@ -4306,6 +4310,7 @@ class TaipanTile(TaipanPoint):
     #@profile
     def unpick_tile(self, candidate_targets,
                     standard_targets, guide_targets,
+                    sky_targets=None,
                     overwrite_existing=False,
                     check_tile_radius=True, recompute_difficulty=True,
                     method='priority', combined_weight=1.0,
@@ -4314,7 +4319,8 @@ class TaipanTile(TaipanPoint):
                     repick_after_complete=True,
                     consider_removed_targets=True,
                     allow_standard_targets=False,
-                    assign_sky_first=True):
+                    assign_sky_first=True,
+                    assign_sky_fibres=False):
         """
         Unpick this tile, i.e. make a full allocation of targets, guides etc.
 
@@ -4347,6 +4353,10 @@ class TaipanTile(TaipanPoint):
             Objects to consider assigning to this tile as standards and guides
             respectively. Standards, guides and sky fibres are assigned after
             science targets.
+            
+        sky_targets : :class:`TaipanTarget` list
+            Objects to consider assigning to this tile as sky targets.
+            This argument defaults to None.
             
         overwrite_existing : :obj:`bool`
             Boolean, denoting whether to remove all existing
@@ -4413,6 +4423,12 @@ class TaipanTile(TaipanPoint):
             has the advantage of avoiding systematic issues with making
             certain fibres the desginated sky fibres, and attempts to ensure
             an even distribution of sky fibres.
+            
+        assign_sky_fibres : bool
+            Flag denoting whether to actually assign sky fibres to sky
+            targets, or simply leave with the special value 'sky'. Defaults
+            to False. Note that if this argument is True and the sky_targets
+            list is None, an error will be thrown.
 
         Returns
         -------    
@@ -4458,6 +4474,8 @@ class TaipanTile(TaipanPoint):
             raise ValueError('recompute_difficulty requires a full '
                              'target list (i.e. that would require '
                              'check_tile_radius)')
+        if sky_targets is None and assign_sky_fibres:
+            raise ValueError('You must provide sky targets for assignment')
 
         removed_targets = []
 
@@ -4715,8 +4733,23 @@ class TaipanTile(TaipanPoint):
                             and (removed not in candidate_targets)):
                             candidates_this_tile.append(removed)
 
-        # All fibres except for sky fibres should now be assigned, unless there
-        # are some inaccessible fibres for guides/standards. In this case, 
+        # Assign remaining fibres to sky, up to SKY_PER_TILE fibres
+        if not assign_sky_first:
+            for f in [f for f in self._fibres
+                      if self._fibres[f] is None
+                      and f not in FIBRES_GUIDE][
+                     :SKY_PER_TILE]:
+                self._fibres[f] = 'sky'
+
+        if assign_sky_fibres:
+            removed_targets += self.assign_sky_fibres(sky_targets,
+                                                      target_method='priority',
+                                                      check_tile_radius=
+                                                      check_tile_radius,
+                                                      rank_sky=False)
+
+        # All fibres should now be assigned, unless there
+        # are some inaccessible fibres for guides/standards/skies. In this case,
         # we'll call assign_tile on the science targets list to try to 
         # re-populate those fibres before assigning skies
         # Will need to add any science targets in removed_targets back into
@@ -4751,13 +4784,6 @@ class TaipanTile(TaipanPoint):
                 if len(candidates_this_tile) == len(candidates_before):
                     failure_detected = True
                     # print 'Failure detected!'
-
-        # Assign remaining fibres to sky, up to SKY_PER_TILE fibres
-        if not assign_sky_first:
-            for f in [f for f in self._fibres
-                if self._fibres[f] is None
-                and f not in FIBRES_GUIDE][:SKY_PER_TILE]:
-                self._fibres[f] = 'sky'
 
         # Perform a repick if requested
         if repick_after_complete:

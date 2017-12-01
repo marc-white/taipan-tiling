@@ -411,6 +411,7 @@ def tiling_consolidate(tile_list):
 
 
 def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
+                            sky_targets=None,
                             completeness_target = 1.0,
                             tiling_method='SH', randomise_pa=True,
                             tiling_order='random',
@@ -642,12 +643,14 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
         for tile in new_tiles:
             candidate_targets, removed_targets = tile.unpick_tile(
                 candidate_targets, standard_targets, guide_targets,
+                sky_targets=sky_targets,
                 overwrite_existing=False, check_tile_radius=True,
                 method=tile_unpick_method, combined_weight=combined_weight,
                 sequential_ordering=sequential_ordering,
                 rank_supplements=rank_supplements,
                 repick_after_complete=repick_after_complete,
-                recompute_difficulty=recompute_difficulty)
+                recompute_difficulty=recompute_difficulty,
+                assign_sky_fibres=False if sky_targets is None else True, )
             i += 1
             logging.info('Tile %d complete...' % i)
         print 'Tiling complete!'
@@ -680,6 +683,7 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
 
 
 def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
+                           sky_targets=None,
                            completeness_target=1.0,
                            ranking_method='completeness',
                            tiles=None,
@@ -857,6 +861,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         # print 'inter: %d' % len(candidate_targets)
         burn = tile.unpick_tile(candidate_targets, standard_targets,
                                 guide_targets,
+                                sky_targets=sky_targets,
                                 overwrite_existing=True, check_tile_radius=True,
                                 recompute_difficulty=False,
                                 method=tile_unpick_method,
@@ -864,7 +869,9 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
                                 sequential_ordering=sequential_ordering,
                                 rank_supplements=rank_supplements,
                                 repick_after_complete=False,
-                                consider_removed_targets=False)
+                                consider_removed_targets=False,
+                                assign_sky_fibres=False if sky_targets is None
+                                else True)
         i += 1
         logging.info('Created %d / %d tiles' % (i, len(candidate_tiles)))
     # print len(candidate_targets)
@@ -1044,6 +1051,7 @@ def multicore_greedy(obj,
 def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
                                    standard_targets,
                                    guide_targets,
+                                   sky_targets=None,
                                    repeat_targets=True,
                                    **kwargs):
     """
@@ -1081,6 +1089,8 @@ def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
             candidate_targets_master,
             standard_targets,
             guide_targets,
+            sky_targets=sky_targets,
+            assign_sky_fibres=True if sky_targets is not None else False,
             **kwargs
         )
         output_tiles.append(candidate_tile)
@@ -1090,6 +1100,7 @@ def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
 def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                    guide_targets,
                                    npass,
+                                   sky_targets=None,
                                    ranking_method='completeness',
                                    tiles=None,
                                    ra_min=0, ra_max=360., dec_min=-90.,
@@ -1250,6 +1261,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                     candidate_targets_master,
                     standard_targets,
                     guide_targets,
+                    sky_targets=sky_targets,
                     overwrite_existing=True,
                     check_tile_radius=True,
                     method=tile_unpick_method,
@@ -1258,7 +1270,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                     rank_supplements=rank_supplements,
                     repick_after_complete=repick_after_complete,
                     consider_removed_targets=False,
-                    recompute_difficulty=recompute_difficulty
+                    recompute_difficulty=recompute_difficulty,
+                    assign_sky_fibres=True if sky_targets is not None else False,
                 )
                 output_tiles.append(candidate_tile)
     else:
@@ -1338,7 +1351,8 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
                                                     consider_removed_targets=
                                                     False,
                                                     recompute_difficulty=
-                                                    recompute_difficulty
+                                                    recompute_difficulty,
+                                                    sky_targets=sky_targets,
                                                     ) for t in tiles)
         output_tiles = [t for tiles in results for t in tiles]
 
