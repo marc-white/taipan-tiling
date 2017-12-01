@@ -20,7 +20,6 @@ import operator
 import os
 import random
 import string
-import line_profiler
 
 import numpy as np
 from matplotlib.cbook import flatten
