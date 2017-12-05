@@ -138,7 +138,13 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
      
     delta = time.time() - start
     print "Generated targets in %d:%02.1f" % (delta/60, delta % 60.)
-        
+    
+    # Compute the unit sphere (US) positions for each target
+    start = time.time()
+    burn = [t.compute_usposn() for t in all_targets]
+    delta = time.time() - start
+    print "Calculated target US positions in %d:%02.1f" % (delta/60, delta % 60.)
+    
     return all_targets
     
 
@@ -195,6 +201,7 @@ def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw"):
             is_standard = False
     
     return is_standard
+
 
 def get_target_priority(target_id, target_priorities=None, normal_priority=2):
     """Attempts to lookup the provided target ID in the master list of target priorities,
@@ -257,6 +264,57 @@ def import_target_priorities(priorities_fits_file):
     return target_priorities
 
 
+def load_sky_targets(dark_sky_fits, ra_min, ra_max, dec_min, dec_max, priority_normal=2):
+    """Function to import the input sky catalogue as FWTargets and make any required cuts.
+    
+    Parameters
+    ----------
+    dark_sky_fits: string
+        File path to the sky catalogue
+    ra_min: float
+        Minimum RA to consider (degrees)
+    ra_max: float
+        Maximum RA to consider (degrees)  
+    dec_min: float
+        Minimum DEC to consider (degrees)
+    dec_max: float
+        Maximum DEC to consider (degrees)
+    priority_normal: int
+        The normal priority to assign to all sky positions.
+            
+    Returns
+    -------
+    sky_targets: list of FWTarget objects
+        A list containing all candidate targets within the constraints given.            
+    """
+    # Import the dark sky catalogue
+    start = time.time()
+    sky_table = Table.read(dark_sky_fits)
+    delta = time.time() - start
+    print ("Loaded sky catalogue in %d:%02.1f") % (delta/60, delta % 60.)
+    
+    # Generate FWTargets for each sky object within our bounds
+    start = time.time()
+    sky_targets = [tp.FWTarget(-1*int(sky["pkey_id"]), sky["ra"], sky["dec"], 
+                   priority=priority_normal, mag=25, difficulty=1, 
+                   science=False, standard=False, guide=False, sky=True) 
+                   for sky in sky_table 
+                   if (ra_min < sky["ra"] < ra_max) and (dec_min < sky["dec"] < dec_max)]
+    
+    
+    delta = time.time() - start
+    print "Generated sky targets in %d:%02.1f" % (delta/60, delta % 60.)
+    
+    # Pre-compute initial params
+    start = time.time()               
+    burn = [t.compute_usposn() for t in sky_targets]
+    tp.compute_target_difficulties(sky_targets)
+    delta = time.time() - start
+    print "Calculated sky US positions in %d:%02.1f" % (delta/60, delta % 60.)
+    
+    return sky_targets
+    
+    
 def update_taipan_quadrants():
     """Function to recompute the number and placement of quadrants that split up a field
     and define sky fibre locations.
@@ -356,14 +414,15 @@ except NameError:
                                fwts.script_settings["use_colour_cut"], 
                                fwts.script_settings["standard_frac"])
     
-    # Compute the unit sphere (US) positions for each target
-    start = time.time()
-    burn = [t.compute_usposn() for t in all_targets]
-    delta = time.time() - start
-    print "Calculated target US positions in %d:%02.1f" % (delta/60, delta % 60.)
-
+    all_sky = load_sky_targets(fwts.script_settings["sky_catalogue"],
+                               fwts.tiler_input["ra_min"], fwts.tiler_input["ra_max"], 
+                               fwts.tiler_input["dec_min"], fwts.tiler_input["dec_max"],
+                               fwts.tiler_input["priority_normal"])
+                               
 # Make a copy of all_targets list for use in assigning fibres. For speed, this is a set
 candidate_targets = set(all_targets)
+
+sky_targets = all_sky[:]
 
 # Now create separate lists for standard and guide targets. These will be drawn from the 
 # candidate_targets set (i.e. using references to the same objects, rather than copies).
@@ -380,14 +439,16 @@ guide_targets = set([t for t in candidate_targets
 #-----------------------------------------------------------------------------------------
 # Generate Tiling
 #-----------------------------------------------------------------------------------------
-print "Commencing tiling with %i core/s" % (fwts.tiler_input["n_cores"]),
-print "using %i science, %i standard, & %i guide targets\n" % (len(candidate_targets), 
-                                                               len(standard_targets), 
-                                                               len(guide_targets))
+print "Commencing tiling with %i core/s using" % (fwts.tiler_input["n_cores"]),
+print "%i science, %i standard, %i guide, & %i sky targets\n" % (len(candidate_targets), 
+                                                                 len(standard_targets), 
+                                                                 len(guide_targets),
+                                                                 len(sky_targets))
 start = datetime.datetime.now()
 tiling, completeness, remaining_targets = fwtiler.generate_tiling(candidate_targets, 
                                                                   standard_targets, 
-                                                                  guide_targets)
+                                                                  guide_targets, 
+                                                                  sky_targets)
 end = datetime.datetime.now()
 
 #-----------------------------------------------------------------------------------------
@@ -399,6 +460,7 @@ non_standard_targets_per_tile = [t.count_assigned_targets_science(
 targets_per_tile = [t.count_assigned_targets_science() for t in tiling]
 standards_per_tile = [t.count_assigned_targets_standard() for t in tiling]
 guides_per_tile = [t.count_assigned_targets_guide() for t in tiling]
+sky_per_tile = [t.count_assigned_targets_sky() for t in tiling]
 
 print 'TILING STATS'
 print '------------'
@@ -439,7 +501,8 @@ run_settings = OrderedDict([("run_id", date_time[:-1]),
                              non_standard_targets_per_tile),
                             ("targets_per_tile", targets_per_tile),
                             ("standards_per_tile", standards_per_tile),
-                            ("guides_per_tile", guides_per_tile)]) 
+                            ("guides_per_tile", guides_per_tile),
+                            ("sky_per_tile", sky_per_tile)])
 
 # Append input parameters for plotting/saving
 run_settings.update(fwts.tiler_input) 

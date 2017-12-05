@@ -53,7 +53,7 @@ class FWTiler(object):
                  overwrite_existing=True, check_tile_radius=True, 
                  consider_removed_targets=False, allow_standard_targets=True, 
                  assign_sky_first=True, n_cores=1, backend="multiprocessing", 
-                 enforce_min_tile_score=True):
+                 enforce_min_tile_score=True, assign_sky_fibres=False):
         """Constructor for FWTiler. Takes as parameters the various settings needed to 
         unpick and rank individual tiles, as well as tile the sky as a whole.
         
@@ -165,6 +165,8 @@ class FWTiler(object):
             "multiprocessing".
         enforce_min_tile_score: boolean
             Whether a selected tile should be greater than some minimum tile score.
+        assign_sky_fibres: boolean
+            Whether to assign sky targets or not. Defaults to False.
         """
         self._completeness_targets = None
         self._ranking_method = None
@@ -198,6 +200,7 @@ class FWTiler(object):
         self._backend = None
         self._enforce_min_tile_score = None
         self._enforce_min_tile_score_original = None    
+        self._assign_sky_fibres = None
         
         # Insert the passed values. Doing it like this forces the setter functions to be 
         # called, which provides error checking
@@ -233,10 +236,12 @@ class FWTiler(object):
         self.backend = backend
         self.enforce_min_tile_score = enforce_min_tile_score
         self.enforce_min_tile_score_original = enforce_min_tile_score # "Memory" param
+        self.assign_sky_fibres = assign_sky_fibres
         
         # Not input params (don't currently have getters or setters)
         self.standard_tree = None
         self.guide_tree = None
+        self.sky_tree = None
         self.completion_target = None
         
         # If completeness_targets, mag_ranges, and mag_range_priorities have been set, 
@@ -578,6 +583,16 @@ class FWTiler(object):
         self._enforce_min_tile_score_original = value
     
     @property
+    def assign_sky_fibres(self):
+        return self._assign_sky_fibres
+
+    @assign_sky_fibres.setter
+    def assign_sky_fibres(self, value):
+        if value is None: 
+            raise Exception('assign_sky_fibres may not be blank')
+        self._assign_sky_fibres = value
+        
+    @property
     def completeness_priority(self):
         return self.priority_normal + self.prioritise_extra
     
@@ -604,7 +619,8 @@ class FWTiler(object):
                 "repick_after_complete":self.repick_after_complete,
                 "consider_removed_targets":self.consider_removed_targets, 
                 "allow_standard_targets":self.allow_standard_targets,
-                "assign_sky_first":self.assign_sky_first}
+                "assign_sky_first":self.assign_sky_first,
+                "assign_sky_fibres":self.assign_sky_fibres}
     
     
     # ------------------------------------------------------------------------------------
@@ -681,7 +697,8 @@ class FWTiler(object):
     # ------------------------------------------------------------------------------------
     # TaipanTile wrapper functions
     # ------------------------------------------------------------------------------------   
-    def unpick_tile(self, tile, candidate_targets, standard_targets, guide_targets):
+    def unpick_tile(self, tile, candidate_targets, standard_targets, guide_targets, 
+                    sky_targets):
         """Wrapper function for TaipanTile.unpick_tile(...) to ensure tiling settings
         are kept as internal as possible (i.e. exposing FWTiler attributes in as few
         places as possible), and to aid in readability when unpicking a tile.
@@ -695,10 +712,12 @@ class FWTiler(object):
         standard_targets: list of TaipanTarget objects
             The potential standard targets available for allocation to this TaipanTile.
         guide_targets: list of TaipanTarget objects
-            The potential guide targets available for allocation to this TaipanTile.            
+            The potential guide targets available for allocation to this TaipanTile.  
+        sky_targets: list of TaipanTarget objects
+            The potential sky targets available for allocation to this TaipanTile.          
         """
         burn = tile.unpick_tile(candidate_targets, standard_targets, guide_targets,
-                                overwrite_existing=self.overwrite_existing, 
+                                sky_targets, overwrite_existing=self.overwrite_existing, 
                                 check_tile_radius=self.check_tile_radius,
                                 recompute_difficulty=self.recompute_difficulty,
                                 method=self.tile_unpick_method, 
@@ -708,7 +727,8 @@ class FWTiler(object):
                                 repick_after_complete=self.repick_after_complete,
                                 consider_removed_targets=self.consider_removed_targets, 
                                 allow_standard_targets=self.allow_standard_targets,
-                                assign_sky_first=self.assign_sky_first)
+                                assign_sky_first=self.assign_sky_first,
+                                assign_sky_fibres=self.assign_sky_fibres)
         
         
     def calculate_tile_score(self, tile):
@@ -1173,7 +1193,7 @@ class FWTiler(object):
     
     #@profile
     def get_tile_neighbourhood(self, ra, dec, candidate_tiles, candidate_targets_range, 
-                               standard_targets_range, guide_targets_range, 
+                               standard_targets_range, guide_targets_range, sky_targets,
                                n_tile_radii=2, n_target_radii=3, 
                                remove_tiles_from_master_list=True):
         """Pop all tiles, targets, standards, and guides from the RA and DEC neighbourhood
@@ -1203,7 +1223,10 @@ class FWTiler(object):
         guide_targets_range: list of :class:`TaipanTarget`
             Subset of guide_targets consisting of only the guide targets that are within 
             the current magnitude range. 
-    
+        
+        sky_targets: list of :class:`TaipanTarget`
+            List of sky targets to be considered
+            
         n_tile_radii: float
             The number of tile radii out to consider for the neighbourhood.
             
@@ -1229,8 +1252,11 @@ class FWTiler(object):
             
         nearby_guides: list of :class:`TaipanTarget`
             The list of nearby guides.
+        
+        nearby_sky: list of :class:`TaipanTarget`
+            The list of nearby sky.
         """    
-        # Create lists of all neighbouring tiles, and candidate science/standard/guides
+        # Create lists of neighbouring tiles, and candidate science/standard/guides/sky
         nearby_tiles = tp.targets_in_range(ra, dec, candidate_tiles, 
                                            n_tile_radii*tp.TILE_RADIUS) 
    
@@ -1244,6 +1270,10 @@ class FWTiler(object):
         nearby_guides = tp.targets_in_range(ra, dec, guide_targets_range, 
                                             n_target_radii*tp.TILE_RADIUS,
                                             tree=self.guide_tree) 
+                                            
+        nearby_sky = tp.targets_in_range(ra, dec, sky_targets, 
+                                         n_target_radii*tp.TILE_RADIUS,
+                                         tree=self.sky_tree)                                      
     
         # Remove candidate tiles from the master list - these need to be updated with the
         # copies that come back from the other processes. No need to do the same for
@@ -1253,13 +1283,13 @@ class FWTiler(object):
                 candidate_tiles.remove(tile) 
 
         # All done, return lists of nearby tiles/targets/standards/guides
-        return nearby_tiles, nearby_targets, nearby_standards, nearby_guides
+        return nearby_tiles, nearby_targets, nearby_standards, nearby_guides, nearby_sky
     
     
     #@profile
     def greedy_tile_sc(self, candidate_tiles, candidate_targets, candidate_targets_range, 
-                       standard_targets_range, guide_targets_range, ranking_list, 
-                       n_priority_targets, remaining_priority_targets):
+                       standard_targets_range, guide_targets_range, sky_targets, 
+                       ranking_list, n_priority_targets, remaining_priority_targets):
         """
         Parameters
         ----------
@@ -1280,6 +1310,9 @@ class FWTiler(object):
         guide_targets_range: list of :class:`TaipanTarget`
             Subset of guide_targets consisting of only the guide targets that are within 
             the current magnitude range. 
+            
+        sky_targets: list of :class:`TaipanTarget`
+            Sky targets to be considered. 
         
         ranking_list: list of int
             List of tile scores with indices corresponding to candidate_tiles.
@@ -1319,11 +1352,11 @@ class FWTiler(object):
         # millions of targets long), but can instead search the neighbourhood which will 
         # by definition contain fewer targets. Make sure not to remove the tiles from the
         # master candidate_tiles list.
-        nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
+        nearby_tiles, nearby_targets, nearby_standards, nearby_guides, nearby_sky = \
                 self.get_tile_neighbourhood(best_tile.ra, best_tile.dec, 
                                             candidate_tiles, candidate_targets_range_list,  
                                             standard_targets_range, guide_targets_range,  
-                                            n_tile_radii=2, n_target_radii=3,
+                                            sky_targets, n_tile_radii=2, n_target_radii=3,
                                             remove_tiles_from_master_list=False)  
         
         # All affected tiles have been unpicked, and best_tile has been replaced. Now 
@@ -1343,7 +1376,7 @@ class FWTiler(object):
         
         # Repick all tiles within a given radius of the selected tile
         repick_within_radius(best_tile, nearby_tiles, nearby_targets, nearby_standards, 
-                             nearby_guides, self.unpick_settings)
+                             nearby_guides, nearby_sky, self.unpick_settings)
                          
         return best_tile, remaining_priority_targets
         
@@ -1542,8 +1575,8 @@ class FWTiler(object):
 
     #@profile
     def greedy_tile_sky(self, candidate_targets, candidate_targets_range,  
-                        standard_targets_range, guide_targets_range, candidate_tiles, 
-                        mag_range):
+                        standard_targets_range, guide_targets_range, sky_targets, 
+                        candidate_tiles, mag_range):
         """Function to perform the greedy tiling algorithm given targets, standards, 
         guides, and a selection of tiles.
         
@@ -1582,7 +1615,10 @@ class FWTiler(object):
         guide_targets_range: list of :class:`TaipanTarget`
             Subset of guide_targets consisting of only the guide targets that are within 
             the current magnitude range. 
-            
+        
+        sky_targets: list of :class:`TaipanTarget`
+            All sky_targets to be considered.
+                
         candidate_tiles: list of :class: `TaipanTile`
             The list of filled candidate tiles covering the section of sky observed.
             
@@ -1625,6 +1661,7 @@ class FWTiler(object):
         # temporary ones each time we are within a neighbourhood.
         self.standard_tree = precompute_kd_tree(standard_targets_range)
         self.guide_tree = precompute_kd_tree(guide_targets_range)
+        self.sky_tree = precompute_kd_tree(sky_targets)
         
         while len(temp_candidate_tiles) > 0:  
             # Get the neighbourhood of an arbitrary tile, unpick the neighbours, then
@@ -1635,18 +1672,19 @@ class FWTiler(object):
             
             # Get the neighbourhood tiles, targets, standards, and guides. The selected
             # tiles are removed from the list
-            nearby_tiles, nearby_targets, nearby_standards, nearby_guides = \
+            nearby_tiles, nearby_targets, nearby_standards, nearby_guides, nearby_sky = \
                 self.get_tile_neighbourhood(central_tile.ra, central_tile.dec, 
                                             temp_candidate_tiles, 
                                             candidate_targets_range_list,  
-                                            standard_targets_range, guide_targets_range,  
-                                            n_tile_radii=2, n_target_radii=3) 
+                                            standard_targets_range, guide_targets_range, 
+                                            sky_targets, n_tile_radii=2, n_target_radii=3) 
             
             # Pre-generate the KD tree for the nearby lists of targets. These will not
             # change for the duration of the following loop
             nearby_target_tree = precompute_kd_tree(nearby_targets)
             nearby_standard_tree = precompute_kd_tree(nearby_standards)
             nearby_guide_tree = precompute_kd_tree(nearby_guides)
+            nearby_sky_tree = precompute_kd_tree(nearby_sky)
             
             for tile in nearby_tiles:
                 # Unpick each tile in the neighbourhood
@@ -1659,7 +1697,10 @@ class FWTiler(object):
                                                      tree=nearby_standard_tree), 
                                  tp.targets_in_range(tile.ra, tile.dec, nearby_guides, 
                                                      1*tp.TILE_RADIUS,
-                                                     tree=nearby_guide_tree)) 
+                                                     tree=nearby_guide_tree),
+                                 tp.targets_in_range(tile.ra, tile.dec, nearby_sky, 
+                                                     1*tp.TILE_RADIUS,
+                                                     tree=nearby_sky_tree))
         
         finish = time.time()
         delta = finish - start
@@ -1691,6 +1732,7 @@ class FWTiler(object):
                                                             candidate_targets_range, 
                                                             standard_targets_range, 
                                                             guide_targets_range, 
+                                                            sky_targets,
                                                             ranking_list, 
                                                             n_priority_targets, 
                                                             remaining_priority_targets)                                            
@@ -1779,7 +1821,7 @@ class FWTiler(object):
     
     #@profile
     def greedy_tile_mag_range(self, candidate_targets, standard_targets, guide_targets, 
-                              candidate_tiles, range_ix):
+                              sky_targets, candidate_tiles, range_ix):
         """Function to perform a greedy sky tiling for a given magnitude range.
     
         Parameters
@@ -1792,6 +1834,9 @@ class FWTiler(object):
         
         guide_targets: list of :class:`TaipanTarget`
             The entire list of guide targets to consider. 
+            
+        sky_targets: list of :class:`TaipanTarget`
+            The entire list of sky targets to consider. 
     
         candidate_tiles: list of :class: `TaipanTile`
             The list of filled candidate tiles covering the section of sky observed.
@@ -1844,7 +1889,7 @@ class FWTiler(object):
         start = time.time()
         tile_list = self.greedy_tile_sky(candidate_targets, candidate_targets_range, 
                                          standard_targets_range, 
-                                         non_candidate_guide_targets, 
+                                         non_candidate_guide_targets, sky_targets,
                                          candidate_tiles, mag_range)
         delta = time.time() - start
         print "done in %d:%02.1f" % (delta/60, delta % 60.)
@@ -1869,7 +1914,8 @@ class FWTiler(object):
     
     
     #@profile
-    def generate_tiling(self, candidate_targets, standard_targets, guide_targets):
+    def generate_tiling(self, candidate_targets, standard_targets, guide_targets, 
+                        sky_targets):
         """
         Generate a tiling based on the greedy algorithm operating on a set of magnitude 
         ranges sequentially. Within each magnitude range, a complete set of tiles are 
@@ -1900,6 +1946,9 @@ class FWTiler(object):
         
         guide_targets: list of :class:`TaipanTarget`
             The entire list of guide targets to consider. 
+            
+        sky_targets: list of :class:`TaipanTarget`
+            The entire list of sky targets to consider. 
         
         Returns
         -------
@@ -1936,8 +1985,8 @@ class FWTiler(object):
         # Generate a greedy style tiling for each magnitude range 
         for range_ix in xrange(len(self.mag_ranges)):
             tile_list =  self.greedy_tile_mag_range(candidate_targets, standard_targets, 
-                                                    guide_targets, candidate_tiles, 
-                                                    range_ix)
+                                                    guide_targets, sky_targets, 
+                                                    candidate_tiles, range_ix)
             tile_lists.append(tile_list)
         
         # Concatenate tiling lists from each range
@@ -1971,8 +2020,8 @@ class FWTiler(object):
 # ----------------------------------------------------------------------------------------
 #@profile
 def repick_within_radius(best_tile, candidate_tiles, candidate_targets, 
-                         candidate_standards, candidate_guides, unpick_settings, 
-                         n_radii=2):
+                         candidate_standards, candidate_guides, candidate_sky, 
+                         unpick_settings, n_radii=2):
     """Function to repick neighbouring tiles after selecting a tile for the final 
     tiling to account for target duplication between tiles.
 
@@ -1988,11 +2037,14 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     candidate_targets: list of :class:`TaipanTarget`
         The list of *nearby* candidate targets to consider for repicking.
     
-    standard_targets: list of :class:`TaipanTarget`
+    candidate_standards: list of :class:`TaipanTarget`
         The list *nearby* standard targets to consider for repicking.
     
-    guide_targets: list of :class:`TaipanTarget`
+    candidate_guides: list of :class:`TaipanTarget`
         The list of *nearby* guide targets to consider for repicking.
+        
+    candidate_sky: list of :class:`TaipanTarget`
+        The list of *nearby* sky targets to consider for repicking.
         
     unpick_settings: Dict
         Dictionary to store the tile unpick settings of the FWTiler object when passing to
@@ -2003,7 +2055,7 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
             overwrite_existing, check_tile_radius, recompute_difficulty, 
             tile_unpick_method, combined_weight, sequential_ordering,rank_supplements,
             repick_after_complete, consider_removed_targets, allow_standard_targets, and
-            assign_sky_first
+            assign_sky_first, assign_sky_fibres
     
     n_radii: int
         The radius out to which neighbouring tiles should be repicked.
@@ -2036,6 +2088,7 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
     target_tree = precompute_kd_tree(candidate_targets)
     standard_tree = precompute_kd_tree(candidate_standards)
     guide_tree = precompute_kd_tree(candidate_guides)
+    sky_tree = precompute_kd_tree(candidate_sky)
     
     for tile_i, tile in enumerate(affected_tiles):
         # Repick the affected tiles, but making sure to only supply the targets that 
@@ -2046,6 +2099,8 @@ def repick_within_radius(best_tile, candidate_tiles, candidate_targets,
                                             1*tp.TILE_RADIUS, tree=standard_tree), 
                          tp.targets_in_range(tile.ra, tile.dec, candidate_guides, 
                                             1*tp.TILE_RADIUS, tree=guide_tree),
+                         tp.targets_in_range(tile.ra, tile.dec, candidate_sky, 
+                                            1*tp.TILE_RADIUS, tree=sky_tree),                                            
                          **unpick_settings)
 
     # It is possible for a candidate tile to have no assigned fibres at this point, but

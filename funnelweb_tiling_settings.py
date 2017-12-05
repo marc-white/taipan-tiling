@@ -19,8 +19,9 @@ import taipan.core as tp
 from collections import OrderedDict
 
 # Input catalogue and priority list
-catalogue = ("/priv/mulga1/arains/Catalogues/fw_input_catalogue.fits")
-priorities = ("/priv/mulga1/arains/Catalogues/fw_priorities.fits")
+input_catalogue = ("/priv/mulga1/arains/Catalogues/fw_input_catalogue.fits")
+input_priorities = ("/priv/mulga1/arains/Catalogues/fw_priorities.fits")
+sky_catalogue = ("/priv/mulga1/arains/Catalogues/skyfibers_v17_gaia_ucac4_final.fits")
 
 # Ordered dictionary, so that format is always the same when writing to a file 
 
@@ -55,11 +56,13 @@ tiler_input = OrderedDict([("completeness_targets", [0.99, 0.99, 0.99, 0.99]),
                            ("assign_sky_first", True),
                            ("n_cores", 0),
                            ("backend", "multiprocessing"),
-                           ("enforce_min_tile_score", True)])
+                           ("enforce_min_tile_score", True),
+                           ("assign_sky_fibres", True)])
  
 # Dictionary of additional parameters not required by FWTiler            
-script_settings = OrderedDict([("input_catalogue", catalogue),
-                               ("input_priorities", priorities),
+script_settings = OrderedDict([("input_catalogue", input_catalogue),
+                               ("input_priorities", input_priorities),
+                               ("sky_catalogue", sky_catalogue),
                                ("tab_type", "fw"),
                                ("gal_lat_limit", 0),
                                ("standard_frac", 0.1),
