@@ -295,7 +295,7 @@ def load_sky_targets(dark_sky_fits, ra_min, ra_max, dec_min, dec_max, priority_n
     sky_targets = [tp.FWTarget(-1*int(sky["pkey_id"]), sky["ra"], sky["dec"], 
                    priority=priority_normal, mag=25, difficulty=1, 
                    science=False, standard=False, guide=False, sky=True) 
-                   for sky in sky_table 
+                   for sky in sky_table[1:] 
                    if (ra_min < sky["ra"] < ra_max) and (dec_min < sky["dec"] < dec_max)]
     
     
