@@ -76,5 +76,6 @@ script_settings = OrderedDict([("input_catalogue", input_catalogue),
                                ("SKY_PER_TILE_MIN", 7),
                                ("QUAD_RADII", [tp.TILE_RADIUS, 8164.03, 4082.02, 0.]),
                                ("QUAD_PER_RADII", [3, 3, 1]),
-                               ("use_colour_cut", False)])
+                               ("use_colour_cut", True),
+                               ("colour_index_cut", 0.5)])
                         

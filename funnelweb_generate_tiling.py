@@ -33,7 +33,7 @@ from collections import OrderedDict
 #-----------------------------------------------------------------------------------------
 def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab_type,
                  priorities=None, priority_normal=2, use_colour_cut=False, 
-                 standard_frac=0.1):
+                 standard_frac=0.1, colour_index_cut=0.5):
     """Function to import the input catalogue and make any required cuts.
     
     Parameters
@@ -63,7 +63,9 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
     standard_frac: float
         Fraction between 0.0 and 1.0 representing the fraction of stars to be considered
         standards if not using a colour cut.
-            
+    colour_index_cut: float
+        The colour index cut below which (i.e. hotter than which) standards are selected. 
+              
     Returns
     -------
     all_targets: list of TaipanTarget objects
@@ -148,7 +150,8 @@ def load_targets(catalogue, ra_min, ra_max, dec_min, dec_max, gal_lat_limit, tab
     return all_targets
     
 
-def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw"):
+def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw", 
+                colour_index_cut=0.5):
     """Prototype function to determine whether a star can be considered a standard or not.
     
     Parameters
@@ -163,6 +166,8 @@ def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw"):
         standards if not using a colour cut.
     tab_type: string
         The format of the input catalogue, currently either 'gaia' or 'fw'.
+    colour_index_cut: float
+        The colour index cut below which (i.e. hotter than which) standards are selected.
                 
     Returns
     -------
@@ -170,20 +175,12 @@ def is_standard(star, use_colour_cut=False, standard_frac=0.1, tabtype="fw"):
         Boolean value indicating whether the star can be considered a standard or not.
     """
     if use_colour_cut:
-        # Define the limits for the colour indices used to select A-type stars
-        COLOUR_INDEX_CENTRE = 0
-        COLOUR_INDEX_RANGE = 0.1
-
-        COLOUR_INDEX_MIN = COLOUR_INDEX_CENTRE - COLOUR_INDEX_RANGE
-        COLOUR_INDEX_MAX = COLOUR_INDEX_CENTRE + COLOUR_INDEX_RANGE
-
         # Calculate the colour indices
         G_minus_J = star["Gaia_G_mag"] - star["2MASS_J_mag"]
         J_minus_K = star["2MASS_J_mag"] - star["2MASS_Ks_mag"]
 
-        # Select as standards only those stars within the allowed colour indices
-        if (COLOUR_INDEX_MIN <= G_minus_J <= COLOUR_INDEX_MAX):# and \
-           #(COLOUR_INDEX_MIN <= J_minus_K <= COLOUR_INDEX_MAX):
+        # Select as standards only those stars below the colour index cut
+        if G_minus_J <= colour_index_cut:
             is_standard = True
         else:
             is_standard = False
@@ -373,7 +370,7 @@ copyfile(settings_file, temp_settings_file)
 # Prompt user for the description or motivation of the run
 run_description = raw_input("Description/motivation for tiling run: ")
 
-# No description given, assign one based on on-sky area and number of cores
+# No description given, assign one based on on-sky area, machine, and number of cores
 if run_description == "": 
     ra_range = fwts.tiler_input["ra_max"] - fwts.tiler_input["ra_min"]
     dec_range = fwts.tiler_input["dec_max"] - fwts.tiler_input["dec_min"]
@@ -412,7 +409,8 @@ except NameError:
                                fwts.script_settings["input_priorities"], 
                                fwts.tiler_input["priority_normal"], 
                                fwts.script_settings["use_colour_cut"], 
-                               fwts.script_settings["standard_frac"])
+                               fwts.script_settings["standard_frac"],
+                               fwts.script_settings["colour_index_cut"])
     
     all_sky = load_sky_targets(fwts.script_settings["sky_catalogue"],
                                fwts.tiler_input["ra_min"], fwts.tiler_input["ra_max"], 
