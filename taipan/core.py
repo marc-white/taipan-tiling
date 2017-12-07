@@ -1416,11 +1416,12 @@ def compute_target_difficulties(target_list, full_target_list=None,
     if full_target_list:
         if verbose:
             'Checking target_list against full_target_list...'
-        # Notes about np.in1d - fails for object arrays that are unsortable. This is not a
-        # problem for the Taipan code, but for FunnelWeb, which implements object level
-        # equivalence (i.e. __eq__, __ne__, __cmp__), this check will always raise an 
-        # exception, even when the arrays are subsets. Future versions of numpy will fix 
-        # this, but for now a workaround is needed. See issue links for more details:
+        # Notes about np.in1d - fails for object arrays that are unsortable. 
+        # This is not a problem for the Taipan code, but for FunnelWeb, which 
+        # implements object level equivalence (i.e. __eq__, __ne__, __cmp__), 
+        # this check will always raise an exception, even when the arrays are 
+        # subsets. Future versions of numpy will fix this, but for now a 
+        # workaround is needed. See issue links for more details:
         # 1) https://github.com/numpy/numpy/issues/9874
         # 2) https://github.com/numpy/numpy/issues/9914
         if not isinstance(target_list[0], FWTarget) \
@@ -1482,7 +1483,8 @@ def compute_target_difficulties(target_list, full_target_list=None,
     return
 
 
-def targets_in_range(ra, dec, target_list, dist, leafsize=BREAKEVEN_KDTREE, tree=None):
+def targets_in_range(ra, dec, target_list, dist, leafsize=BREAKEVEN_KDTREE, 
+                     tree=None):
     """
     Return the subset of ``target_list`` within ``dist`` of (``ra``, ``dec``).
 
@@ -2390,8 +2392,8 @@ class TaipanTarget(TaipanPoint):
 
 
 class FWTarget(TaipanTarget):
-    """Derived class for the FunnelWeb survey, primarily to allow object equivalence and
-    having sky fibres
+    """Derived class for the FunnelWeb survey, primarily to allow object 
+    equivalence.
     """
     def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
@@ -2419,20 +2421,21 @@ class FWTarget(TaipanTarget):
         mag : float, optional
             Target magnitude. Defaults to None.
         h0, vpec, lowz : Boolean, optional
-            Booleans denoting if a target is an H0 target, a low-redshift (lowz)
-            target, or a peculiar velocity (vpec) target. All default to False.
+            Booleans denoting if a target is an H0 target, a low-redshift 
+            (lowz) target, or a peculiar velocity (vpec) target. All default 
+            to False.
         science : Boolean, optional
             Denotes this target as a science target. Defaults to True
         assign_science : Boolean, optional
-            Do we automatically assign the science flag based on standard and guide 
+            Do we automatically assign the science flag based on standard/guide 
             flags? Defaults to True
         sky: boolean
             Denotes this target as a science target. Defaults to False.
         """
         # Initialise the base class
-        TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard, guide, 
-                              difficulty, mag, h0, vpec, lowz, science, assign_science,
-                              sky)
+        TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard,
+                              guide, difficulty, mag, h0, vpec, lowz, science,
+                              assign_science, sky)
         
     def __repr__(self):
         return 'FW TGT %s' % str(self._idn)
@@ -2440,24 +2443,28 @@ class FWTarget(TaipanTarget):
     def __str__(self):
         return 'FW TGT %s' % str(self._idn)
 
-    # Two FWTargets should be considered equal if they have the same ID, and status as
-    # science/standard/guide/sky targets.
+    # Two FWTargets should be considered equal if they have the same ID, and 
+    # status as science/standard/guide/sky targets.
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (self.idn == other.idn) and (self.standard == other.standard) \
-                   and (self.guide == other.guide) and (self.sky == other.sky)
+            return ((self.idn == other.idn) 
+                    and (self.standard == other.standard)
+                    and (self.guide == other.guide) 
+                    and (self.sky == other.sky))
         return False
     
     def __ne__(self, other):
         if isinstance(other, self.__class__):
-            return not((self.idn == other.idn) and (self.standard == other.standard) 
-                    and (self.guide == other.guide) and (self.sky == other.sky))
+            return not((self.idn == other.idn) 
+                       and (self.standard == other.standard) 
+                       and (self.guide == other.guide)
+                       and (self.sky == other.sky))
         return True
     
     def __cmp__(self, other):
         if isinstance(other, self.__class__):
-            if (self.idn == other.idn) and (self.standard == other.standard) \
-                and (self.guide == other.guide) and (self.sky == other.sky):
+            if ((self.idn == other.idn) and (self.standard == other.standard) 
+                and (self.guide == other.guide) and (self.sky == other.sky)):
                 return 0
         return 1
         
@@ -4143,8 +4150,8 @@ class TaipanTile(TaipanPoint):
 
         removed_targets = []
         
-        # Each TaipanTile object will have a different set of fibres reserved as sky 
-        # fibres. Grab these and assign sky "targets" to them
+        # Each TaipanTile object will have a different set of fibres reserved  
+        # as sky fibres. Grab these and assign sky "targets" to them
         FIBRES_SKY = [fibre for fibre in self.fibres if self._fibres[fibre] ==
                       "sky"]
 
@@ -4303,7 +4310,7 @@ class TaipanTile(TaipanPoint):
                     burn = sky_this_tile.pop(i)
                     continue
                     
-                # Remove the offending targets from the tile, and assign the sky
+                # Remove offending targets from the tile, and assign the sky
                 fibres_for_removal = [f for (f, t) in self._fibres.iteritems()
                     if t in problem_targets[i]]
                     

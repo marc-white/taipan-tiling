@@ -18,9 +18,9 @@ def plot_tiling(tiling, run_settings):
     - Box & whisker plots of target/standard/guide assignments
     - Completeness progression (targets as a function of tiles)
     - Table of run_settings
-    - Histograms of targets per tile for all tiles, as well as each magnitude bin
-    - Histograms of standards per tile for all tiles, as well as each magnitude bin
-    - Histograms of guides per tile for all tiles, as well as each magnitude bin
+    - Histograms of targets per tile for all tiles, plus each magnitude bin
+    - Histograms of standards per tile for all tiles, plus each magnitude bin
+    - Histograms of guides per tile for all tiles, plus each magnitude bin
     
     Parameters
     ----------
@@ -28,7 +28,7 @@ def plot_tiling(tiling, run_settings):
         The list of TaipanTiles from a tiling run.
     
     run_settings: OrderedDict
-        An OrderedDict containing input settings and results from the tiling run.
+        OrderedDict containing input settings and results from the tiling run.
     """
     # Initialise plot, use GridSpec to have a NxM grid, write title
     plt.clf()
@@ -36,7 +36,8 @@ def plot_tiling(tiling, run_settings):
     gs.update(wspace=0.2)
     fig = plt.gcf()
     fig.set_size_inches(24., 24.)
-    plt.suptitle(run_settings["run_id"] + ": " + run_settings["description"], fontsize=30)
+    plt.suptitle(run_settings["run_id"] + ": " + run_settings["description"], 
+                 fontsize=30)
     
     # Separate targets, standards, and guides by magnitude range
     tiles_by_mag_range = []
@@ -61,32 +62,37 @@ def plot_tiling(tiling, run_settings):
         standards_by_mag_range.append(standards_for_range)
         guides_by_mag_range.append(guides_for_range)
         
-        tile_count_labels.append("Mag range: %s-%s (%s tiles)" % (mrange[0], mrange[1],
-                                 len(tiles_for_range)))
+        tile_count_labels.append("Mag range: %s-%s (%s tiles)" % (mrange[0], 
+                                                                  mrange[1],
+                                                        len(tiles_for_range)))
     
     targets_per_tile = run_settings["targets_per_tile"]
     standards_per_tile = run_settings["standards_per_tile"]
     guides_per_tile = run_settings["guides_per_tile"]
     
     # Insert the non-magnitude range specific numbers
-    tiles_by_mag_range.insert(0, [t.count_assigned_targets_science() for t in tiling]) 
-    standards_by_mag_range.insert(0, [t.count_assigned_targets_standard() for t in tiling]) 
-    guides_by_mag_range.insert(0, [t.count_assigned_targets_guide() for t in tiling])
+    tiles_by_mag_range.insert(0, [t.count_assigned_targets_science() 
+                              for t in tiling]) 
+    standards_by_mag_range.insert(0, [t.count_assigned_targets_standard() 
+                                  for t in tiling]) 
+    guides_by_mag_range.insert(0, [t.count_assigned_targets_guide() 
+                               for t in tiling])
     
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Tile positions
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Plot an Aitoff projection of the tile centre positions on-sky
     ax0 = fig.add_subplot(gs[0,0], projection='aitoff')
     ax0.grid(True)
     
     # Count the number of tiles per field
     coords = Counter(["%f_%f" % (tile.ra, tile.dec) for tile in tiling])
-    coords = np.array([[float(key.split("_")[0]), float(key.split("_")[1]), coords[key]] 
-                      for key in coords.keys()])
+    coords = np.array([[float(key.split("_")[0]), float(key.split("_")[1]), 
+                      coords[key]] for key in coords.keys()])
     
-    ax0_plt = ax0.scatter(np.radians(coords[:,0] - 180.), np.radians(coords[:,1]), 
-                          c=coords[:,2], marker='o', lw=0, s=3, cmap="rainbow")
+    ax0_plt = ax0.scatter(np.radians(coords[:,0] - 180.), 
+                          np.radians(coords[:,1]), c=coords[:,2], marker='o',
+                          lw=0, s=3, cmap="rainbow")
     ax0.set_title('Tile centre positions', y=1.1)
     ax0.set_axisbelow(True)
     
@@ -99,19 +105,20 @@ def plot_tiling(tiling, run_settings):
     ax0.tick_params(axis='both', which='minor', labelsize=6)
 
     
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Box-and-whisker plots of number distributions
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Plot box-and-whisker plots of the targets, standards, and guides
     ax1 = fig.add_subplot(gs[1,0])
-    ax1.boxplot([targets_per_tile, standards_per_tile, guides_per_tile], vert=False)
+    ax1.boxplot([targets_per_tile, standards_per_tile, guides_per_tile], 
+                vert=False)
     ax1.set_yticklabels(['T', 'S', 'G'])
     ax1.set_title('Box-and-whisker plots of number of assignments')
 
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Number of Tiles vs Completeness
-    # ------------------------------------------------------------------------------------
-    # Plot tiling completeness as number of targets as a function of number of tiles
+    # -------------------------------------------------------------------------
+    # Plot tiling completeness as # of targets as a function of # tiles
     ax2 = fig.add_subplot(gs[2,0])
     targets_per_tile_sorted = sorted(targets_per_tile, key=lambda x: -1.*x)
     xpts = np.asarray(range(len(targets_per_tile_sorted))) + 1
@@ -119,12 +126,15 @@ def plot_tiling(tiling, run_settings):
     ax2.plot(xpts, ypts, 'k-', lw=.9)
     ax2.plot(len(tiling), np.sum(targets_per_tile), 'ro',
              label='No. of tiles: %d' % len(tiling))
-    ax2.hlines(run_settings["num_targets"], ax2.get_xlim()[0], ax2.get_xlim()[1], lw=.75,
-               colors='k', linestyles='dashed', label='100% completion')
-    ax2.hlines(0.975 * run_settings["num_targets"], ax2.get_xlim()[0], ax2.get_xlim()[1], 
-               lw=.75, colors='k', linestyles='dashdot', label='97.5% completion')
-    ax2.hlines(0.95 * run_settings["num_targets"], ax2.get_xlim()[0], ax2.get_xlim()[1], 
-               lw=.75, colors='k', linestyles='dotted', label='95% completion')
+    ax2.hlines(run_settings["num_targets"], ax2.get_xlim()[0], 
+               ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dashed', 
+               label='100% completion')
+    ax2.hlines(0.975 * run_settings["num_targets"], ax2.get_xlim()[0], 
+               ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dashdot', 
+               label='97.5% completion')
+    ax2.hlines(0.95 * run_settings["num_targets"], ax2.get_xlim()[0], 
+               ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dotted', 
+               label='95% completion')
     ax2.legend(loc='lower right', title='Time to %3.1f comp.: %dm:%2.1fs' % (
                run_settings["tiling_completeness"] * 100., 
                int(np.floor(run_settings["mins_to_complete"])), 
@@ -135,9 +145,9 @@ def plot_tiling(tiling, run_settings):
     ax2.set_xlim([0, 1.05*len(tiling)])
     ax2.set_ylim([0, 1.05*run_settings["num_targets"]])
 
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Table of Run Settings
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Plot a table for referencing the run settings/results
     ax3 = fig.add_subplot(gs[3:5,0])
     col_labels = ("Parameter", "Value")
@@ -158,13 +168,14 @@ def plot_tiling(tiling, run_settings):
         else:
             fmt_table.append([key, value])
     
-    settings_tab = ax3.table(cellText=fmt_table, colLabels=col_labels, loc="center")
+    settings_tab = ax3.table(cellText=fmt_table, colLabels=col_labels, 
+                             loc="center")
     settings_tab.set_fontsize(8)
     settings_tab.scale(1.0,0.7)
     
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Create plots for all tiles, as well as each magnitude range
-    # ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Initialise axes lists, and colour format
     ax4 = []
     ax5 = []
@@ -176,12 +187,13 @@ def plot_tiling(tiling, run_settings):
         # Match the colours for each magnitude range
         colour = next(colour_cycler)
         
-        # --------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         # Number of Targets per Tile
-        # --------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         # Plot a histogram of the number of targets per tile
         ax4.append(fig.add_subplot(gs[i,1]))
-        ax4[-1].hist(tiles_by_mag_range[i], bins=np.arange(0, max(targets_per_tile)+1, 1), 
+        ax4[-1].hist(tiles_by_mag_range[i], 
+                     bins=np.arange(0, max(targets_per_tile)+1, 1), 
                      color=colour, align='right', label=label)
         #ax4[-1].vlines(run_settings["TARGET_PER_TILE"], ax4[-1].get_ylim()[0],  
         #               ax4[-1].get_ylim()[1], linestyles='dashed', colors='k', 
@@ -199,22 +211,25 @@ def plot_tiling(tiling, run_settings):
             tile_mean = 0
             tile_median = 0
         
-        ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (tile_mean, tile_median),
+        ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (tile_mean, 
+                                                         tile_median),
                      ha="center", transform=ax4[-1].transAxes)
         
-        # --------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         # Number of standards per tile
-        # --------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         # Plot a histogram of the number of standards per tile
         ax5.append(fig.add_subplot(gs[i,2]))
         ax5[-1].hist(standards_by_mag_range[i], 
                      bins=max(standards_per_tile), color=colour, 
                      align='right', label=label)
-        ax5[-1].vlines(run_settings["STANDARDS_PER_TILE"], ax5[-1].get_ylim()[0], 
-                       ax5[-1].get_ylim()[1], linestyles='dashed', colors='k', 
+        ax5[-1].vlines(run_settings["STANDARDS_PER_TILE"], 
+                       ax5[-1].get_ylim()[0], ax5[-1].get_ylim()[1], 
+                       linestyles='dashed', colors='k', 
                        label='Ideally-filled tile')
-        ax5[-1].vlines(run_settings["STANDARDS_PER_TILE_MIN"], ax5[-1].get_ylim()[0], 
-                       ax5[-1].get_ylim()[1], linestyles='dotted',  colors='k', 
+        ax5[-1].vlines(run_settings["STANDARDS_PER_TILE_MIN"],
+                       ax5[-1].get_ylim()[0], ax5[-1].get_ylim()[1],
+                       linestyles='dotted',  colors='k', 
                        label='Minimum standards per tile')
         ax5[-1].set_xlabel('No. of standards per tile')
         ax5[-1].set_ylabel('Frequency')
@@ -232,9 +247,9 @@ def plot_tiling(tiling, run_settings):
                      "Mean: %i, Median: %i" % (standard_mean, standard_median), 
                      ha="center")            
 
-        # --------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         # Number of guides per tile
-        # --------------------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         # Plot a histogram of the number of guides per fibre
         ax6.append(fig.add_subplot(gs[i,3]))
         ax6[-1].hist(guides_by_mag_range[i], bins=max(guides_per_tile), 
@@ -242,8 +257,9 @@ def plot_tiling(tiling, run_settings):
         ax6[-1].vlines(run_settings["GUIDES_PER_TILE"], ax6[-1].get_ylim()[0], 
                        ax6[-1].get_ylim()[1], linestyles='dashed', colors='k', 
                        label='Ideally-filled tile')
-        ax6[-1].vlines(run_settings["GUIDES_PER_TILE_MIN"], ax6[-1].get_ylim()[0], 
-                       ax6[-1].get_ylim()[1], linestyles='dotted', colors='k', 
+        ax6[-1].vlines(run_settings["GUIDES_PER_TILE_MIN"], 
+                       ax6[-1].get_ylim()[0], ax6[-1].get_ylim()[1],
+                       linestyles='dotted', colors='k', 
                        label='Minimum guides per tile')
         ax6[-1].set_xlabel('No. of guides per tile')
         ax6[-1].set_ylabel('Frequency')
@@ -258,7 +274,8 @@ def plot_tiling(tiling, run_settings):
             guides_median = 0
         
         ax6[-1].text(ax6[-1].get_xlim()[1]/2, ax6[-1].get_ylim()[1]/2,
-                     "Mean: %i, Median: %i" % (guides_mean, guides_median), ha="center") 
+                     "Mean: %i, Median: %i" % (guides_mean, guides_median), 
+                                               ha="center") 
 
     # Set plot titles
     ax3.set_title("Run Settings & Overview", y=0.96)
@@ -270,25 +287,28 @@ def plot_tiling(tiling, run_settings):
     name = "results/" + run_settings["run_id"] + "_tiling_run_overview.pdf"
     fig.savefig(name, fmt='pdf')
     
+    
 def create_tiling_visualisation(tiling, run_settings, increment=1000):
     """
     For increasingly larger slices of the tiling set, run the plotting code.
     
     To create a video from these:
-    ffmpeg -framerate 4 -pattern_type glob -i "*.png" -c:v libx264 -pix_fmt yuv420p xx.mp4
+    ffmpeg -framerate 4 -pattern_type glob -i "*.png" -c:v libx264 
+        -pix_fmt yuv420p xx.mp4
     
     Parameters
     ----------
     tiling: list
         The list of TaipanTiles from a tiling run.
     run_settings: OrderedDict
-        An OrderedDict containing input settings and results from the tiling run.
+        OrderedDict containing input settings and results from the tiling run.
     increment: int
-        The number of new tiles to include in each plot/frame (i.e. increment=1000 means
-        that each iteration of the loop will create a plot with 1000 more tiles than the 
-        last).
+        The number of new tiles to include in each plot/frame (i.e. 
+        increment=1000 means that each iteration of the loop will create a plot
+        with 1000 more tiles than the last).
     """
-    # Create the list of tile increments, ensuring the final number is the complete plot
+    # Create the list of tile increments, ensuring the final number is the 
+    # complete plot
     steps = list(np.arange(increment, len(tiling), increment))
     
     if steps[-1] != len(tiling):
@@ -298,6 +318,7 @@ def create_tiling_visualisation(tiling, run_settings, increment=1000):
     for frame, step in enumerate(steps):
         plot_tiling(tiling[:step], run_settings)
         
-        name = "results/visualisation/%s_overview_f%04i.png" % (run_settings["run_id"], 
-                                                              frame)
+        name = "results/visualisation/%s_overview_f%04i.png" % (
+                                                        run_settings["run_id"], 
+                                                        frame)
         plt.savefig(name)
