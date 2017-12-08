@@ -7,6 +7,7 @@ from collections import OrderedDict
 from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.ticker as ticker
 from itertools import cycle
 import glob
 
@@ -32,7 +33,7 @@ def plot_tiling(tiling, run_settings):
     """
     # Initialise plot, use GridSpec to have a NxM grid, write title
     plt.clf()
-    gs = gridspec.GridSpec(5,4)
+    gs = gridspec.GridSpec(5,5)
     gs.update(wspace=0.2)
     fig = plt.gcf()
     fig.set_size_inches(24., 24.)
@@ -43,6 +44,7 @@ def plot_tiling(tiling, run_settings):
     tiles_by_mag_range = []
     standards_by_mag_range = []
     guides_by_mag_range = []
+    sky_by_mag_range = []
     
     # Initialise legend label list
     tile_count_labels = ["All"]
@@ -51,16 +53,20 @@ def plot_tiling(tiling, run_settings):
         tiles_for_range = []
         standards_for_range = []
         guides_for_range = []
+        sky_for_range = []
         
         for tile in tiling:
             if tile.mag_min == mrange[0] and tile.mag_max == mrange[1]:
                 tiles_for_range.append(tile.count_assigned_targets_science())
-                standards_for_range.append(tile.count_assigned_targets_standard())
+                standards_for_range.append(
+                    tile.count_assigned_targets_standard())
                 guides_for_range.append(tile.count_assigned_targets_guide())
+                sky_for_range.append(tile.count_assigned_targets_sky())
         
         tiles_by_mag_range.append(tiles_for_range)
         standards_by_mag_range.append(standards_for_range)
         guides_by_mag_range.append(guides_for_range)
+        sky_by_mag_range.append(sky_for_range)
         
         tile_count_labels.append("Mag range: %s-%s (%s tiles)" % (mrange[0], 
                                                                   mrange[1],
@@ -69,14 +75,17 @@ def plot_tiling(tiling, run_settings):
     targets_per_tile = run_settings["targets_per_tile"]
     standards_per_tile = run_settings["standards_per_tile"]
     guides_per_tile = run_settings["guides_per_tile"]
+    sky_per_tile = run_settings["sky_per_tile"]
     
     # Insert the non-magnitude range specific numbers
     tiles_by_mag_range.insert(0, [t.count_assigned_targets_science() 
-                              for t in tiling]) 
-    standards_by_mag_range.insert(0, [t.count_assigned_targets_standard() 
                                   for t in tiling]) 
+    standards_by_mag_range.insert(0, [t.count_assigned_targets_standard() 
+                                      for t in tiling]) 
     guides_by_mag_range.insert(0, [t.count_assigned_targets_guide() 
-                               for t in tiling])
+                                   for t in tiling])
+    sky_by_mag_range.insert(0, [t.count_assigned_targets_sky() 
+                                for t in tiling])                          
     
     # -------------------------------------------------------------------------
     # Tile positions
@@ -170,8 +179,8 @@ def plot_tiling(tiling, run_settings):
     
     settings_tab = ax3.table(cellText=fmt_table, colLabels=col_labels, 
                              loc="center")
-    settings_tab.set_fontsize(8)
-    settings_tab.scale(1.0,0.7)
+    settings_tab.set_fontsize(7)
+    settings_tab.scale(1.0,0.6)
     
     # -------------------------------------------------------------------------
     # Create plots for all tiles, as well as each magnitude range
@@ -180,6 +189,7 @@ def plot_tiling(tiling, run_settings):
     ax4 = []
     ax5 = []
     ax6 = []
+    ax7 = []
     plt_colours = ["MediumSeaGreen","SkyBlue","Gold","Orange", "Tomato"]
     colour_cycler = cycle(plt_colours)
     
@@ -195,14 +205,18 @@ def plot_tiling(tiling, run_settings):
         ax4[-1].hist(tiles_by_mag_range[i], 
                      bins=np.arange(0, max(targets_per_tile)+1, 1), 
                      color=colour, align='right', label=label)
-        #ax4[-1].vlines(run_settings["TARGET_PER_TILE"], ax4[-1].get_ylim()[0],  
-        #               ax4[-1].get_ylim()[1], linestyles='dashed', colors='k', 
-        #               label='Ideally-filled tile')
+        ax4[-1].vlines(run_settings["TARGET_PER_TILE"], ax4[-1].get_ylim()[0],  
+                       ax4[-1].get_ylim()[1], linestyles='dashed', colors='k', 
+                       label='Ideally-filled tile')
         ax4[-1].legend(loc='upper center')
         ax4[-1].set_xlabel('No. of targets per tile')
         ax4[-1].set_ylabel('Frequency')
         ax4[-1].set_yscale('log')
         ax4[-1].set_xlim(0, max(targets_per_tile) + 1)
+        ax4[-1].xaxis.set_major_locator(ticker.MultipleLocator(10))
+        
+        ax4[-1].tick_params(axis='both', which='major', labelsize=7)
+        ax4[-1].tick_params(axis='both', which='minor', labelsize=7)
         
         if len(tiles_by_mag_range[i]) > 0:
             tile_mean = np.mean(tiles_by_mag_range[i])
@@ -235,6 +249,7 @@ def plot_tiling(tiling, run_settings):
         ax5[-1].set_ylabel('Frequency')
         ax5[-1].legend(loc='upper center')
         ax5[-1].set_xlim(0, max(standards_per_tile) + 1)
+        ax5[-1].xaxis.set_major_locator(ticker.MultipleLocator(2))
         
         if len(standards_by_mag_range[i]) > 0:
             standard_mean = np.mean(standards_by_mag_range[i])
@@ -250,7 +265,7 @@ def plot_tiling(tiling, run_settings):
         # ---------------------------------------------------------------------
         # Number of guides per tile
         # ---------------------------------------------------------------------
-        # Plot a histogram of the number of guides per fibre
+        # Plot a histogram of the number of guides per tile
         ax6.append(fig.add_subplot(gs[i,3]))
         ax6[-1].hist(guides_by_mag_range[i], bins=max(guides_per_tile), 
                      color=colour, align='right', label=label)
@@ -265,6 +280,7 @@ def plot_tiling(tiling, run_settings):
         ax6[-1].set_ylabel('Frequency')
         ax6[-1].legend(loc='upper center')
         ax6[-1].set_xlim(0, max(guides_per_tile) + 1)
+        ax6[-1].xaxis.set_major_locator(ticker.MultipleLocator(1))
         
         if len(guides_by_mag_range[i]) > 0:
             guides_mean = np.mean(guides_by_mag_range[i])
@@ -277,11 +293,43 @@ def plot_tiling(tiling, run_settings):
                      "Mean: %i, Median: %i" % (guides_mean, guides_median), 
                                                ha="center") 
 
+        # ---------------------------------------------------------------------
+        # Number of sky per tile
+        # ---------------------------------------------------------------------
+        # Plot a histogram of the number of sky per tile
+        ax7.append(fig.add_subplot(gs[i,4]))
+        ax7[-1].hist(sky_by_mag_range[i], bins=max(sky_per_tile), 
+                     color=colour, align='right', label=label)
+        ax7[-1].vlines(run_settings["SKY_PER_TILE"], ax6[-1].get_ylim()[0], 
+                       ax6[-1].get_ylim()[1], linestyles='dashed', colors='k', 
+                       label='Ideally-filled tile')
+        ax7[-1].vlines(run_settings["SKY_PER_TILE_MIN"], 
+                       ax6[-1].get_ylim()[0], ax6[-1].get_ylim()[1],
+                       linestyles='dotted', colors='k', 
+                       label='Minimum sky per tile')
+        ax7[-1].set_xlabel('No. of sky per tile')
+        ax7[-1].set_ylabel('Frequency')
+        ax7[-1].legend(loc='upper center')
+        ax7[-1].set_xlim(0, max(sky_per_tile) + 1)
+        ax7[-1].xaxis.set_major_locator(ticker.MultipleLocator(1))
+        
+        if len(sky_by_mag_range[i]) > 0:
+            sky_mean = np.mean(sky_by_mag_range[i])
+            sky_median = np.median(sky_by_mag_range[i])
+        else:
+            sky_mean = 0
+            sky_median = 0
+        
+        ax7[-1].text(ax6[-1].get_xlim()[1]/2, ax6[-1].get_ylim()[1]/2,
+                     "Mean: %i, Median: %i" % (sky_mean, sky_median), 
+                                               ha="center") 
+
     # Set plot titles
     ax3.set_title("Run Settings & Overview", y=0.96)
     ax4[0].set_title("Stars per Tile")
     ax5[0].set_title("Standards per Tile")
     ax6[0].set_title("Guides per Tile")
+    ax7[0].set_title("Sky per Tile")
 
     # Save plot
     name = "results/" + run_settings["run_id"] + "_tiling_run_overview.pdf"
