@@ -485,7 +485,10 @@ time_to_complete = (end - start).total_seconds()
 non_standard_targets_per_tile = [t.count_assigned_targets_science(
                                  include_science_standards=False) 
                                  for t in tiling]
-targets_per_tile = [t.count_assigned_targets_science(False) for t in tiling]
+                                 
+# Note: due to science and standard targets being drawn from the same list,
+# counting the science targets will also count all the standard targets
+targets_per_tile = [t.count_assigned_targets_science() for t in tiling]
 standards_per_tile = [t.count_assigned_targets_standard() for t in tiling]
 guides_per_tile = [t.count_assigned_targets_guide() for t in tiling]
 sky_per_tile = [t.count_assigned_targets_sky() for t in tiling]
