@@ -1,6 +1,7 @@
 """Plotting functions to visualise/record the results of a FunnelWeb tiling run
 """
 import taipan.core as tp
+import taipan.fwtiling as fwtl
 import matplotlib.patches as mpatches
 import numpy as np
 from collections import OrderedDict
@@ -41,7 +42,8 @@ def plot_tiling(tiling, run_settings):
                  fontsize=30)
     
     # Separate targets, standards, and guides by magnitude range
-    tiles_by_mag_range = []
+    tiles_by_mag_range = [tiling]
+    targets_by_mag_range = []
     standards_by_mag_range = []
     guides_by_mag_range = []
     sky_by_mag_range = []
@@ -51,26 +53,27 @@ def plot_tiling(tiling, run_settings):
         
     for mrange in run_settings["mag_ranges"]:
         tiles_for_range = []
+        targets_for_range = []
         standards_for_range = []
         guides_for_range = []
         sky_for_range = []
         
         for tile in tiling:
             if tile.mag_min == mrange[0] and tile.mag_max == mrange[1]:
-                tiles_for_range.append(tile.count_assigned_targets_science())
+                tiles_for_range.append(tile)
+                targets_for_range.append(tile.count_assigned_targets_science())
                 standards_for_range.append(
                     tile.count_assigned_targets_standard())
                 guides_for_range.append(tile.count_assigned_targets_guide())
                 sky_for_range.append(tile.count_assigned_targets_sky())
         
         tiles_by_mag_range.append(tiles_for_range)
+        targets_by_mag_range.append(targets_for_range)
         standards_by_mag_range.append(standards_for_range)
         guides_by_mag_range.append(guides_for_range)
         sky_by_mag_range.append(sky_for_range)
         
-        tile_count_labels.append("Mag range: %s-%s (%s tiles)" % (mrange[0], 
-                                                                  mrange[1],
-                                                        len(tiles_for_range)))
+        tile_count_labels.append("Mag range: %s-%s" % (mrange[0], mrange[1]))
     
     targets_per_tile = run_settings["targets_per_tile"]
     standards_per_tile = run_settings["standards_per_tile"]
@@ -78,14 +81,20 @@ def plot_tiling(tiling, run_settings):
     sky_per_tile = run_settings["sky_per_tile"]
     
     # Insert the non-magnitude range specific numbers
-    tiles_by_mag_range.insert(0, [t.count_assigned_targets_science() 
+    targets_by_mag_range.insert(0, [t.count_assigned_targets_science() 
                                   for t in tiling]) 
     standards_by_mag_range.insert(0, [t.count_assigned_targets_standard() 
                                       for t in tiling]) 
     guides_by_mag_range.insert(0, [t.count_assigned_targets_guide() 
                                    for t in tiling])
     sky_by_mag_range.insert(0, [t.count_assigned_targets_sky() 
-                                for t in tiling])                          
+                                for t in tiling])      
+                                
+    # Now count the number of unique targets per magnitude range
+    unique_targets_range =  []
+    for mag_range in tiles_by_mag_range:
+        unique, tot, dup = fwtl.count_unique_science_targets(mag_range, True) 
+        unique_targets_range.append(unique)                   
     
     # -------------------------------------------------------------------------
     # Tile positions
@@ -202,7 +211,7 @@ def plot_tiling(tiling, run_settings):
         # ---------------------------------------------------------------------
         # Plot a histogram of the number of targets per tile
         ax4.append(fig.add_subplot(gs[i,1]))
-        ax4[-1].hist(tiles_by_mag_range[i], 
+        ax4[-1].hist(targets_by_mag_range[i], 
                      bins=np.arange(0, max(targets_per_tile)+1, 1), 
                      color=colour, align='right', label=label)
         ax4[-1].vlines(run_settings["TARGET_PER_TILE"], ax4[-1].get_ylim()[0],  
@@ -218,9 +227,9 @@ def plot_tiling(tiling, run_settings):
         ax4[-1].tick_params(axis='both', which='major', labelsize=7)
         ax4[-1].tick_params(axis='both', which='minor', labelsize=7)
         
-        if len(tiles_by_mag_range[i]) > 0:
-            tile_mean = np.mean(tiles_by_mag_range[i])
-            tile_median = np.median(tiles_by_mag_range[i])
+        if len(targets_by_mag_range[i]) > 0:
+            tile_mean = np.mean(targets_by_mag_range[i])
+            tile_median = np.median(targets_by_mag_range[i])
         else:
             tile_mean = 0
             tile_median = 0
@@ -229,6 +238,14 @@ def plot_tiling(tiling, run_settings):
                                                          tile_median),
                      ha="center", transform=ax4[-1].transAxes)
         
+        ax4[-1].text(0.5, 0.6, 
+                     "{:,} Unique Targets".format(unique_targets_range[i]),
+                     ha="center", transform=ax4[-1].transAxes)
+                     
+        ax4[-1].text(0.5, 0.7, 
+                     "{:,} Tiles".format(len(tiles_by_mag_range[i])),
+                     ha="center", transform=ax4[-1].transAxes)
+         
         # ---------------------------------------------------------------------
         # Number of standards per tile
         # ---------------------------------------------------------------------
@@ -249,7 +266,10 @@ def plot_tiling(tiling, run_settings):
         ax5[-1].set_ylabel('Frequency')
         ax5[-1].legend(loc='upper center')
         ax5[-1].set_xlim(0, max(standards_per_tile) + 1)
-        ax5[-1].xaxis.set_major_locator(ticker.MultipleLocator(2))
+        #ax5[-1].xaxis.set_major_locator(ticker.MultipleLocator(2))
+        
+        ax5[-1].tick_params(axis='both', which='major', labelsize=7)
+        ax5[-1].tick_params(axis='both', which='minor', labelsize=7)
         
         if len(standards_by_mag_range[i]) > 0:
             standard_mean = np.mean(standards_by_mag_range[i])
@@ -260,8 +280,8 @@ def plot_tiling(tiling, run_settings):
         
         ax5[-1].text(ax5[-1].get_xlim()[1]/2, ax5[-1].get_ylim()[1]/2,
                      "Mean: %i, Median: %i" % (standard_mean, standard_median), 
-                     ha="center")            
-
+                     ha="center")             
+        
         # ---------------------------------------------------------------------
         # Number of guides per tile
         # ---------------------------------------------------------------------
@@ -282,6 +302,9 @@ def plot_tiling(tiling, run_settings):
         ax6[-1].set_xlim(0, max(guides_per_tile) + 1)
         ax6[-1].xaxis.set_major_locator(ticker.MultipleLocator(1))
         
+        ax6[-1].tick_params(axis='both', which='major', labelsize=7)
+        ax6[-1].tick_params(axis='both', which='minor', labelsize=7)
+        
         if len(guides_by_mag_range[i]) > 0:
             guides_mean = np.mean(guides_by_mag_range[i])
             guides_median = np.median(guides_by_mag_range[i])
@@ -292,7 +315,7 @@ def plot_tiling(tiling, run_settings):
         ax6[-1].text(ax6[-1].get_xlim()[1]/2, ax6[-1].get_ylim()[1]/2,
                      "Mean: %i, Median: %i" % (guides_mean, guides_median), 
                                                ha="center") 
-
+    
         # ---------------------------------------------------------------------
         # Number of sky per tile
         # ---------------------------------------------------------------------

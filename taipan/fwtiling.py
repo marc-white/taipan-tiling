@@ -2404,7 +2404,7 @@ def is_same_taipan_object(obj_1, obj_2):
     return equivalent
 
 
-def count_unique_science_targets(tiling):
+def count_unique_science_targets(tiling, include_science_standards=False):
     """Function to run at the conclusion of the tiling run to detect any 
     duplication in the assigned targets (duplication likely caused by 
     unintended consequences of running tiling in parallel. This function does 
@@ -2414,6 +2414,8 @@ def count_unique_science_targets(tiling):
     ----------
     tiling: list of TaipanTile objects
         A list of TaipanTiles (e.g. the results of a tiling run)
+    include_science_standards: boolean
+        Whether to include science standards in the count. Defaults to False.
         
     Returns
     -------
@@ -2432,7 +2434,7 @@ def count_unique_science_targets(tiling):
     # Look for duplicates by assuming RA and DEC will be unique
     for tile in tiling:
         for target in tile.get_assigned_targets_science(
-            include_science_standards=False):
+            include_science_standards=include_science_standards):
             all_targets.append(str(target.ra) + "-" + str(target.dec))
     
     # Using a set in this fashion is quicker than a for loop

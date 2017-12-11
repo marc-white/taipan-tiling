@@ -28,7 +28,7 @@ sky_catalogue = ("/priv/mulga1/arains/Catalogues/"
 
 # Dictionary of *all* parameters required to construct taipan.fwtiling.FWTiler
 # e.g. fwtiler = FWTiler(**tiler_input)
-tiler_input = OrderedDict([("completeness_targets", [0.99, 0.99, 0.99, 0.25]),
+tiler_input = OrderedDict([("completeness_targets", [0.99, 0.99, 0.99, 0.10]),
                            ("ranking_method", "priority-expsum"),
                            ("disqualify_below_min", True),
                            ("tiling_method", "SH"),
@@ -44,9 +44,9 @@ tiler_input = OrderedDict([("completeness_targets", [0.99, 0.99, 0.99, 0.25]),
                            [[5,7],[7,9],[9,11],[11,12]]),
                            ("priority_normal", 2),
                            ("prioritise_extra", 2),
-                           ("tile_unpick_method", "combined_weighted"),
+                           ("tile_unpick_method", "sequential"),
                            ("combined_weight", 4.0),
-                           ("sequential_ordering", (1,2)),
+                           ("sequential_ordering", (2,1)),
                            ("rank_supplements", False),
                            ("repick_after_complete", False),
                            ("exp_base", 3.0),
@@ -79,6 +79,6 @@ script_settings = OrderedDict([("input_catalogue", input_catalogue),
                                ("QUAD_RADII", 
                                [tp.TILE_RADIUS, 8164.03, 4082.02, 0.]),
                                ("QUAD_PER_RADII", [3, 3, 1]),
-                               ("use_colour_cut", False),
+                               ("use_colour_cut", True),
                                ("colour_index_cut", 0.5)])
                         

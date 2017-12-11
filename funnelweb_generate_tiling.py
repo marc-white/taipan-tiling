@@ -530,7 +530,7 @@ run_settings = OrderedDict([("run_id", date_time[:-1]),
                              np.median(targets_per_tile)),
                             ("std_targets_per_tile", np.std(targets_per_tile)),
                             ("tiling_completeness", completeness),
-                            ("remaining_targets", len(leftover_fwt)),
+                            #("remaining_targets", len(leftover_fwt)),
                             ("non_standard_targets_per_tile", 
                              non_standard_targets_per_tile),
                             ("targets_per_tile", targets_per_tile),
@@ -545,7 +545,7 @@ run_settings.update(fwts.script_settings)
 # Use pickle to save outputs of tiling in a binary format
 name = "results/" + date_time + "fw_tiling.pkl"
 output = open(name, "wb")
-cPickle.dump( (tiling, leftover_fwt, run_settings), output, -1)
+cPickle.dump( (tiling, [], run_settings), output, -1)
 output.close()
 
 # Timestamp the copy of the settings and log files from earlier
