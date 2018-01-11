@@ -1092,7 +1092,7 @@ def sim_do_night(cursor, date, date_start, date_end,
     # Needs to do the following:
     # Read in the tiles that are awaiting observation, along with their scores
     scores_array = rTSexec(cursor, metrics=['cw_sum', 'prior_sum', 'n_sci_rem'],
-                           ignore_zeros=True)
+                           ignore_zeros=False)
     logging.debug('Scores array info:')
     logging.debug(scores_array)
 
