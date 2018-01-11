@@ -12,7 +12,7 @@ import matplotlib.ticker as ticker
 from itertools import cycle
 import glob
 
-def plot_tiling(tiling, run_settings):
+def plot_tiling(tiling, run_settings, plot_other=False):
     """Function to plot an overview of a FunnelWeb tiling run.
     
     Plots:
@@ -31,13 +31,17 @@ def plot_tiling(tiling, run_settings):
     
     run_settings: OrderedDict
         OrderedDict containing input settings and results from the tiling run.
+        
+    plot_other: boolean
+        Whether to plot box-and-whisker and completeness target plots, or 
+        instead plot the variable table in a larger format.
     """
     # Initialise plot, use GridSpec to have a NxM grid, write title
     plt.clf()
-    gs = gridspec.GridSpec(5,5)
+    gs = gridspec.GridSpec(5,6)
     gs.update(wspace=0.2)
     fig = plt.gcf()
-    fig.set_size_inches(24., 24.)
+    fig.set_size_inches(28.8, 24.)
     plt.suptitle(run_settings["run_id"] + ": " + run_settings["description"], 
                  fontsize=30)
     
@@ -100,7 +104,7 @@ def plot_tiling(tiling, run_settings):
     # Tile positions
     # -------------------------------------------------------------------------
     # Plot an Aitoff projection of the tile centre positions on-sky
-    ax0 = fig.add_subplot(gs[0,0], projection='aitoff')
+    ax0 = fig.add_subplot(gs[0:2,0:2], projection='aitoff')
     ax0.grid(True)
     
     # Count the number of tiles per field
@@ -110,7 +114,7 @@ def plot_tiling(tiling, run_settings):
     
     ax0_plt = ax0.scatter(np.radians(coords[:,0] - 180.), 
                           np.radians(coords[:,1]), c=coords[:,2], marker='o',
-                          lw=0, s=3, cmap="rainbow")
+                          lw=0, s=9, cmap="rainbow")
     ax0.set_title('Tile centre positions', y=1.1)
     ax0.set_axisbelow(True)
     
@@ -119,55 +123,60 @@ def plot_tiling(tiling, run_settings):
     cbar = plt.colorbar(ax0_plt, orientation='horizontal')
     cbar.set_label("# Tiles")
     
-    ax0.tick_params(axis='both', which='major', labelsize=6)
-    ax0.tick_params(axis='both', which='minor', labelsize=6)
+    ax0.tick_params(axis='both', which='major', labelsize=10)
+    ax0.tick_params(axis='both', which='minor', labelsize=10)
 
     
     # -------------------------------------------------------------------------
     # Box-and-whisker plots of number distributions
     # -------------------------------------------------------------------------
     # Plot box-and-whisker plots of the targets, standards, and guides
-    ax1 = fig.add_subplot(gs[1,0])
-    ax1.boxplot([targets_per_tile, standards_per_tile, guides_per_tile], 
-                vert=False)
-    ax1.set_yticklabels(['T', 'S', 'G'])
-    ax1.set_title('Box-and-whisker plots of number of assignments')
+    if plot_other:
+        ax1 = fig.add_subplot(gs[1,0])
+        ax1.boxplot([targets_per_tile, standards_per_tile, guides_per_tile], 
+                    vert=False)
+        ax1.set_yticklabels(['T', 'S', 'G'])
+        ax1.set_title('Box-and-whisker plots of number of assignments')
 
     # -------------------------------------------------------------------------
     # Number of Tiles vs Completeness
     # -------------------------------------------------------------------------
     # Plot tiling completeness as # of targets as a function of # tiles
-    ax2 = fig.add_subplot(gs[2,0])
-    targets_per_tile_sorted = sorted(targets_per_tile, key=lambda x: -1.*x)
-    xpts = np.asarray(range(len(targets_per_tile_sorted))) + 1
-    ypts = [np.sum(targets_per_tile_sorted[:i+1]) for i in xpts]
-    ax2.plot(xpts, ypts, 'k-', lw=.9)
-    ax2.plot(len(tiling), np.sum(targets_per_tile), 'ro',
-             label='No. of tiles: %d' % len(tiling))
-    ax2.hlines(run_settings["num_targets"], ax2.get_xlim()[0], 
-               ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dashed', 
-               label='100% completion')
-    ax2.hlines(0.975 * run_settings["num_targets"], ax2.get_xlim()[0], 
-               ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dashdot', 
-               label='97.5% completion')
-    ax2.hlines(0.95 * run_settings["num_targets"], ax2.get_xlim()[0], 
-               ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dotted', 
-               label='95% completion')
-    ax2.legend(loc='lower right', title='Time to %3.1f comp.: %dm:%2.1fs' % (
-               run_settings["tiling_completeness"] * 100., 
-               int(np.floor(run_settings["mins_to_complete"])), 
-               run_settings["mins_to_complete"] % 60.))
-    ax2.set_title('Completeness progression')
-    ax2.set_xlabel('No. of tiles')
-    ax2.set_ylabel('No. of assigned targets')
-    ax2.set_xlim([0, 1.05*len(tiling)])
-    ax2.set_ylim([0, 1.05*run_settings["num_targets"]])
+        ax2 = fig.add_subplot(gs[2,0])
+        targets_per_tile_sorted = sorted(targets_per_tile, key=lambda x: -1.*x)
+        xpts = np.asarray(range(len(targets_per_tile_sorted))) + 1
+        ypts = [np.sum(targets_per_tile_sorted[:i+1]) for i in xpts]
+        ax2.plot(xpts, ypts, 'k-', lw=.9)
+        ax2.plot(len(tiling), np.sum(targets_per_tile), 'ro',
+                 label='No. of tiles: %d' % len(tiling))
+        ax2.hlines(run_settings["num_targets"], ax2.get_xlim()[0], 
+                   ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dashed', 
+                   label='100% completion')
+        ax2.hlines(0.975 * run_settings["num_targets"], ax2.get_xlim()[0], 
+                   ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dashdot', 
+                   label='97.5% completion')
+        ax2.hlines(0.95 * run_settings["num_targets"], ax2.get_xlim()[0], 
+                   ax2.get_xlim()[1], lw=.75, colors='k', linestyles='dotted', 
+                   label='95% completion')
+        ax2.legend(loc='lower right', 
+                   title='Time to %3.1f comp.: %dm:%2.1fs' % (
+                   run_settings["tiling_completeness"] * 100., 
+                   int(np.floor(run_settings["mins_to_complete"])), 
+                   run_settings["mins_to_complete"] % 60.))
+        ax2.set_title('Completeness progression')
+        ax2.set_xlabel('No. of tiles')
+        ax2.set_ylabel('No. of assigned targets')
+        ax2.set_xlim([0, 1.05*len(tiling)])
+        ax2.set_ylim([0, 1.05*run_settings["num_targets"]])
 
     # -------------------------------------------------------------------------
     # Table of Run Settings
     # -------------------------------------------------------------------------
     # Plot a table for referencing the run settings/results
-    ax3 = fig.add_subplot(gs[3:5,0])
+    if plot_other:
+        ax3 = fig.add_subplot(gs[3:5,0])
+    else:
+        ax3 = fig.add_subplot(gs[2:5,0:2])
     col_labels = ("Parameter", "Value")
     ax3.axis("off")
     
@@ -182,14 +191,20 @@ def plot_tiling(tiling, run_settings):
         elif type(value) is list:
             if len(value) <= 10:
                 fmt_table.append([key, str(value)])
-        # Leave all other values as is
-        else:
+        # Leave all other values as is (but don't plot the description, as it
+        # is already at the top of the plot and likely to be long
+        elif key != "description":
             fmt_table.append([key, value])
     
     settings_tab = ax3.table(cellText=fmt_table, colLabels=col_labels, 
                              loc="center")
-    settings_tab.set_fontsize(7)
-    settings_tab.scale(1.0,0.6)
+    if plot_other:
+        settings_tab.set_fontsize(7)
+        settings_tab.scale(1.0, 0.6)
+    else:
+        settings_tab.auto_set_font_size(False)
+        settings_tab.set_fontsize(9.5)
+        #settings_tab.scale(2.2, 1.2)
     
     # -------------------------------------------------------------------------
     # Create plots for all tiles, as well as each magnitude range
@@ -210,7 +225,7 @@ def plot_tiling(tiling, run_settings):
         # Number of Targets per Tile
         # ---------------------------------------------------------------------
         # Plot a histogram of the number of targets per tile
-        ax4.append(fig.add_subplot(gs[i,1]))
+        ax4.append(fig.add_subplot(gs[i,2]))
         ax4[-1].hist(targets_by_mag_range[i], 
                      bins=np.arange(0, max(targets_per_tile)+1, 1), 
                      color=colour, align='right', label=label)
@@ -234,6 +249,14 @@ def plot_tiling(tiling, run_settings):
             tile_mean = 0
             tile_median = 0
         
+        # Now plot text describing the number of tiles, targets, stats, and
+        # completion target for all histogram plots (with the exception of 
+        # skipping completion target on the total histogram)
+        if i > 0:
+            completeness = run_settings["completeness_targets"][i-1] * 100
+            ax4[-1].text(0.5, 0.4, "%5.2f %% Completion" % completeness,
+                         ha="center", transform=ax4[-1].transAxes)
+        
         ax4[-1].text(0.5, 0.5, "Mean: %i, Median: %i" % (tile_mean, 
                                                          tile_median),
                      ha="center", transform=ax4[-1].transAxes)
@@ -245,12 +268,14 @@ def plot_tiling(tiling, run_settings):
         ax4[-1].text(0.5, 0.7, 
                      "{:,} Tiles".format(len(tiles_by_mag_range[i])),
                      ha="center", transform=ax4[-1].transAxes)
+                     
+        
          
         # ---------------------------------------------------------------------
         # Number of standards per tile
         # ---------------------------------------------------------------------
         # Plot a histogram of the number of standards per tile
-        ax5.append(fig.add_subplot(gs[i,2]))
+        ax5.append(fig.add_subplot(gs[i,3]))
         ax5[-1].hist(standards_by_mag_range[i], 
                      bins=max(standards_per_tile), color=colour, 
                      align='right', label=label)
@@ -286,7 +311,7 @@ def plot_tiling(tiling, run_settings):
         # Number of guides per tile
         # ---------------------------------------------------------------------
         # Plot a histogram of the number of guides per tile
-        ax6.append(fig.add_subplot(gs[i,3]))
+        ax6.append(fig.add_subplot(gs[i,4]))
         ax6[-1].hist(guides_by_mag_range[i], bins=max(guides_per_tile), 
                      color=colour, align='right', label=label)
         ax6[-1].vlines(run_settings["GUIDES_PER_TILE"], ax6[-1].get_ylim()[0], 
@@ -320,7 +345,7 @@ def plot_tiling(tiling, run_settings):
         # Number of sky per tile
         # ---------------------------------------------------------------------
         # Plot a histogram of the number of sky per tile
-        ax7.append(fig.add_subplot(gs[i,4]))
+        ax7.append(fig.add_subplot(gs[i,5]))
         ax7[-1].hist(sky_by_mag_range[i], bins=max(sky_per_tile), 
                      color=colour, align='right', label=label)
         ax7[-1].vlines(run_settings["SKY_PER_TILE"], ax6[-1].get_ylim()[0], 
