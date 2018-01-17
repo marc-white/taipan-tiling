@@ -23,7 +23,7 @@ from taipan.core import compute_target_difficulties
 def retile_fields(cursor, field_list, tiles_per_field=1,
                   tiling_time=datetime.datetime.now(),
                   disqualify_below_min=True, restrict_targets=True,
-                  delete_queued=False, bins=5,
+                  delete_queued=False, bins=len(field_list),
                   repick_after_complete=False,
                   do_priorities=True,
                   multicores=7, assign_sky_fibres=False):
