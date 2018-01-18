@@ -1248,6 +1248,7 @@ def sim_do_night(cursor, date, date_start, date_end,
                           tiling_time=local_utc_now,
                           disqualify_below_min=False,
                           multicores=4,
+                          bins=len(fields_to_retile)/20 + 1
                           # prisci=prioritize_lowz_today,
                           )
             # logger.setLevel(logging.INFO)
