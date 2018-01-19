@@ -1416,11 +1416,12 @@ def compute_target_difficulties(target_list, full_target_list=None,
     if full_target_list:
         if verbose:
             'Checking target_list against full_target_list...'
-        # Notes about np.in1d - fails for object arrays that are unsortable. This is not a
-        # problem for the Taipan code, but for FunnelWeb, which implements object level
-        # equivalence (i.e. __eq__, __ne__, __cmp__), this check will always raise an 
-        # exception, even when the arrays are subsets. Future versions of numpy will fix 
-        # this, but for now a workaround is needed. See issue links for more details:
+        # Notes about np.in1d - fails for object arrays that are unsortable. 
+        # This is not a problem for the Taipan code, but for FunnelWeb, which 
+        # implements object level equivalence (i.e. __eq__, __ne__, __cmp__), 
+        # this check will always raise an exception, even when the arrays are 
+        # subsets. Future versions of numpy will fix this, but for now a 
+        # workaround is needed. See issue links for more details:
         # 1) https://github.com/numpy/numpy/issues/9874
         # 2) https://github.com/numpy/numpy/issues/9914
         if not isinstance(target_list[0], FWTarget) \
@@ -1482,7 +1483,8 @@ def compute_target_difficulties(target_list, full_target_list=None,
     return
 
 
-def targets_in_range(ra, dec, target_list, dist, leafsize=BREAKEVEN_KDTREE, tree=None):
+def targets_in_range(ra, dec, target_list, dist, leafsize=BREAKEVEN_KDTREE, 
+                     tree=None):
     """
     Return the subset of ``target_list`` within ``dist`` of (``ra``, ``dec``).
 
@@ -2390,8 +2392,8 @@ class TaipanTarget(TaipanPoint):
 
 
 class FWTarget(TaipanTarget):
-    """Derived class for the FunnelWeb survey, primarily to allow object equivalence and
-    having sky fibres
+    """Derived class for the FunnelWeb survey, primarily to allow object 
+    equivalence.
     """
     def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
@@ -2419,20 +2421,21 @@ class FWTarget(TaipanTarget):
         mag : float, optional
             Target magnitude. Defaults to None.
         h0, vpec, lowz : Boolean, optional
-            Booleans denoting if a target is an H0 target, a low-redshift (lowz)
-            target, or a peculiar velocity (vpec) target. All default to False.
+            Booleans denoting if a target is an H0 target, a low-redshift 
+            (lowz) target, or a peculiar velocity (vpec) target. All default 
+            to False.
         science : Boolean, optional
             Denotes this target as a science target. Defaults to True
         assign_science : Boolean, optional
-            Do we automatically assign the science flag based on standard and guide 
+            Do we automatically assign the science flag based on standard/guide 
             flags? Defaults to True
         sky: boolean
             Denotes this target as a science target. Defaults to False.
         """
         # Initialise the base class
-        TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard, guide, 
-                              difficulty, mag, h0, vpec, lowz, science, assign_science,
-                              sky)
+        TaipanTarget.__init__(self, idn, ra, dec, usposn, priority, standard,
+                              guide, difficulty, mag, h0, vpec, lowz, science,
+                              assign_science, sky)
         
     def __repr__(self):
         return 'FW TGT %s' % str(self._idn)
@@ -2440,24 +2443,28 @@ class FWTarget(TaipanTarget):
     def __str__(self):
         return 'FW TGT %s' % str(self._idn)
 
-    # Two FWTargets should be considered equal if they have the same ID, and status as
-    # science/standard/guide/sky targets.
+    # Two FWTargets should be considered equal if they have the same ID, and 
+    # status as science/standard/guide/sky targets.
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (self.idn == other.idn) and (self.standard == other.standard) \
-                   and (self.guide == other.guide) and (self.sky == other.sky)
+            return ((self.idn == other.idn) 
+                    and (self.standard == other.standard)
+                    and (self.guide == other.guide) 
+                    and (self.sky == other.sky))
         return False
     
     def __ne__(self, other):
         if isinstance(other, self.__class__):
-            return not((self.idn == other.idn) and (self.standard == other.standard) 
-                    and (self.guide == other.guide) and (self.sky == other.sky))
+            return not((self.idn == other.idn) 
+                       and (self.standard == other.standard) 
+                       and (self.guide == other.guide)
+                       and (self.sky == other.sky))
         return True
     
     def __cmp__(self, other):
         if isinstance(other, self.__class__):
-            if (self.idn == other.idn) and (self.standard == other.standard) \
-                and (self.guide == other.guide) and (self.sky == other.sky):
+            if ((self.idn == other.idn) and (self.standard == other.standard) 
+                and (self.guide == other.guide) and (self.sky == other.sky)):
                 return 0
         return 1
         
@@ -3202,9 +3209,10 @@ class TaipanTile(TaipanPoint):
             
         disqualify_below_min : bool
             Denotes whether to
-            rank tiles with a nubmer of guides below :any:`GUIDES_PER_TILE_MIN`
-            or a number of standards below :any:`STANDARDS_PER_TILE_MIN` a
-            score of 0. Defaults to True.
+            rank tiles with a number of guides below :any:`GUIDES_PER_TILE_MIN`,
+            a number of standards below :any:`STANDARDS_PER_TILE_MIN` or a
+            number of skies below :any:`SKY_PER_TILE_MIN`score of 0. 
+            Defaults to True.
             
         exp_base : float
             The exponential base used for 'priority-expsum` tile scores.
@@ -3230,11 +3238,24 @@ class TaipanTile(TaipanPoint):
         if method not in SCORE_METHODS:
             raise ValueError('Scoring method must be one of %s' 
                 % str(SCORE_METHODS))
-
-        # Bail out now if tile doesn't meet guide or standards requirements
+        
+        # Count the number of sky fibres that have been allocated, but have 
+        # not yet been assigned targets. This must be considered in cases
+        # where we aren't allocating actual targets to the sky fibres, but
+        # are still marking
+        allocated_but_not_assigned_sky = len([fibre for fibre in self.fibres 
+                                              if self._fibres[fibre] == "sky"])
+                                                                         
+        # Bail out now if tile doesn't meet guide/standard/sky requirements
+        # i.e. if the tile does not have the minimum number of guides,  
+        # standards, or either the minimum allocated/assigned sky fibres
+        # (that it is acceptable to have > SKY_PER_TILE fibres assigned with
+        # "sky" or allocated with actual sky targets)
         if disqualify_below_min and (self.count_assigned_targets_guide() 
             < GUIDES_PER_TILE_MIN or self.count_assigned_targets_standard()
-            < STANDARDS_PER_TILE_MIN):
+            < STANDARDS_PER_TILE_MIN or (self.count_assigned_targets_sky() 
+            < SKY_PER_TILE_MIN and allocated_but_not_assigned_sky 
+            < SKY_PER_TILE_MIN)):
             return 0.
 
         # Get all the science targets
@@ -4129,14 +4150,14 @@ class TaipanTile(TaipanPoint):
 
         removed_targets = []
         
-        # Each TaipanTile object will have a different set of fibres reserved as sky 
-        # fibres. Grab these and assign sky "targets" to them
-        FIBRES_SKY = [fibre for fibre in self.fibres if self.fibres[fibre] ==
+        # Each TaipanTile object will have a different set of fibres reserved  
+        # as sky fibres. Grab these and assign sky "targets" to them
+        FIBRES_SKY = [fibre for fibre in self.fibres if self._fibres[fibre] ==
                       "sky"]
 
         # Calculate rest positions for all sky fibres
-        fibre_posns = {fibre: self.compute_fibre_posn(fibre) for fibre in
-                       FIBRES_SKY}
+        fibre_posns_sky = {fibre: self.compute_fibre_posn(fibre) for fibre in
+                           FIBRES_SKY}
         
         # Calculate rest positions for all non-guide fibres
         # DONE: Consideration for avoiding standard fibres
@@ -4150,7 +4171,7 @@ class TaipanTile(TaipanPoint):
 
         # Reset the sky fibres
         for fibre in FIBRES_SKY:
-            self.fibres[fibre] = None
+            self._fibres[fibre] = None
         
         # Create a copy
         sky_this_tile = sky_targets[:]
@@ -4159,7 +4180,8 @@ class TaipanTile(TaipanPoint):
             sky_this_tile = [g for g in sky_this_tile
                              if g.dist_point((self.ra, self.dec, )) <
                              TILE_RADIUS]
-
+        
+        # Sort the sky targets
         if rank_sky:
             logging.debug('Sorting input sky list by priority')
             sky_this_tile.sort(key=lambda x: -1 * x.priority)
@@ -4168,7 +4190,7 @@ class TaipanTile(TaipanPoint):
             # Instead of having randomly ordered sky, let's rank them
             # by the distance to their nearest sky fibre
             sky_this_tile.sort(key=lambda x: np.min([
-                x.dist_point(posn) for posn in fibre_posns.itervalues()
+                x.dist_point(posn) for posn in fibre_posns_sky.itervalues()
             ]))
 
         # Assign up to SKY_PER_TILE sky, check how many have already
@@ -4187,8 +4209,8 @@ class TaipanTile(TaipanPoint):
                 continue
 
             # Identify the closest fibre to this target
-            fibre_dists = {fibre: sky.dist_point(fibre_posns[fibre])
-                for fibre in fibre_posns}
+            fibre_dists = {fibre: sky.dist_point(fibre_posns_sky[fibre])
+                for fibre in fibre_posns_sky}
             permitted_fibres = sorted([fibre for fibre in fibre_dists
                 if fibre_dists[fibre] < PATROL_RADIUS],
                 key=lambda x: fibre_dists[x])
@@ -4197,7 +4219,7 @@ class TaipanTile(TaipanPoint):
             logging.debug('Looking to add to fiber...')
             candidate_found = False
             while not(candidate_found) and len(permitted_fibres) > 0:
-                if self._fibres[permitted_fibres[0]] == "sky":
+                if self._fibres[permitted_fibres[0]] == None:
                     # Assign the target and 'pop' it from the input list
                     self._fibres[permitted_fibres[0]] = sky_this_tile.pop(0)
                     candidate_found = True
@@ -4214,7 +4236,7 @@ class TaipanTile(TaipanPoint):
                 sky_this_tile.pop(0)
 
         assigned_objs = self.get_assigned_targets()
-
+        
         # If we have not assigned to the minimum accepted number of sky fibres,
         # but have exhausted all possibilities, we now have to remove science
         # targets to reach the minimum accepted.
@@ -4288,13 +4310,13 @@ class TaipanTile(TaipanPoint):
                     burn = sky_this_tile.pop(i)
                     continue
                     
-                # Remove the offending targets from the tile, and assign the sky
+                # Remove offending targets from the tile, and assign the sky
                 fibres_for_removal = [f for (f, t) in self._fibres.iteritems()
                     if t in problem_targets[i]]
                     
                 for f in fibres_for_removal:
                     removed_targets.append(self.unassign_fibre(f))
-                    
+ 
                 self._fibres[permitted_fibres[0]] = sky_this_tile[i]
                 assigned_sky += 1
                 
@@ -4302,7 +4324,7 @@ class TaipanTile(TaipanPoint):
                 burn = problem_targets.pop(i)
                 burn = problem_targets_rankings.pop(i)
                 burn = sky_this_tile.pop(i)
-
+        
         return removed_targets
         
 
