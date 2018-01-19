@@ -22,6 +22,8 @@ from threading import Thread, Lock
 from joblib import Parallel, delayed
 import functools
 from matplotlib.cbook import flatten
+from astropy.coordinates import SkyCoord
+from astropy import units
 #XXX
 #import matplotlib.pyplot as plt
 
@@ -108,7 +110,7 @@ def compute_bounds(ra_min, ra_max, dec_min, dec_max):
 
 
 def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max, 
-                     compute_bounds_forcoords=True):
+                     compute_bounds_forcoords=True, gal_lat_limit=None):
     """
     Check if the tile is within the specified bounds.
 
@@ -123,7 +125,11 @@ def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max,
     compute_bounds : bool
         Boolean value, denoting whether to use the convert_bounds
         function to ensure the bounds are in standard format. Defaults to True.
-
+    
+    gal_lat_limit: float
+        Absolute value, |b|, indicating whether to exclude part of the galacti
+        plane.
+        
     Returns
     -------
     within_bounds : bool
@@ -140,9 +146,22 @@ def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max,
         within_ra = within_ra or (tile.ra - 360. >= ra_min)
 
     within_dec = (tile.dec >= dec_min) and (tile.dec <= dec_max)
+    
+    # If galactic latitude constraint has been provided, evaluate tile
+    if gal_lat_limit:
+        # Convert tile RA/DEC to Galactic coordinates
+        tile_gal_coord = SkyCoord(ra=tile.ra*units.degree, 
+                                  dec=tile.dec*units.degree).galactic
+        
+        # Determine whether the tile is off the plane
+        within_gal_lat = np.abs(tile_gal_coord.b.value) > gal_lat_limit
+
+    else:
+        # If gal_lat_limit not supplied, assume irrelevant
+        within_gal_lat = True
 
     # print 'Individual RA, dec: %s, %s' % (str(within_ra), str(within_dec))
-    within_bounds = within_ra and within_dec
+    within_bounds = within_ra and within_dec and within_gal_lat
     return within_bounds
 
 
