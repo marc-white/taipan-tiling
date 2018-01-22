@@ -11,7 +11,7 @@
 
 import logging
 
-import core as tp
+import taipan.core as tp
 import time
 import random
 import math
@@ -653,7 +653,7 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
                 assign_sky_fibres=False if sky_targets is None else True, )
             i += 1
             logging.info('Tile %d complete...' % i)
-        print 'Tiling complete!'
+        print('Tiling complete!')
         # If we are using 'random' or 'average' tiling_method, and no targets
         # have been successfully assigned, switch over to 'random-target' method
         # and return to the top of the loop

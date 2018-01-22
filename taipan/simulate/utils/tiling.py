@@ -26,7 +26,7 @@ def retile_fields(cursor, field_list, tiles_per_field=1,
                   delete_queued=False, bins=1,
                   repick_after_complete=False,
                   do_priorities=True,
-                  multicores=7, assign_sky_fibres=False):
+                  multicores=7, assign_sky_fibres=True):
     """
     Re-tile the fields passed.
 

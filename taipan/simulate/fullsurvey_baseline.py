@@ -109,6 +109,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                            prepare_time=ts.utc_local_dt(
                                datetime.datetime.combine(
                                    date_start, datetime.time(12, 0))),
+                           assign_sky_fibres=True,
                            commit=True)
         end = datetime.datetime.now()
         delta = end - start

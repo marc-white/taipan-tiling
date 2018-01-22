@@ -26,6 +26,7 @@ from taipandb.resources.stable.readout.readCentroids import execute as rCexec
 from taipandb.resources.stable.readout.readGuides import execute as rGexec
 from taipandb.resources.stable.readout.readStandards import execute as rSexec
 from taipandb.resources.stable.readout.readScience import execute as rScexec
+from taipandb.resources.stable.readout.readSkies import execute as rSkexec
 from taipandb.resources.stable.readout.readTileScores import execute as rTSexec
 from taipandb.resources.stable.readout.readCentroidsAffected import execute as rCAexec
 from taipandb.resources.stable.readout.readScienceTypes import execute as rSTyexec
@@ -130,6 +131,7 @@ def _field_period_reshuffle(f,
 
 
 def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
+                   assign_sky_fibres=True,
                    commit=True):
     """
     Perform initial database set-up at the start of the run
@@ -167,6 +169,8 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
         candidate_targets = rScexec(cursor)
         guide_targets = rGexec(cursor)
         standard_targets = rSexec(cursor)
+        if assign_sky_fibres:
+            sky_targets = rSkexec(cursor)
 
         logging.info(SIMULATE_LOG_PREFIX+'Generating first pass of tiles')
         # TEST ONLY: Trim the tile list to 10 to test DB write-out
@@ -179,11 +183,13 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
                                               standard_targets,
                                               guide_targets,
                                               1,
+                                              sky_targets=sky_targets if
+                                              assign_sky_fibres else None,
                                               tiles=field_tiles,
                                               repeat_targets=True,
                                               tile_unpick_method='sequential',
                                               sequential_ordering=(2, 1),
-                                              multicores=7
+                                              multicores=7,
                                               )
         # logger.setLevel(old_level)
         logging.info('First tile pass complete!')
