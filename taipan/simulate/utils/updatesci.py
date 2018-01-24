@@ -17,6 +17,7 @@ import numpy as np
 def update_science_targets(cursor,
                            target_list=None, field_list=None,
                            do_tp=True, do_d=True,
+                           priority_function=tsl.compute_target_priorities_tree,
                            prisci=False):
     """
     Compute updates to science types, priorities & difficulties and
@@ -40,6 +41,12 @@ def update_science_targets(cursor,
     do_d
         Boolean denoting whether to compute difficulties1 (True) or not
         (False). Defaults to True.
+    priority_function : function
+        Function to be used to compute the target priorities.
+        The default function is
+        :any:`taipan.simulate.logic.compute_target_priorities_tree`; this
+        should only need to be changed at runtime for more specific testing,
+        e.g. science commissioning with specialized target catalogues.
 
     Returns
     -------
@@ -64,7 +71,7 @@ def update_science_targets(cursor,
         target_info_array.sort(order='target_id')
         if do_tp:
             # Recompute the priorities
-            priors_temp = tsl.compute_target_priorities_tree(
+            priors_temp = priority_function(
                 target_info_array, prisci=prisci
             )
             target_info_array['priority'] = priors_temp

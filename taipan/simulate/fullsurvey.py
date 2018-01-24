@@ -55,6 +55,7 @@ import taipandb.resources.stable.manipulate.makeNSciTargets as mNScT
 from taipandb.scripts.connection import get_connection
 
 from simulate import test_redshift_success
+import taipan.simulate.logic as tsl
 
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
@@ -976,7 +977,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                  # prisci=True,
                  check_almanacs=True,
                  commit=True, kill_time=None,
-                 prisci_end=None):
+                 prisci_end=None,
+                 priority_function=tsl.compute_target_priorities_tree):
     """
     Do a simulated 'night' of observations.
 
@@ -1245,6 +1247,7 @@ def sim_do_night(cursor, date, date_start, date_end,
             # Re-do the priorities just to be sure
             update_science_targets(cursor, field_list=fields_to_retile,
                                    do_tp=True, do_d=False,
+                                   priority_function=priority_function,
                                    prisci=prisci)
             logging.info('Retiling fields %s' % ', '.join(str(i) for i in
                                                           fields_to_retile))

@@ -124,6 +124,37 @@ def compute_target_types(target_info_array, prisci=False):
     return tgt_types
 
 
+def compute_target_priorities_spt(target_info_array, default_priority=20,
+                                  prisci=False):
+    """
+    Compute the target priorities for the SPT test catalogue
+
+    This is quite a simple computation - anything 'done' is set to 0,
+    anything not is set to default_priority
+
+    Parameters
+    ----------
+    target_info_array
+        Numpy structured array containing the target data
+    default_priority : int
+        The default priority given to incomplete targets
+    prisci : Boolean
+        Not used.
+
+    Returns
+    -------
+    priorities:
+        List of target priorities, the order corresponding to that of the
+        targets in target_info_array
+    """
+    logging.info('Computing target priorities for SPT test catalogue')
+    priorities = np.zeros(target_info_array['target_id'].shape).astype('i')
+
+    priorities[~target_info_array['success']] = default_priority
+
+    return priorities
+
+
 def compute_target_priorities_tree(target_info_array, default_priority=0,
                                    prisci=False):
         # Initialize the priorities array with the default value
