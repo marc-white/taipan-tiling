@@ -12,8 +12,8 @@ import numpy as np
 import math
 import traceback
 
-from utils.tiling import retile_fields
-from utils.updatesci import update_science_targets
+from .utils.tiling import retile_fields
+from .utils.updatesci import update_science_targets
 
 from taipandb.scripts.connection import get_connection
 
@@ -51,9 +51,16 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
         Supplying a seed will not work if the Python environment variable
         :any:`PYTHONHASHSEED` has been set.
 
+    This function is effectively a complex wrapper for
+    :any:`taipan.simulate.fullsurvey.sim_do_night`. It calls this function
+    for each night of the survey in sequence, varying the passed arguments
+    based on the current night and the survey options defined by the
+    arguments passed to it. It is also capable of trigerring the initial
+    tiling of the survey, if required.
+
     Tiling outputs are written to the database (to simulate the action of
     the virtual observer). Anything generated and written out to file will end
-    up in output_loc (although currently nothing is)
+    up in output_loc (although currently nothing is).
 
     Parameters
     ----------

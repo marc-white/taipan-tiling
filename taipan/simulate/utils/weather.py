@@ -8,6 +8,7 @@ from scipy.stats import truncnorm
 def value_from_trunc_norm(loc, scale, trim_low, trim_high):
     """
     INTERNAL HELPER FUNCTION
+
     Get a value from a PDF described by a truncated normal.
 
     Parameters
@@ -36,27 +37,28 @@ def value_from_trunc_norm(loc, scale, trim_low, trim_high):
     return rv
 
 
-def simulate_weather_interrupt(datetime, weather_function, **kwargs):
-    """
-    Simulate a weather interruption using a pre-defined, date-specific
-    weather function. This function acts as a wrapper for those functions.
-
-    Parameters
-    ----------
-    date:
-        The current datetime. This is important for some of the weather
-        functions, which will return success of failure with a probability
-        dependent on the date.
-    **kwargs
-
-    Returns
-    -------
-    weather_fail:
-        A Boolean value denoting if a weather fail has been triggered.
-    datetime_to:
-        A datetime at which the weather block can be considered complete. Will
-        be None if weather_fail is False.
-    """
+# def simulate_weather_interrupt(datetime, weather_function, **kwargs):
+#     """
+#     Simulate a weather interruption using a pre-defined, date-specific
+#     weather function. This function acts as a wrapper for those functions.
+#
+#     Parameters
+#     ----------
+#     date:
+#         The current datetime. This is important for some of the weather
+#         functions, which will return success of failure with a probability
+#         dependent on the date.
+#     **kwargs
+#
+#     Returns
+#     -------
+#     weather_fail:
+#         A Boolean value denoting if a weather fail has been triggered.
+#     datetime_to:
+#         A datetime at which the weather block can be considered complete. Will
+#         be None if weather_fail is False.
+#     """
+#     pass
 
 
 def wf_flat(dt, prob=0.005, fail_mean=120., fail_width=120., **kwargs):

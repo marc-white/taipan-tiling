@@ -15,18 +15,18 @@ dec_min = -75
 dec_max = 20.
 
 # Generate the tiling
-print 'Making tiling...'
+print('Making tiling...')
 #tile_list = tl.generate_SH_tiling('ipack.3.402.txt',
 #tile_list = tl.generate_SH_tiling('ipack.3.8192.txt',
-tile_list = tl.generate_SH_tiling('ipack.3.2040.txt',
+# tile_list = tl.generate_SH_tiling('ipack.3.2040.txt',
 #tile_list = tl.generate_SH_tiling('ipack.3.4112.txt',
+tile_list = tl.generate_SH_tiling('icover.3.15872.23.23.txt',
 	randomise_seed=True,
 	randomise_pa=True)
-print 'Done!'
+print('Done!')
 
 tile_list = [tile for tile in tile_list if ra_min < tile.ra < ra_max]
 tile_list = [tile for tile in tile_list if dec_min < tile.dec < dec_max]
-print len(tile_list)
 # sys.exit()
 
 clf()
@@ -34,7 +34,7 @@ fig = gcf()
 ax = fig.add_subplot(111, projection='aitoff')
 ax.grid(True)
 
-print 'Commencing plotting...'
+print('Commencing plotting...')
 i = 1
 for tile in tile_list:
 	tile_verts = np.asarray([tp.compute_offset_posn(tile.ra, 

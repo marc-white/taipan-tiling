@@ -157,6 +157,33 @@ def compute_target_priorities_spt(target_info_array, default_priority=20,
 
 def compute_target_priorities_tree(target_info_array, default_priority=0,
                                    prisci=False):
+    """
+    Compute the target priorities for the main test catalogue.
+
+    There are a number of priority definitions in this function, which are
+    executed on the input ``target_info_array`` in order. Therefore,
+    priority definitions towards the end of the function take precedence
+    over definitions made beforehand, should both be applicable to a particular
+    target.
+
+    To see the priority assignments being made, please look at the function
+    source code.
+
+    Parameters
+    ----------
+    target_info_array
+        Numpy structured array containing the target data
+    default_priority : int
+        The default priority given to incomplete targets
+    prisci : Boolean
+        Not used.
+
+    Returns
+    -------
+    priorities:
+        List of target priorities, the order corresponding to that of the
+        targets in target_info_array
+        """
         # Initialize the priorities array with the default value
     logging.info('Computing target priorities with prisci: %s' % str(prisci))
     priorities = np.zeros(target_info_array['target_id'].shape).astype('i')

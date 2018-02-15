@@ -10,9 +10,9 @@ import logging
 import taipan.tiling as tl
 import taipan.scheduling as ts
 
-from utils.tiling import retile_fields
-from utils.bugfail import simulate_bugfails
-from utils.updatesci import update_science_targets
+from .utils.tiling import retile_fields
+from .utils.bugfail import simulate_bugfails
+from .utils.updatesci import update_science_targets
 
 import pickle
 import numpy as np
@@ -54,7 +54,7 @@ import taipandb.resources.stable.manipulate.makeNSciTargets as mNScT
 
 from taipandb.scripts.connection import get_connection
 
-from simulate import test_redshift_success
+from .simulate import test_redshift_success
 import taipan.simulate.logic as tsl
 
 SIMULATE_LOG_PREFIX = 'SIMULATOR: '

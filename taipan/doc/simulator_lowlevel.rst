@@ -2,6 +2,12 @@
 Simulator Utilities
 *******************
 
+:any:`simulate.logic`
+=====================
+
+.. automodule:: taipan.simulate.logic
+    :members:
+
 :any:`simulate.simulate`
 ========================
 
@@ -13,13 +19,15 @@ Simulator Utilities
 
 .. automodule:: taipan.simulate.utils
 
-:any:`simulate.utils.allskymap`
--------------------------------
+..
+    :any:`simulate.utils.allskymap`
+    -------------------------------
 
-.. automodule:: taipan.simulate.utils.allskymap
-    :members:
-    :undoc-members:
-    :show-inheritance:
+    .. automodule:: taipan.simulate.utils.allskymap
+        :members:
+
+    .. autoclass:: taipan.simulate.utils.allskymap.AllSkyMap
+        :members:
 
 :any:`simulate.utils.bugfail`
 -----------------------------
