@@ -17,7 +17,7 @@ target (science object, standard, guide, sky, ...) to a particular pointing
 of the telescope. As the survey progresses, a series of circular 'tiles' are
 built-up across the sky.
 
-To implement this concept in code, we have developed :any:`python` objects
+To implement this concept in code, we have developed Python objects
 which represent targets in the Taipan survey, and the tiles they may be
 assigned to.
 
