@@ -1661,7 +1661,7 @@ class TaipanPoint(object):
     def ra(self, r):
         if r is None: raise Exception('RA may not be blank')
         if r < 0.0 or r >= 360.0: 
-            raise Exception('RA outside valid range')
+            raise Exception('RA {} outside valid range'.format(r))
         self._ra = r
 
     @property
@@ -2158,8 +2158,8 @@ class TaipanTarget(TaipanPoint):
 
     @mag.setter
     def mag(self, m):
-        if m:
-            assert (m > -10 and m < 30), "mag outside valid range"
+        if m and not np.isnan(m):
+            assert (m > -10 and m < 30), "mag {} outside valid range".format(m)
         self._mag = m
 
     @property
@@ -2693,6 +2693,7 @@ class TaipanTile(TaipanPoint):
                 'sbID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
+                'mag': tgt.mag,
                 'targetID': tgt.idn,
             } for b, tgt in self.get_assigned_targets_science(
                 return_dict=True).items()
@@ -2702,6 +2703,7 @@ class TaipanTile(TaipanPoint):
                 'sbID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
+                'mag': tgt.mag,
                 'targetID': tgt.idn,
             } for b, tgt in self.get_assigned_targets_standard(
                 return_dict=True).items()
@@ -2711,6 +2713,7 @@ class TaipanTile(TaipanPoint):
                 'sbID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
+                'mag': tgt.mag,
                 'targetID': tgt.idn,
             } for b, tgt in self.get_assigned_targets_guide(
                 return_dict=True).items()
