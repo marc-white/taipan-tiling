@@ -19,6 +19,8 @@ import copy
 
 import ephem
 
+import taipan.core as tp
+
 # ______________________________________________________________________________
 #
 # CONSTANTS
@@ -64,6 +66,9 @@ SECONDS_PER_DAY = 86400.
 
 ALMANAC_RESOLUTION_MAX = 60. * 4.
 """:obj:`float`: Maximum allowed resolution of :any:`Almanac` objects"""
+
+ZENITH_EXCLUSION_DISTANCE = 1.5 * tp.TILE_RADIUS
+""":obj:`float`: Minimum allowable approach to zenith (arcseconds)"""
 
 # Constant for converting from ephem times to MJD
 EPHEM_TO_MJD = 15019.5
@@ -740,8 +745,11 @@ class Almanac(object):
                       'bruteforce: '
                       '%1.3f, %1.3f' % (min(target), max(target)))
 
-        airmass_values = np.clip(np.where(target > np.radians(10.),
-                                          1./np.sin(target), 99.), 0., 9.)
+        airmass_values = np.clip(np.where(np.logical_and(
+            target > np.radians(10.),  # Avoid FP errors near horizons
+            target < np.radians(
+                90. - (ZENITH_EXCLUSION_DISTANCE / 3600.))  # Avoid passing thru zenith
+        ), 1./np.sin(target), 99.), 1., 9.)
 
         self.data = np.array([tuple(x) for x in
                               np.vstack((dates, airmass_values)).T.tolist()],
