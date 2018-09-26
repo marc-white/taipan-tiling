@@ -19,6 +19,8 @@ import copy
 
 import ephem
 
+import taipan.core as tp
+
 # ______________________________________________________________________________
 #
 # CONSTANTS
