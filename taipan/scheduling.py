@@ -81,6 +81,9 @@ POINTING_TIME = (SLEW_TIME + OBS_TIME) / SECONDS_PER_DAY  # days
 """:obj:`float`, days: Time for a total observation (slew + observe), in *days* 
 """
 
+# Observing constraints
+POLE_EXCLUSION_DISTANCE = 3600.  # Arcsecs
+"""Minimum distance between field centers & the celestial pole"""
 
 # ______________________________________________________________________________
 # HELPER FUNCTIONS
@@ -740,8 +743,9 @@ class Almanac(object):
                       'bruteforce: '
                       '%1.3f, %1.3f' % (min(target), max(target)))
 
-        airmass_values = np.clip(np.where(target > np.radians(10.),
-                                          1./np.sin(target), 99.), 0., 9.)
+        airmass_values = np.clip(np.where(
+            target > np.radians(10.),  # Avoid FP errors near horizons
+            1./np.sin(target), 99.), 0., 9.)
 
         self.data = np.array([tuple(x) for x in
                               np.vstack((dates, airmass_values)).T.tolist()],
