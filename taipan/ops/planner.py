@@ -35,14 +35,14 @@ def plan_period(cursor,
 
     The period of time specified needs to be *all* dark time. An error
     will be thrown if this is not the case and
-     ``check_dark_bounds`` is switched on.
+    ``check_dark_bounds`` is switched on.
 
     This function is an adaptation of
     :any:`taipan.simulate.fullsurvey.sim_do_night`.
 
     Parameters
     ----------
-    cursor : :obj:`psybopg2.connection.cursor`
+    cursor : :obj:`psycopg2.connection.cursor`
         Cursor for communicating with the database
     start_dt : :obj:`datetime.datetime`
         Start datetime of the period to plan for. Should be naive, but in UTC.
@@ -204,7 +204,7 @@ def plan_night(cursor, night, date_start, date_end,
 
     Parameters
     ----------
-    cursor : :obj:`psybopg2.connection.cursor`
+    cursor : :obj:`psycopg2.connection.cursor`
         Cursor for communicating with the database
     night : :obj:`datetime.date`
         The night to plan for. The date corresponds to the local date at the

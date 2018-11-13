@@ -7,7 +7,12 @@ Taipan Tiling API
 *****************
 
 The core functionality of the Taipan tiling code is provided by the following
-three top-level modules.
+four top-level modules.
+
+- :any:`taipan.core`
+- :any:`taipan.tiling`
+- :any:`taipan.scheduling`
+- :any:`taipan.ops`
 
 taipan.core
 ===========
@@ -30,6 +35,22 @@ taipan.scheduling
 =================
 
 .. automodule:: taipan.scheduling
+    :members:
+    :special-members:
+    :show-inheritance:
+
+taipan.ops
+==========
+
+.. automodule:: taipan.ops
+    :members:
+    :special-members:
+    :show-inheritance:
+
+taipan.ops.planner
+------------------
+
+.. automodule:: taipan.ops.planner
     :members:
     :special-members:
     :show-inheritance:
