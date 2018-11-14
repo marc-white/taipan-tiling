@@ -14,6 +14,7 @@ Contents:
    intro
    install
    overview
+   preparing
    taipan-tiling
    simulator
 
