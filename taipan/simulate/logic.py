@@ -841,16 +841,16 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
     Compute priority values for a list of targets.
 
     The input to this function should be the output of a call to the TaipanDB
-    function readScience.execute(cursor, *args, **kwargs). However, this is
+    function :any:`readScience.execute`. However, this is
     not being hard-coded here, to keep database and simulator operations
     separated.
 
     Parameters
     ----------
-    target_info_array: numpy.array object (structured)
+    target_info_array: :obj:`numpy.array` object (structured)
         A numpy structured array containing the target information, one row for
         each target.
-    default_priority : int
+    default_priority : :obj:`int`
         A default priority value to use for targets which don't satisfy any
         of the given criteria. Effectively a minimum priority. Defaults to 20.
 

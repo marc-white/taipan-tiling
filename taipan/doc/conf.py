@@ -349,8 +349,12 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
+    'http://initd.org/psycopg/docs/': None,
+    'https://rhodesmill.org/pyephem/': None,
     'https://docs.python.org/': None,
     '/Users/marc/Documents/taipan/TaipanDB/doc/_build/html/': None,
+    'https://docs.scipy.org/doc/numpy-1.13.0': None,
+    'https://docs.scipy.org/doc/scipy/reference/': None,
 }
 
 # -----

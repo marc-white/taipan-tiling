@@ -143,7 +143,7 @@ def sim_prepare_db(cursor, prepare_time=datetime.datetime.now(),
 
     Note that this function does *not* do any target loading, almanac loading
     or related functions - these should have been done previously using the
-    utitlies available in :any:`TaipanDB`.
+    utitlies available in :any:`taipandb`.
 
     Parameters
     ----------
