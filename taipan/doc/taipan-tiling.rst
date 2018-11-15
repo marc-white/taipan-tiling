@@ -54,3 +54,11 @@ taipan.ops.planner
     :members:
     :special-members:
     :show-inheritance:
+
+taipan.ops.prepare
+------------------
+
+.. automodule:: taipan.ops.prepare
+    :members:
+    :special-members:
+    :show-inheritance:
