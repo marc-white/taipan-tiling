@@ -20,6 +20,7 @@ import operator
 import os
 import random
 import string
+import datetime
 
 import numpy as np
 from matplotlib.cbook import flatten
@@ -38,11 +39,11 @@ VERSION = 0.9
 """:obj:`float`: Code version"""
 NAME = 'TaipanSurveyTiler'
 """:obj:`str`: Name for writing to tile definition files"""
-SOFTWARE_TYPE = 'SurveySimulator'
+SOFTWARE_TYPE = 'TaipanSurvey.Tiler'
 """:obj:`str`: Software type for writing to tile definition files"""
 SURVEY = 'Taipan|Taipan'
 """:obj:`str`: Survey string for writing to tile definition files"""
-TILE_CONFIG_FILE_VERSION = 0.1
+TILE_CONFIG_FILE_VERSION = 1
 """:obj:`float`:Version of tile definition file specification in use"""
 INSTRUMENT_NAME = 'AAO.Taipan'
 """:obj:`str`: Instrument name"""
@@ -59,12 +60,14 @@ JSON_DTFORMAT_TZ = r'%Y-%m-%dT%H:%M:%S%z'
 BREAKEVEN_KDTREE = 50
 """:obj:`int`: Number of points after which KDTree distance calculation is done
 
-Using a :any:`cKDTree` for computing the distances between points on a unit 
+Using a :any:`scipy.spatial.cKDTree` for computing the distances between points 
+on a unit 
 sphere (i.e. the distances/grouping of targets/tiles in the survey) is 
 vastly more efficient for large numbers of targets. However, for only a few
 targets, it is faster to just brute-force the distances between all points and
 compute target distances/clustering directly. This value is an initial guess
-for the break-even point where brute-force and :any:`cKDTree` approaches takes
+for the break-even point where brute-force and :any:`scipy.spatial.cKDTree`
+approaches takes
 approximately the same wall time (note this hasn't actually been tested at 
 all, it is a complete guess).
 """
@@ -1279,7 +1282,8 @@ def compute_offset_posn(ra, dec, dist, pa):
 
 
 def generate_ranking_list(candidate_targets,
-        method='priority', combined_weight=1.0, sequential_ordering=(2, 1)):
+                          method='priority', combined_weight=1.0,
+                          sequential_ordering=(2, 1)):
     """
     Generate a ranking list for target assignment.
 
@@ -1621,8 +1625,7 @@ def targets_in_range_tiles(tile_list, target_list, dist=TILE_RADIUS,
 class TaipanPoint(object):
     """
     A root class for :class:`TaipanTarget` and :class:`TaipanTile`,
-    including RA, Dec and
-    associated convenience functions.
+    including RA, Dec and associated convenience functions.
     """
 
     def __init__(self, ra, dec, usposn=None):
@@ -1968,8 +1971,8 @@ class TaipanTarget(TaipanPoint):
         science : Boolean, optional
             Denotes this target as a science target. defaults to True
         assign_science : Boolean, optional
-            Do we automatically assign the science flag based on standard and guide 
-            flags? Defaults to True
+            Do we automatically assign the science flag based on standard and
+            guide flags? Defaults to True
         sky: boolean
             Denotes this target as a science target. Defaults to False.
         """
@@ -2261,7 +2264,7 @@ class TaipanTarget(TaipanPoint):
     def excluded_targets_approx(self, tgts):
         """
         As for excluded_targets, but using the approximate distance calculation.
-        This will *under*estimate difficulty (by overestimating distance),
+        This will *under*-estimate difficulty (by overestimating distance),
         especially near the poles.
 
         Parameters
@@ -2607,7 +2610,7 @@ class TaipanTile(TaipanPoint):
     def pk(self):
         """:obj:`int`: Unique tile identifier
 
-        Designed for use with :any:`TaipanDB`. Should be unique, although no
+        Designed for use with :any:`taipandb`. Should be unique, although no
         attempt to enforce this is done within Python.
         """
         return self._pk
@@ -2672,13 +2675,16 @@ class TaipanTile(TaipanPoint):
         json_dict = dict()
 
         # Top-level information
-        json_dict['configFormatVersion'] = TILE_CONFIG_FILE_VERSION
+        json_dict['schemaID'] = TILE_CONFIG_FILE_VERSION
         json_dict['instrumentName'] = INSTRUMENT_NAME
         json_dict['filePurpose'] = FILE_PURPOSE
         json_dict['origin'] = [{
-            'name': SOFTWARE_TYPE,
-            'version': VERSION,
+            'name': str(SOFTWARE_TYPE),
+            'software': 'executable.name.here',
+            'version': str(VERSION),
+            'execDate': datetime.datetime.now().strftime(JSON_DTFORMAT_TZ)
         }]
+        json_dict['configFormatVersion'] = 'what.is.this'
 
         # Tile configuration
         json_dict['tilePK'] = self.pk
@@ -2690,39 +2696,49 @@ class TaipanTile(TaipanPoint):
 
         json_dict['targets'] = [
             {
-                'sbID': b,
+                'bugLemoID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
+                'pmRA': 0.0,
+                'pmDec': 0.0,
                 'mag': tgt.mag,
                 'targetID': tgt.idn,
+                'type': 'science',
             } for b, tgt in self.get_assigned_targets_science(
                 return_dict=True).items()
         ]
         json_dict['targets'] += [
             {
-                'sbID': b,
+                'bugLemoID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
+                'pmRA': 0.0,
+                'pmDec': 0.0,
                 'mag': tgt.mag,
                 'targetID': tgt.idn,
+                'type': 'std_star',
             } for b, tgt in self.get_assigned_targets_standard(
                 return_dict=True).items()
         ]
-        json_dict['guideStars'] = [
+        json_dict['targets'] += [
             {
-                'sbID': b,
+                'bugLemoID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
+                'pmRA': 0.0,
+                'pmDec': 0.0,
                 'mag': tgt.mag,
                 'targetID': tgt.idn,
+                'type': 'guide'
             } for b, tgt in self.get_assigned_targets_guide(
                 return_dict=True).items()
         ]
         json_dict['sky'] = [
             {
-                'sbID': b,
+                'bugLemoID': b,
                 'ra': self.compute_fibre_posn(b)[0],
                 'dec': self.compute_fibre_posn(b)[1],
+                'type': 'sky',
             } for b, tgt in self._fibres.items() if
             isinstance(tgt, str) and tgt == 'sky'
         ]
@@ -2868,8 +2884,8 @@ class TaipanTile(TaipanPoint):
         Returns
         -------
         dist : float, arcsecs
-            The number of arcsecs the fibre is from home. Returns :any:`np.nan`
-            if this can't be computed (e.g. sky fibre).
+            The number of arcsecs the fibre is from home. Returns
+            :any:`numpy.nan` if this can't be computed (e.g. sky fibre).
         """
         fibre_pos = self.compute_fibre_posn(fibre)
         if isinstance(self.fibres[fibre], TaipanTarget):
@@ -3214,11 +3230,11 @@ class TaipanTile(TaipanPoint):
             Denotes whether to
             rank tiles with a number of guides below :any:`GUIDES_PER_TILE_MIN`,
             a number of standards below :any:`STANDARDS_PER_TILE_MIN` or a
-            number of skies below :any:`SKY_PER_TILE_MIN`score of 0. 
+            number of skies below :any:`SKY_PER_TILE_MIN` score of 0.
             Defaults to True.
             
         exp_base : float
-            The exponential base used for 'priority-expsum` tile scores.
+            The exponential base used for ``priority-expsum`` tile scores.
             Defaults to 3.0.
 
         Returns
