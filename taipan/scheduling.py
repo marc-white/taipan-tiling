@@ -363,9 +363,10 @@ class Almanac(object):
 
     @property
     def minimum_airmass(self):
-        """:obj:`float`: minimum airmass considered 'observable'
+        """
+        :obj:`float`: minimum airmass considered 'observable'
 
-        Although called `minimum_airmass`, it is really the maximum airmass
+        Although called ``minimum_airmass``, it is really the maximum airmass
         that will be considered observable. The 'minimum' comes from it being
         the minimum altitude above the horizon considered observable.
 
@@ -574,7 +575,7 @@ class Almanac(object):
             as :obj:`None` is *strongly* recommended.
         filepath : :obj:`str`
             Directory to save the :any:`Almanac` to. Defaults to
-            :any:`alm_file_path`.
+            `alm_file_path` defined during initialization.
 
         Raises
         ------

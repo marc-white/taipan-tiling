@@ -30,13 +30,13 @@
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     # 'sphinx.ext.imgmath',
     # 'sphinx.ext.pngmath',
-    'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
 ]
 
@@ -128,7 +128,7 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'haiku'
+html_theme = 'nature'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -355,6 +355,7 @@ intersphinx_mapping = {
     '/Users/marc/Documents/taipan/TaipanDB/doc/_build/html/': None,
     'https://docs.scipy.org/doc/numpy-1.13.0': None,
     'https://docs.scipy.org/doc/scipy/reference/': None,
+    'https://pythonhosted.org/pytz/': None,
 }
 
 # -----

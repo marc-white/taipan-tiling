@@ -455,7 +455,8 @@ def compute_target_priorities_tree_deprecated(
     compute faster.
 
     The input to this function should be the output of a call to the TaipanDB
-    function readScienceTypes.execute(cursor, *args, **kwargs). However, this is
+    function :any:`taipandb.resources.stable.readout.readScienceTypes.execute`.
+    However, this is
     not being hard-coded here, to keep database and simulator operations
     separated.
 
@@ -841,7 +842,8 @@ def compute_target_priorities_percase(target_info_array, default_priority=20, ):
     Compute priority values for a list of targets.
 
     The input to this function should be the output of a call to the TaipanDB
-    function :any:`readScience.execute`. However, this is
+    function :any:`taipandb.resources.stable.readout.readScience.execute`.
+    However, this is
     not being hard-coded here, to keep database and simulator operations
     separated.
 

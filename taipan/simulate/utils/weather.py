@@ -65,6 +65,7 @@ def wf_flat(dt, prob=0.005, fail_mean=120., fail_width=120., **kwargs):
     """
     Weather function which returns a flat probability of a weather failure,
     regardless of the current datetime.
+
     Parameters
     ----------
     prob:

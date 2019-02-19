@@ -127,8 +127,8 @@ def is_within_bounds(tile, ra_min, ra_max, dec_min, dec_max,
         function to ensure the bounds are in standard format. Defaults to True.
     
     gal_lat_limit: float
-        Absolute value, |b|, indicating whether to exclude part of the galacti
-        plane.
+        Absolute value, :math:`|b|`, indicating whether to exclude part of the
+        galactic plane.
         
     Returns
     -------
@@ -454,32 +454,32 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
 
     There are several options available for the generation of tiles:
     
-    'SH' -- Sloane-Harding tiling centres. In this method, a full grid of
+    ``'SH'`` -- Sloane-Harding tiling centres. In this method, a full grid of
     SH tiles are generated, picked in a greedy fashion, and then
     consolidated. This procedure is repeated until the ``completeness_target``
     is reached.
         
-    'random' -- A tile is randomly generated within the specified RA and Dec
+    ``'random'`` -- A tile is randomly generated within the specified RA and Dec
     limits, and then picked. The process is repeated until the
     completeness_target is reached.
         
-    'random-set' -- As for 'random', but ``tiling_set_size`` tiles are generated
-    at once.
+    ``'random-set'`` -- As for ``'random'``, but ``tiling_set_size`` tiles are
+    generated at once.
         
-    'random-target' -- A tile is centred on a randomly-selected remaining
+    ``'random-target'`` -- A tile is centred on a randomly-selected remaining
     science target and is unpicked. Process is repeated until the
     ``completeness_target`` is reached.
         
-    'random-target-set' -- As for 'random-target', but ``tiling_set_size`` tiles
-    are generated at once.
+    ``'random-target-set'`` -- As for ``'random-target'``, but
+    ``tiling_set_size`` tiles are generated at once.
         
-    'average' -- A tile is generated at the average RA, Dec of the remaining
+    ``'average'`` -- A tile is generated at the average RA, Dec of the remaining
     science targets (this is a computationally cheap way of finding the
     location of highest remaining target density). The tile is then
     unpicked. The process repeats until completeness_target is reached,
     or until a tile cannot have science targets assigned to it (i.e. the
     average position contains no targets), and which point the ``tiling_method``
-    is switched to 'random_target'.
+    is switched to ``'random_target'``.
 
     Parameters
     ----------
@@ -495,12 +495,12 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
     completeness_target : float
         A float in the range :math:`(0, 1]` denoting what level of
         completeness is required to be achieved before the tiling can be 
-        considered complete. Defaults to 1.0 (that is, all science targets 
-        must be assigned).
+        considered complete. Defaults to :math:`1.0` (that is, all science
+        targets must be assigned).
         
     tiling_method : str
         String denoting which tiling method to use (see above). 
-        Defaults to 'SH' (Sloane-Harding tile distribution.)
+        Defaults to ``'SH'`` (Sloane-Harding tile distribution.)
         
     randomise_pa : bool
         Boolean value, denoting whether to randomise the PA of the
@@ -511,11 +511,14 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
         tiles. Only has an effect if ``tiling_method = 'SH'``, ``'random-set'``
          or ``'random-target-set'``. May have one of the following values:
         
-        'random '- Randomised order
-        'density' - Tiles with the highest number of candidates will be tiled
-        first.
-        'priority' - Tiles with the highest cumulative target priority will be
-        tiled first.
+        ``'random '``
+            Randomised order
+        ``'density'``
+            Tiles with the highest number of candidates will be tiled
+            first.
+        ``'priority'``
+            Tiles with the highest cumulative target priority will be
+            tiled first.
             
     randomise_SH : bool
         Boolean value denoting whether to randomise the RA position
@@ -524,21 +527,21 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
         
     tiling_file : str, path
         String containing the filepath to the Sloane-Harding tiling
-        to use if tiling_method = 'SH'. Defaults to 'ipack.3.8192.txt',
+        to use if ``tiling_method = 'SH'``. Defaults to ``'ipack.3.8192.txt'``,
         which is the best-coverage tiling for Taipan-sized tiles.
         
     ra_min, ra_max, dec_min, dec_max : float
         The min/max values for tile centre RA
-        and Dec. Defaults to 0., 360., -90. and 90., respectively.
+        and Dec. Defaults to ``0.``, ``360.``, ``-90.`` and ``90.``,
+        respectively.
         
     tiling_set_size : int
         The number of tiles to generate at a time for the 
         random-set and random-target-set tiling methods. Defaults to 1000.
         
-    tile_unpick_method, combined_weight, sequential_ordering, rank_supplements,
-    repick_after_complete : 
-        Values to pass to the tile's :any:``unpick_tile`` method for
-        target assignment. See the :any:``unpick_tile`` documentation for the
+    tile_unpick_method, combined_weight, sequential_ordering, rank_supplements, repick_after_complete
+        Values to pass to the tile's :any:`unpick_tile` method for
+        target assignment. See the :any:`unpick_tile` documentation for the
         meaning and limits of these values.
 
     Returns
@@ -547,7 +550,7 @@ def generate_tiling_byorder(candidate_targets, standard_targets, guide_targets,
         The list of TaipanTiles corresponding to the tiling generated.
         
     completeness : float
-        A float in the range [0, 1] describing the level of
+        A float in the range :math:`[0, 1]` describing the level of
         completeness achieved, that is, the percentage of targets successfully
         assigned.
         
@@ -734,8 +737,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
 
     Parameters
     ----------
-    candidate_targets, standard_targets, guide_targets : list of
-    :class:`TaipanTarget`
+    candidate_targets, standard_targets, guide_targets : list of :class:`TaipanTarget`
         The lists of science,
         standard and guide targets to consider, respectively.
         
@@ -815,6 +817,7 @@ def generate_tiling_greedy(candidate_targets, standard_targets, guide_targets,
         Any targets from candidate_targets that do not
         appear in the final tiling_list (i.e. were not assigned to a successful
         tile).
+
     """
     
     tile_list = []
@@ -1084,8 +1087,7 @@ def do_repeating_target_tile_stuff(tile, npass, candidate_targets,
         Tile to be unpicked
     npass : int
         Number of passes to make over the tile.
-    candidate_targets, standard_targets, guide_targets : list of
-    :class:`TaipanTarget`
+    candidate_targets, standard_targets, guide_targets : list of :class:`TaipanTarget`
         List of candidate science, standard and guide targets to assign
     repeat_targets : bool
         Can targets be repeated between tiles? Defaults to True.
@@ -1147,8 +1149,7 @@ def generate_tiling_greedy_npasses(candidate_targets, standard_targets,
 
     Parameters
     ----------
-    candidate_targets, standard_targets, guide_targets : list of
-    :class:`TaipanTarget`
+    candidate_targets, standard_targets, guide_targets : list of :class:`TaipanTarget`
         The lists of science,
         standard and guide targets to consider, respectively. Should be lists
         of TaipanTarget objects.
