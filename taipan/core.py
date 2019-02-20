@@ -1940,7 +1940,8 @@ class TaipanTarget(TaipanPoint):
     """
 
     # Initialisation & input-checking
-    def __init__(self, idn, ra, dec, usposn=None, priority=1, standard=False,
+    def __init__(self, idn, ra, dec, usposn=None, pm_ra=0., pm_dec=0.,
+                 priority=1, standard=False,
                  guide=False, difficulty=0, mag=None,
                  h0=False, vpec=False, lowz=False, science=True,
                  assign_science=True, sky=False):
@@ -1978,6 +1979,9 @@ class TaipanTarget(TaipanPoint):
         """
         # Initialise the base class
         TaipanPoint.__init__(self, ra, dec, usposn)
+
+        self._pm_ra = None
+        self._pm_dec = None
         
         self._idn = None
         self._priority = None
@@ -1997,6 +2001,8 @@ class TaipanTarget(TaipanPoint):
         # Insert given values
         # This causes the setter functions to be called, which does
         # error checking
+        self.pm_ra = pm_ra
+        self.pm_dec = pm_dec
         self.idn = idn
         self.priority = priority
         self.priority_original = priority
@@ -2048,6 +2054,24 @@ class TaipanTarget(TaipanPoint):
     #             return 0
     #     return 1
 
+
+    @property
+    def pm_ra(self):
+        return self._pm_ra
+
+    @pm_ra.setter
+    def pm_ra(self, r):
+        if r is None: raise ValueError('pm_ra may not be None')
+        self._pm_ra = float(r)
+
+    @property
+    def pm_dec(self):
+        return self._pm_dec
+
+    @pm_dec.setter
+    def pm_dec(self, r):
+        if r is None: raise ValueError('pm_dec may not be None')
+        self._pm_dec = float(r)
 
     @property
     def idn(self):
@@ -2699,8 +2723,8 @@ class TaipanTile(TaipanPoint):
                 'bugLemoID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
-                'pmRA': 0.0,
-                'pmDec': 0.0,
+                'pmRA': tgt.pm_ra,
+                'pmDec': tgt.pm_dec,
                 'mag': tgt.mag,
                 'targetID': tgt.idn,
                 'type': 'science',
@@ -2712,8 +2736,8 @@ class TaipanTile(TaipanPoint):
                 'bugLemoID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
-                'pmRA': 0.0,
-                'pmDec': 0.0,
+                'pmRA': tgt.pm_ra,
+                'pmDec': tgt.pm_dec,
                 'mag': tgt.mag,
                 'targetID': tgt.idn,
                 'type': 'std_star',
@@ -2725,22 +2749,26 @@ class TaipanTile(TaipanPoint):
                 'bugLemoID': b,
                 'ra': tgt.ra,
                 'dec': tgt.dec,
-                'pmRA': 0.0,
-                'pmDec': 0.0,
+                'pmRA': tgt.pm_ra,
+                'pmDec': tgt.pm_dec,
                 'mag': tgt.mag,
                 'targetID': tgt.idn,
                 'type': 'guide'
             } for b, tgt in self.get_assigned_targets_guide(
                 return_dict=True).items()
         ]
-        json_dict['sky'] = [
+        json_dict['targets'] += [
             {
                 'bugLemoID': b,
-                'ra': self.compute_fibre_posn(b)[0],
-                'dec': self.compute_fibre_posn(b)[1],
-                'type': 'sky',
-            } for b, tgt in self._fibres.items() if
-            isinstance(tgt, str) and tgt == 'sky'
+                'ra': tgt.ra,
+                'dec': tgt.dec,
+                'pmRA': tgt.pm_ra,
+                'pmDec': tgt.pm_dec,
+                'mag': tgt.mag,
+                'targetID': tgt.idn,
+                'type': 'sky'
+            } for b, tgt in self.get_assigned_targets_sky(
+                return_dict=True).items()
         ]
 
         # Router information
