@@ -80,7 +80,7 @@ def do_initial_tile(
     # mTPexec(cursor)
     # Given all fields have been tiled, don't need to specify which fields to
     # compute for
-    mNScT.execute(cursor)
+    mNScT(cursor)
 
     # Commit if requested
     if commit:
