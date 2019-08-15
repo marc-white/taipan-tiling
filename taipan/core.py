@@ -848,13 +848,21 @@ if len(FIBRES_NORMAL) + len(FIBRES_GUIDE) != INSTALLED_FIBRES:
                     'check the fibre configuration variables in taipan.py.' %
                     (len(FIBRES_NORMAL), len(FIBRES_GUIDE), INSTALLED_FIBRES, ))
 
-FIBRE_EXCLUSION_DIAMETER = 10.0 * 60.0  # arcsec
+# FIBRE_EXCLUSION_DIAMETER = 10.0 * 60.0  # arcsec
+# MCW 190814 - Updated value from Nu
+MICRON_PER_MM = 1000
+BUG_RADIUS = 4325  # microns
+FIBRE_EXCLUSION_DIAMETER = (
+                               (BUG_RADIUS + 1500) * 2.
+                           ) / MICRON_PER_MM * ARCSEC_PER_MM
 """:obj:`float`, arcseconds: The exclusion diameter of a fibre"""
 FIBRE_EXCLUSION_RADIUS = FIBRE_EXCLUSION_DIAMETER / 2.0
 """:obj:`float`, arcseconds: The exclusion radius of a fibre
 
 Computed at module load as :any:`FIBRE_EXCLUSION_DIAMETER` :math:`/ 2.0`"""
-TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec
+# TILE_RADIUS = 3.0 * 60.0 * 60.0       # arcsec
+# MCW 190814 - Updated value from Nu
+TILE_RADIUS = 166500 / MICRON_PER_MM * ARCSEC_PER_MM  # arcsec
 """:obj:`float`, arcseconds: Radius of a Taipan tile (i.e. the radius of the 
 field plate
 
@@ -869,7 +877,9 @@ TILE_DIAMETER = 2.0 * TILE_RADIUS     # arcsec
 field plate
 
 Computed at module load from :any:`TILE_RADIUS`."""
-PATROL_RADIUS = 1.2 * 3600.           # arcsec
+# PATROL_RADIUS = 1.2 * 3600.           # arcsec
+# MCW 190814 - New value from Nu
+PATROL_RADIUS = 49500. / MICRON_PER_MM * ARCSEC_PER_MM  # arcsec
 """:obj:`float`, arcseconds: Patrol radius of any given fibre
 
 The patrol radius is the distance any fibre is permitted to move from its home
