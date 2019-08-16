@@ -12,8 +12,8 @@ import numpy as np
 import math
 import traceback
 
-from .utils.tiling import retile_fields
-from .utils.updatesci import update_science_targets
+from utils.tiling import retile_fields
+from utils.updatesci import update_science_targets
 
 from taipandb.scripts.connection import get_connection
 
