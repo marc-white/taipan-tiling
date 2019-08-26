@@ -2691,7 +2691,7 @@ class TaipanTile(TaipanPoint):
             assert (m > -10 and m < 30), "mag_min outside valid range"
         self._mag_min = m
 
-    def generate_json_dict(self, level=1):
+    def generate_json_dict(self, level=TILE_CONFIG_FILE_VERSION):
         """
         Generate a dictionary that represents the JSON configuration file
         used for passing this tile throughout the Taipan architecture
