@@ -43,7 +43,7 @@ SOFTWARE_TYPE = 'TaipanSurvey.Tiler'
 """:obj:`str`: Software type for writing to tile definition files"""
 SURVEY = 'Taipan|Taipan'
 """:obj:`str`: Survey string for writing to tile definition files"""
-TILE_CONFIG_FILE_VERSION = 1
+TILE_CONFIG_FILE_VERSION = 2
 """:obj:`float`:Version of tile definition file specification in use"""
 INSTRUMENT_NAME = 'AAO.Taipan'
 """:obj:`str`: Instrument name"""
@@ -2691,7 +2691,7 @@ class TaipanTile(TaipanPoint):
             assert (m > -10 and m < 30), "mag_min outside valid range"
         self._mag_min = m
 
-    def generate_json_dict(self):
+    def generate_json_dict(self, level=1):
         """
         Generate a dictionary that represents the JSON configuration file
         used for passing this tile throughout the Taipan architecture
@@ -2705,11 +2705,21 @@ class TaipanTile(TaipanPoint):
         :obj:`dict`
             The dictionary representing the JSON configuration file for this
             tile
+        :int:`level`
+            The version number of the JSON format to use. Valid options are:
+
+            1 - minimal (v1)
+            2 - standard (v2)
         """
+        level = int(level)
+        if level < 1 or level > 2:
+            raise ValueError('Invalid level requested ({})'.format(level))
+
         json_dict = dict()
 
         # Top-level information
-        json_dict['schemaID'] = TILE_CONFIG_FILE_VERSION
+        # json_dict['schemaID'] = TILE_CONFIG_FILE_VERSION
+        json_dict['schemaID'] = level
         json_dict['instrumentName'] = INSTRUMENT_NAME
         json_dict['filePurpose'] = FILE_PURPOSE
         json_dict['origin'] = [{
@@ -2728,58 +2738,112 @@ class TaipanTile(TaipanPoint):
             'dec': self.dec,
         }
 
-        json_dict['targets'] = [
-            {
-                'bugLemoID': b,
-                'ra': tgt.ra,
-                'dec': tgt.dec,
-                'pmRA': tgt.pm_ra,
-                'pmDec': tgt.pm_dec,
-                'mag': tgt.mag,
-                'targetID': tgt.idn,
-                'type': 'science',
-            } for b, tgt in self.get_assigned_targets_science(
-                return_dict=True).items()
-        ]
-        json_dict['targets'] += [
-            {
-                'bugLemoID': b,
-                'ra': tgt.ra,
-                'dec': tgt.dec,
-                'pmRA': tgt.pm_ra,
-                'pmDec': tgt.pm_dec,
-                'mag': tgt.mag,
-                'targetID': tgt.idn,
-                'type': 'std_star',
-            } for b, tgt in self.get_assigned_targets_standard(
-                return_dict=True).items()
-        ]
-        json_dict['targets'] += [
-            {
-                'bugLemoID': b,
-                'ra': tgt.ra,
-                'dec': tgt.dec,
-                'pmRA': tgt.pm_ra,
-                'pmDec': tgt.pm_dec,
-                'mag': tgt.mag,
-                'targetID': tgt.idn,
-                'type': 'guide'
-            } for b, tgt in self.get_assigned_targets_guide(
-                return_dict=True).items()
-        ]
-        json_dict['targets'] += [
-            {
-                'bugLemoID': b,
-                'ra': tgt.ra,
-                'dec': tgt.dec,
-                'pmRA': tgt.pm_ra,
-                'pmDec': tgt.pm_dec,
-                'mag': tgt.mag,
-                'targetID': tgt.idn,
-                'type': 'sky'
-            } for b, tgt in self.get_assigned_targets_sky(
-                return_dict=True).items()
-        ]
+        if level == 1:
+            json_dict['targets'] = [
+                {
+                    'sbID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    # 'pmRA': tgt.pm_ra,
+                    # 'pmDec': tgt.pm_dec,
+                    # 'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    # 'type': 'science',
+                } for b, tgt in self.get_assigned_targets_science(
+                    return_dict=True).items()
+            ]
+            json_dict['targets'] += [
+                {
+                    'sbID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    # 'pmRA': tgt.pm_ra,
+                    # 'pmDec': tgt.pm_dec,
+                    # 'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    # 'type': 'std_star',
+                } for b, tgt in self.get_assigned_targets_standard(
+                    return_dict=True).items()
+            ]
+            json_dict['guideStars'] = [
+                {
+                    'sbID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    # 'pmRA': tgt.pm_ra,
+                    # 'pmDec': tgt.pm_dec,
+                    # 'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    # 'type': 'guide'
+                } for b, tgt in self.get_assigned_targets_guide(
+                    return_dict=True).items()
+            ]
+            json_dict['sky'] += [
+                {
+                    'sbID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    # 'pmRA': tgt.pm_ra,
+                    # 'pmDec': tgt.pm_dec,
+                    # 'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    # 'type': 'sky'
+                } for b, tgt in self.get_assigned_targets_sky(
+                    return_dict=True).items()
+            ]
+        elif level == 2:
+            json_dict['targets'] = [
+                {
+                    'bugLemoID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    'pmRA': tgt.pm_ra,
+                    'pmDec': tgt.pm_dec,
+                    'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    'type': 'science',
+                } for b, tgt in self.get_assigned_targets_science(
+                    return_dict=True).items()
+            ]
+            json_dict['targets'] += [
+                {
+                    'bugLemoID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    'pmRA': tgt.pm_ra,
+                    'pmDec': tgt.pm_dec,
+                    'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    'type': 'std_star',
+                } for b, tgt in self.get_assigned_targets_standard(
+                    return_dict=True).items()
+            ]
+            json_dict['targets'] += [
+                {
+                    'bugLemoID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    'pmRA': tgt.pm_ra,
+                    'pmDec': tgt.pm_dec,
+                    'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    'type': 'guide'
+                } for b, tgt in self.get_assigned_targets_guide(
+                    return_dict=True).items()
+            ]
+            json_dict['targets'] += [
+                {
+                    'bugLemoID': b,
+                    'ra': tgt.ra,
+                    'dec': tgt.dec,
+                    'pmRA': tgt.pm_ra,
+                    'pmDec': tgt.pm_dec,
+                    'mag': tgt.mag,
+                    'targetID': tgt.idn,
+                    'type': 'sky'
+                } for b, tgt in self.get_assigned_targets_sky(
+                    return_dict=True).items()
+            ]
 
         # Router information
         json_dict['routable'] = 'Unknown'
