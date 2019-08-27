@@ -2534,7 +2534,7 @@ class TaipanTile(TaipanPoint):
             tile, mostly for the benefit of FunnelWeb. Defaults to None.
         """
         #Initialise the base class
-        TaipanPoint.__init__(self, ra, dec, usposn)
+        super(TaipanTile, self).__init__(ra, dec, usposn)
         #NB this should probably *always* happen as part of TaipanPoint
         #!!! Ask Marc why not?
         if self.usposn is None:
