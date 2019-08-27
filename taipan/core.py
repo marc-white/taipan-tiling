@@ -2778,7 +2778,7 @@ class TaipanTile(TaipanPoint):
                 } for b, tgt in self.get_assigned_targets_guide(
                     return_dict=True).items()
             ]
-            json_dict['sky'] += [
+            json_dict['sky'] = [
                 {
                     'sbID': b,
                     'ra': tgt.ra,
