@@ -989,7 +989,8 @@ def sim_do_night(cursor, date, date_start, date_end,
                  check_almanacs=True,
                  commit=True, kill_time=None,
                  prisci_end=None,
-                 priority_function=tsl.compute_target_priorities_tree):
+                 priority_function=tsl.compute_target_priorities_tree,
+                 assign_sky_fibres=True):
     """
     Do a simulated 'night' of observations.
 
@@ -1268,8 +1269,9 @@ def sim_do_night(cursor, date, date_start, date_end,
                           tiling_time=local_utc_now,
                           disqualify_below_min=False,
                           multicores=4,
-                          bins=len(fields_to_retile)/20 + 1
+                          bins=len(fields_to_retile)/20 + 1,
                           # prisci=prioritize_lowz_today,
+                          assign_sky_fibres=assign_sky_fibres,
                           )
             # logger.setLevel(logging.INFO)
             # Test use only

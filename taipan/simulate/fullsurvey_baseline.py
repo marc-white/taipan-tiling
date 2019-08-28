@@ -34,7 +34,7 @@ SIMULATE_LOG_PREFIX = 'SIMULATOR: '
 
 def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             instant_dq=False, seed=None, kill_time=None,
-            prior_lowz_end=None, weather_loss=0.4,
+            prior_lowz_end=None, weather_loss=0.0,
             priority_function=tsl.compute_target_priorities_tree):
     """
     Execute the baseline-case simulation.
@@ -168,7 +168,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
                              instant_dq=instant_dq, check_almanacs=False,
                              commit=True, kill_time=kill_time,
                              prisci_end=prior_lowz_end,
-                             priority_function=priority_function)
+                             priority_function=priority_function,
+                             assign_sky_fibres=False)
         else:
             logging.info('WEATHER LOSS: Lost %s to weather' %
                          curr_date.strftime('%Y-%m-%d'))
@@ -245,8 +246,8 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
 
 if __name__ == '__main__':
 
-    sim_start = datetime.date(2019, 8, 16)
-    sim_end = datetime.date(2019, 8, 30)
+    sim_start = datetime.date(2019, 9, 1)
+    sim_end = datetime.date(2019, 9, 21)
     global_start = datetime.datetime.now()
     prior_lowz_end = datetime.date(2022, 7, 1) - sim_start
 

@@ -1988,7 +1988,7 @@ class TaipanTarget(TaipanPoint):
             Denotes this target as a science target. Defaults to False.
         """
         # Initialise the base class
-        TaipanPoint.__init__(self, ra, dec, usposn)
+        super(TaipanTarget, self).__init__(ra, dec, usposn)
 
         self._pm_ra = None
         self._pm_dec = None
@@ -3463,6 +3463,10 @@ class TaipanTile(TaipanPoint):
         for f in self._fibres.keys():
             if self._fibres[f] == 'sky':
                 _ = self.unassign_fibre(f)
+            if isinstance(
+                    self._fibres[f], TaipanTarget
+            ) and self._fibres[f].sky:
+                _ = self.unassign_fibre(f)
 
         def random_or_none(l):
             try:
@@ -3513,6 +3517,10 @@ class TaipanTile(TaipanPoint):
         # Remove existing sky fibres
         for f in self._fibres.keys():
             if self._fibres[f] == 'sky':
+                _ = self.unassign_fibre(f)
+            if isinstance(
+                    self._fibres[f], TaipanTarget
+            ) and self._fibres[f].sky:
                 _ = self.unassign_fibre(f)
 
         if seed_fibre is None:
