@@ -296,7 +296,7 @@ if __name__ == '__main__':
     logging.debug('Doing execute function')
     execute(cursor, sim_start, sim_end,
             instant_dq=True,
-            output_loc='.', prep_db=False, kill_time=kill_time,
+            output_loc='.', prep_db=True, kill_time=kill_time,
             seed=100, prior_lowz_end=prior_lowz_end,
             priority_function=tsl.compute_target_priorities_spt)
 
