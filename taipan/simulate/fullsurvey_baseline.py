@@ -212,7 +212,7 @@ def execute(cursor, date_start, date_end, output_loc='.', prep_db=True,
             # tp.TARGET_PER_TILE = 270
             # tp.FIBRES_PER_TILE = 309
             # tp.INSTALLED_FIBRES = 309
-            tp._alter_fibres(no_fibres=300)
+            tp._alter_fibres(no_fibres='upgrade')
             # Lose 30 days to the upgrade
             curr_date += datetime.timedelta(days=30.)
             # Need to now do:
