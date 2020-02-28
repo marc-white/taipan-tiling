@@ -2195,8 +2195,8 @@ class TaipanTarget(TaipanPoint):
 
     @mag.setter
     def mag(self, m):
-        if m and not np.isnan(m) and round(m) != -99:
-            assert (m > -10 and m < 30), "mag {} outside valid range".format(m)
+        if m and not np.isnan(m):
+            assert ((m > -10 and m < 30) or round(m) == -99), "mag {} outside valid range".format(m)
         self._mag = m
 
     @property
