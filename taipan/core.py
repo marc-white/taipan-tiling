@@ -74,19 +74,19 @@ all, it is a complete guess).
 
 
 # Instrument variables
-TARGET_PER_TILE = 120
+TARGET_PER_TILE = 79
 """:obj:`int`: The maximum number of science targets to be assigned per tile"""
 STANDARDS_PER_TILE = 10
 """:obj:`int`: The maximum number of standard targets to be assigned per tile"""
 STANDARDS_PER_TILE_MIN = 5
 """:obj:`int`: The minimum number of standard targets a tile must have to be 
 valid"""
-SKY_PER_TILE = 20
+SKY_PER_TILE = 15
 """:obj:`int`: The maximum number of sky targets to be assigned per tile"""
-SKY_PER_TILE_MIN = 20
+SKY_PER_TILE_MIN = 10
 """:obj:`int`: The minimum number of sky targets a tile must have to be 
 valid"""
-GUIDES_PER_TILE = 9
+GUIDES_PER_TILE = 3
 """:obj:`int`: The maximum number of guide targets to be assigned per tile"""
 GUIDES_PER_TILE_MIN = 3
 """:obj:`int`: The minimum number of standard targets a tile must have to be 
@@ -100,7 +100,7 @@ This is computed at module load as
 ``FIBRES_PER_TILE = (TARGET_PER_TILE + STANDARDS_PER_TILE 
 + SKY_PER_TILE + GUIDES_PER_TILE)``.
 """
-INSTALLED_FIBRES = 159
+INSTALLED_FIBRES = 107
 """:obj:`int`: The number of fibres installed in the instrument.
 
 This value is simply a number. 
@@ -855,7 +855,7 @@ if len(FIBRES_NORMAL) + len(FIBRES_GUIDE) != INSTALLED_FIBRES:
                     ' not match the set value for INSTALLED_FIBRES (%d). '
                     'Please '
                     'check the fibre configuration variables in taipan.py.' %
-                    (len(FIBRES_NORMAL), len(FIBRES_GUIDE), INSTALLED_FIBRES, ))
+                    (len(FIBRES_GUIDE), len(FIBRES_NORMAL), INSTALLED_FIBRES, ))
 
 # FIBRE_EXCLUSION_DIAMETER = 10.0 * 60.0  # arcsec
 # MCW 190814 - Updated value from Nu
